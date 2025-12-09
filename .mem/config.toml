@@ -1,0 +1,21 @@
+# mem configuration file
+
+[project]
+name = "My Project"
+description = "Project description"
+type = "python"  # or "typescript", "rust", etc.
+
+[context]
+# Files to always include in onboard
+important_files = [
+    "README.md",
+]
+
+# Directories to scan for context
+scan_directories = ["src/"]
+
+[rules.python]
+# Python-specific coding patterns and rules
+style = "Follow PEP 8"
+type_hints = "Always use type hints"
+testing = "Use pytest for testing"
