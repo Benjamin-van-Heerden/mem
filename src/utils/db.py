@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from src.env_settings import ENV_SETTINGS
+from env_settings import ENV_SETTINGS
 
 
 def get_db_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
