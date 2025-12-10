@@ -6,18 +6,13 @@ to provide comprehensive context for AI agents working on the project.
 """
 
 import logging
-import sqlite3
 import sys
+import tomllib
 from pathlib import Path
 from typing import Optional
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
-
-from src.env_settings import ENV_SETTINGS
-from src.utils.db import ensure_mem_initialized, get_db_connection
+from env_settings import ENV_SETTINGS
+from src.utils.db import DBCursorCtx, ensure_mem_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +41,8 @@ def read_file_safely(file_path: Path) -> Optional[str]:
     return None
 
 
-def get_active_specs(conn: sqlite3.Connection) -> list[dict]:
+def get_active_specs(cursor) -> list[dict]:
     """Get all active specs with their associated tasks"""
-    cursor = conn.cursor()
-
     # Get active specs
     cursor.execute("""
         SELECT id, title, file_path, status, created_at, updated_at
@@ -65,11 +58,11 @@ def get_active_specs(conn: sqlite3.Connection) -> list[dict]:
         # Get tasks for this spec
         cursor.execute(
             """
-            SELECT id, title, file_path, status, parent_id, created_at
+            SELECT id, title, detail, status, parent_id, created_at
             FROM tasks
             WHERE spec_id = ? AND parent_id IS NULL
             ORDER BY created_at
-        """,
+            """,
             (spec["id"],),
         )
 
@@ -80,11 +73,11 @@ def get_active_specs(conn: sqlite3.Connection) -> list[dict]:
             # Get subtasks for this task
             cursor.execute(
                 """
-                SELECT id, title, file_path, status, created_at
+                SELECT id, title, detail, status, created_at
                 FROM tasks
                 WHERE parent_id = ?
                 ORDER BY created_at
-            """,
+                """,
                 (task["id"],),
             )
 
@@ -97,9 +90,8 @@ def get_active_specs(conn: sqlite3.Connection) -> list[dict]:
     return specs
 
 
-def get_open_todos(conn: sqlite3.Connection) -> list[dict]:
+def get_open_todos(cursor) -> list[dict]:
     """Get all open todos"""
-    cursor = conn.cursor()
     cursor.execute("""
         SELECT id, title, description, created_at
         FROM todos
@@ -110,16 +102,15 @@ def get_open_todos(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in cursor.fetchall()]
 
 
-def get_recent_logs(conn: sqlite3.Connection, limit: int = 5) -> list[dict]:
+def get_recent_logs(cursor, limit: int = 5) -> list[dict]:
     """Get recent work logs"""
-    cursor = conn.cursor()
     cursor.execute(
         """
         SELECT id, file_path, created_at
         FROM work_logs
         ORDER BY created_at DESC
         LIMIT ?
-    """,
+        """,
         (limit,),
     )
 
@@ -155,6 +146,8 @@ def format_specs_context(specs: list[dict]) -> str:
                 output.append(
                     f"  {status_icon} Task #{task['id']}: {task['title']} ({task['status']})"
                 )
+                if task.get("detail"):
+                    output.append(f"      Detail: {task['detail']}")
 
                 # List subtasks
                 if task["subtasks"]:
@@ -163,6 +156,8 @@ def format_specs_context(specs: list[dict]) -> str:
                         output.append(
                             f"    {sub_icon} Subtask #{subtask['id']}: {subtask['title']} ({subtask['status']})"
                         )
+                        if subtask.get("detail"):
+                            output.append(f"        Detail: {subtask['detail']}")
         else:
             output.append("\n### Tasks: None")
 
@@ -270,23 +265,15 @@ def onboard():
     # Read configuration
     config = read_config()
 
-    # Connect to database
-    try:
-        conn = get_db_connection()
-    except Exception as e:
-        logger.error(f"Error connecting to database: {e}")
-        sys.exit(1)
-
     # Gather context
     try:
-        specs = get_active_specs(conn)
-        todos = get_open_todos(conn)
-        recent_logs = get_recent_logs(conn)
+        with DBCursorCtx() as cursor:
+            specs = get_active_specs(cursor)
+            todos = get_open_todos(cursor)
+            recent_logs = get_recent_logs(cursor)
     except Exception as e:
         logger.error(f"Error gathering context: {e}")
         sys.exit(1)
-    finally:
-        conn.close()
 
     # Build output
     output_sections = []

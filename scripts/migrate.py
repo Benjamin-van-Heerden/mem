@@ -24,7 +24,7 @@ from pathlib import Path
 # Add parent directory to path so we can import from src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.env_settings import ENV_SETTINGS
+from env_settings import ENV_SETTINGS
 from src.utils.migrations_runner import MigrationTool
 
 # Configure logging

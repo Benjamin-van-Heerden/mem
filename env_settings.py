@@ -12,7 +12,7 @@ class EnvSettings(BaseSettings):
     """
 
     # Absolute path to the mem repo itself
-    mem_working_dir: Path = Path(__file__).resolve().parent.parent
+    mem_working_dir: Path = Path(__file__).resolve().parent
 
     @property
     def migrations_dir(self) -> Path:
@@ -30,9 +30,19 @@ class EnvSettings(BaseSettings):
         return self.caller_dir / ".mem"
 
     @property
+    def mem_dir_stripped(self) -> str:
+        """The .mem directory in the caller's project"""
+        return ".mem/"
+
+    @property
     def db_file(self) -> Path:
         """Path to the SQLite database"""
         return self.mem_dir / "mem.db"
+
+    @property
+    def db_file_stripped(self) -> str:
+        """Path to the SQLite database"""
+        return ".mem/mem.db"
 
     @property
     def config_file(self) -> Path:
@@ -40,19 +50,29 @@ class EnvSettings(BaseSettings):
         return self.mem_dir / "config.toml"
 
     @property
+    def config_file_stripped(self) -> str:
+        """Path to the config.toml file"""
+        return ".mem/config.toml"
+
+    @property
     def specs_dir(self) -> Path:
         """Directory for spec markdown files"""
         return self.mem_dir / "specs"
 
     @property
-    def tasks_dir(self) -> Path:
-        """Directory for task markdown files"""
-        return self.mem_dir / "tasks"
+    def specs_dir_stripped(self) -> str:
+        """Directory for spec markdown files"""
+        return ".mem/specs"
 
     @property
     def logs_dir(self) -> Path:
         """Directory for work log files"""
         return self.mem_dir / "logs"
+
+    @property
+    def logs_dir_stripped(self) -> str:
+        """Directory for work log files"""
+        return ".mem/logs"
 
 
 def get_env_settings():
