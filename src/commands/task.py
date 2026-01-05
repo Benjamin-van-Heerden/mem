@@ -1,0 +1,179 @@
+"""
+Task command - Manage tasks within specs
+"""
+
+from typing import Optional
+
+import typer
+from typing_extensions import Annotated
+
+from src.utils import specs, tasks
+
+app = typer.Typer(help="Manage tasks")
+
+
+def _get_active_spec_slug() -> str:
+    """Get active spec slug or raise error with helpful message."""
+    active = specs.get_active_spec()
+    if not active:
+        typer.echo("Error: No active spec.", err=True)
+        typer.echo("\nYou must be on a spec branch to work with tasks.", err=True)
+        typer.echo("Options:", err=True)
+        typer.echo("  1. Switch to a spec branch: mem spec activate <slug>", err=True)
+        typer.echo("  2. Specify a spec: mem task <command> --spec <slug>", err=True)
+
+        # List available specs
+        todo_specs = specs.list_specs(status="todo")
+        if todo_specs:
+            typer.echo("\nAvailable specs:", err=True)
+            for s in todo_specs:
+                typer.echo(f"  - {s['slug']}: {s['title']}", err=True)
+
+        raise typer.Exit(code=1)
+    return active["slug"]
+
+
+def _resolve_spec_slug(spec_slug: Optional[str]) -> str:
+    """Resolve spec slug, using active spec if not provided."""
+    if spec_slug:
+        spec = specs.get_spec(spec_slug)
+        if not spec:
+            raise ValueError(f"Spec '{spec_slug}' not found")
+        return spec_slug
+
+    return _get_active_spec_slug()
+
+
+def _find_task_by_title(spec_slug: str, title: str) -> str:
+    """Find task filename by title (case-insensitive partial match)."""
+    filename = tasks.find_task_by_title(spec_slug, title)
+    if not filename:
+        raise ValueError(f"Task '{title}' not found in spec '{spec_slug}'")
+    return filename
+
+
+@app.command()
+def new(
+    title: Annotated[str, typer.Argument(help="Title of the task")],
+    description: Annotated[
+        str, typer.Argument(help="Description of what this task involves")
+    ],
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    Create a new task.
+
+    Requires an active spec (be on a spec branch) unless --spec is provided.
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_file = tasks.create_task(resolved_slug, title, description)
+
+        typer.echo(f"Created task: {task_file.name}")
+        typer.echo(f"  Spec: {resolved_slug}")
+
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("list")
+def list_tasks_cmd(
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    List tasks for a specification.
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_list = tasks.list_tasks(resolved_slug)
+
+        if not task_list:
+            typer.echo(f"No tasks found for spec '{resolved_slug}'.")
+            return
+
+        typer.echo(f"\nTasks for '{resolved_slug}':\n")
+        for task in task_list:
+            status_icon = "[x]" if task["status"] == "completed" else "[ ]"
+            typer.echo(f"{status_icon} {task['title']}")
+
+            # List subtasks (now embedded in frontmatter)
+            subtask_list = task.get("subtasks", [])
+            for sub in subtask_list:
+                sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
+                typer.echo(f"    {sub_icon} {sub['title']}")
+
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def complete(
+    title: Annotated[str, typer.Argument(help="Task title (partial match supported)")],
+    notes: Annotated[
+        str, typer.Argument(help="Completion notes describing what was done")
+    ],
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    Mark a task as complete with notes.
+
+    Appends completion notes to the task body and marks it as completed.
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_filename = _find_task_by_title(resolved_slug, title)
+
+        # Check for incomplete subtasks
+        if tasks.has_incomplete_subtasks(resolved_slug, task_filename):
+            typer.echo(
+                "Error: Cannot complete task with incomplete subtasks.", err=True
+            )
+            subtask_list = tasks.list_subtasks(resolved_slug, task_filename)
+            incomplete = [s for s in subtask_list if s["status"] != "completed"]
+            typer.echo("\nIncomplete subtasks:", err=True)
+            for s in incomplete:
+                typer.echo(f"  - {s['title']}", err=True)
+            raise typer.Exit(code=1)
+
+        tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
+        typer.echo(f"Completed task: {title}")
+
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def delete(
+    title: Annotated[str, typer.Argument(help="Task title (partial match supported)")],
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    Delete a task.
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_filename = _find_task_by_title(resolved_slug, title)
+        tasks.delete_task(resolved_slug, task_filename)
+        typer.echo(f"Deleted task: {title}")
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+if __name__ == "__main__":
+    app()

@@ -1,0 +1,35 @@
+[project]
+name = "mem"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gitpython>=3.1.45",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "pygithub>=2.8.1",
+    "pytest>=9.0.2",
+    "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
+    "textual>=6.8.0",
+    "typer>=0.20.0",
+]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+search-path = ["./"]
+permissive-ignores = true
+
+[dependency-groups]
+dev = [
+    "filelock>=3.18.0",
+    "pytest-xdist>=3.8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-n auto --dist=loadscope"

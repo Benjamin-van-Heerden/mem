@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Run main.py with uv, staying in the caller's directory
+uv run python "$SCRIPT_DIR/main.py" "$@"
