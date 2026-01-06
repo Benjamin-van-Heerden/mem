@@ -10,9 +10,7 @@ from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
 from src.commands.sync import (
-    git_commit_and_push,
     git_fetch_and_pull,
-    git_has_mem_changes,
 )
 from src.utils import specs, tasks
 from src.utils.github.api import (
@@ -361,7 +359,7 @@ def activate(
         branch_name = spec.get("branch")
         if not branch_name:
             # Create a new branch name for this spec
-            user_slug = slugify(current_gh_user)
+            user_slug = slugify(current_gh_user)  # type: ignore
             branch_name = f"dev-{user_slug}-{spec_slug}"
 
         typer.echo(f"Activating spec: {title}")
