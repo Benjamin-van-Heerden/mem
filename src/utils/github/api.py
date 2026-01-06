@@ -2,6 +2,7 @@
 GitHub API utilities for labels, issues, and pull requests.
 """
 
+import re
 from typing import Any, Dict, List, Optional
 
 from github import GithubException, Issue, PullRequest, Repository
@@ -342,6 +343,79 @@ def close_issue_with_comment(
         return issue
     except GithubException as e:
         raise GitHubError(f"Failed to close issue #{issue_number}: {e}")
+
+
+def list_merge_ready_prs(
+    repo: Repository.Repository,
+    base_branch: str = "dev",
+) -> List[Dict[str, Any]]:
+    """
+    List open PRs targeting base_branch that are ready to merge.
+
+    Looks for PRs with "[Complete]:" in the title (our convention from mem spec complete).
+
+    Args:
+        repo: PyGithub Repository instance
+        base_branch: The branch PRs should target (default: dev)
+
+    Returns:
+        List of dicts with PR info:
+            - number: PR number
+            - title: PR title (with [Complete]: prefix stripped)
+            - author: GitHub username
+            - issue_number: Linked issue number (from "Closes #X" in body) or None
+            - checks_passing: bool or None if no checks
+            - mergeable: bool or None if unknown
+            - html_url: Link to PR
+            - head_branch: Branch name to delete after merge
+    """
+    try:
+        pulls = repo.get_pulls(state="open", base=base_branch)
+        result = []
+
+        for pr in pulls:
+            # Only include PRs with [Complete]: in title
+            if "[Complete]:" not in pr.title:
+                continue
+
+            # Extract issue number from body (look for "Closes #X")
+            issue_number = None
+            if pr.body:
+                match = re.search(r"Closes\s+#(\d+)", pr.body, re.IGNORECASE)
+                if match:
+                    issue_number = int(match.group(1))
+
+            # Check if checks are passing
+            checks_passing = None
+            try:
+                commit = repo.get_commit(pr.head.sha)
+                combined_status = commit.get_combined_status()
+                if combined_status.total_count > 0:
+                    checks_passing = combined_status.state == "success"
+            except GithubException:
+                pass
+
+            # Clean title for display
+            display_title = (
+                pr.title.replace("[Complete]:", "").replace("[Complete]: ", "").strip()
+            )
+
+            result.append(
+                {
+                    "number": pr.number,
+                    "title": display_title,
+                    "author": pr.user.login,
+                    "issue_number": issue_number,
+                    "checks_passing": checks_passing,
+                    "mergeable": pr.mergeable,
+                    "html_url": pr.html_url,
+                    "head_branch": pr.head.ref,
+                }
+            )
+
+        return result
+    except GithubException as e:
+        raise GitHubError(f"Failed to list pull requests: {e}")
 
 
 def get_pull_request_by_url(
