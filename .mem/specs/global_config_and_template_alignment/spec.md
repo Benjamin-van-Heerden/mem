@@ -5,9 +5,9 @@ assigned_to: Benjamin-van-Heerden
 issue_id: 3
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/3
 branch: dev-benjamin_van_heerden-global_config_and_template_alignment
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/4
 created_at: '2026-01-06T13:42:32.138219'
-updated_at: '2026-01-06T14:27:27.545918'
+updated_at: '2026-01-06T14:27:31.800866'
 completed_at: null
 last_synced_at: '2026-01-06T14:24:05.334422'
 local_content_hash: 1e393df540afc5a0f6f9f571bae9fc1eb0c0513c06fe90f3a76931c27d94e5ed
