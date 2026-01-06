@@ -2,6 +2,7 @@
 Sync command - Bidirectional synchronization between GitHub issues and local specs
 """
 
+import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -32,6 +33,127 @@ from src.utils.sync_utils import (
 )
 
 app = typer.Typer(help="Synchronize with GitHub")
+
+
+def git_fetch_and_pull() -> tuple[bool, str]:
+    """
+    Fetch and pull from remote.
+
+    Returns:
+        (success, message) tuple
+    """
+    cwd = ENV_SETTINGS.caller_dir
+
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin"],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"git fetch failed: {e.stderr}"
+
+    try:
+        result = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            if "not possible to fast-forward" in result.stderr.lower():
+                return (
+                    False,
+                    "Cannot fast-forward. Please resolve conflicts manually and try again.",
+                )
+            return False, f"git pull failed: {result.stderr}"
+    except subprocess.CalledProcessError as e:
+        return False, f"git pull failed: {e.stderr}"
+
+    return True, "OK"
+
+
+def git_has_mem_changes() -> bool:
+    """Check if there are uncommitted changes in .mem/ directory."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "status", "--porcelain", ".mem/"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    return bool(result.stdout.strip())
+
+
+def git_commit_and_push(message: str) -> tuple[bool, str]:
+    """
+    Add .mem/ changes, commit, and push.
+
+    Returns:
+        (success, message) tuple
+    """
+    cwd = ENV_SETTINGS.caller_dir
+
+    try:
+        subprocess.run(
+            ["git", "add", ".mem/"],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"git add failed: {e.stderr}"
+
+    try:
+        subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        if "nothing to commit" in e.stdout.lower():
+            return True, "Nothing to commit"
+        return False, f"git commit failed: {e.stderr}"
+
+    try:
+        subprocess.run(
+            ["git", "push"],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"git push failed: {e.stderr}. You may need to pull first."
+
+    return True, "OK"
+
+
+def build_sync_commit_message(plan: "SyncPlan", actions_executed: int) -> str:
+    """Build a descriptive commit message for sync changes."""
+    parts = []
+
+    if plan.outbound_creates:
+        parts.append(f"created {len(plan.outbound_creates)} issue(s)")
+    if plan.outbound_updates:
+        parts.append(f"updated {len(plan.outbound_updates)} issue(s)")
+    if plan.inbound_creates:
+        parts.append(f"synced {len(plan.inbound_creates)} spec(s) from GitHub")
+    if plan.inbound_updates:
+        parts.append(f"updated {len(plan.inbound_updates)} spec(s) from GitHub")
+    if plan.specs_to_complete:
+        parts.append(f"completed {len(plan.specs_to_complete)} spec(s)")
+    if plan.todos_to_create:
+        parts.append(f"created {len(plan.todos_to_create)} todo(s)")
+
+    if parts:
+        return f"mem sync: {', '.join(parts)}"
+    return f"mem sync: {actions_executed} action(s)"
 
 
 class SyncDirection(Enum):
@@ -614,6 +736,9 @@ def sync(
     dry_run: bool = typer.Option(
         False, "--dry-run", "-n", help="Preview changes without applying them"
     ),
+    no_git: bool = typer.Option(
+        False, "--no-git", help="Skip git pull/commit/push operations"
+    ),
 ):
     """
     Bidirectional sync between GitHub issues and local specs.
@@ -622,29 +747,42 @@ def sync(
     - Inbound: GitHub issues with 'mem-spec' label -> Local specs
     - Outbound: Local specs -> GitHub issues
 
+    Also handles git operations:
+    - Pulls latest changes before syncing
+    - Commits and pushes .mem/ changes after syncing
+
     Use --dry-run to preview changes without applying them.
+    Use --no-git to skip git operations.
     """
     typer.echo("🔄 Synchronizing with GitHub...")
 
     try:
-        # 1. Setup GitHub client and repo
+        # 1. Git pull (unless --no-git or --dry-run)
+        if not no_git and not dry_run:
+            typer.echo("   Pulling latest changes...")
+            success, message = git_fetch_and_pull()
+            if not success:
+                typer.echo(f"\n❌ {message}", err=True)
+                raise typer.Exit(code=1)
+
+        # 2. Setup GitHub client and repo
         client = get_github_client()
         repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
         repo_full_name = f"{repo_owner}/{repo_name}"
         repo = client.get_repo(repo_full_name)
 
-        # 2. Fetch all data
+        # 3. Fetch all data
         typer.echo("   Fetching GitHub issues...")
         github_issues = list_repo_issues(repo, state="open")
 
         typer.echo("   Loading local specs...")
         local_specs = specs.get_all_specs()
 
-        # 3. Build sync plan
+        # 4. Build sync plan
         typer.echo("   Building sync plan...")
         plan = build_sync_plan(repo, local_specs, github_issues)
 
-        # 4. Execute or preview
+        # 5. Execute or preview
         if dry_run:
             print_sync_plan(plan)
         else:
@@ -652,6 +790,19 @@ def sync(
                 typer.echo("\n✓ Everything is in sync. No changes needed.")
             else:
                 actions_executed = execute_sync_plan(plan, repo)
+
+                # 6. Git commit and push (unless --no-git)
+                if not no_git and actions_executed > 0:
+                    if git_has_mem_changes():
+                        typer.echo("\n📤 Committing and pushing changes...")
+                        commit_message = build_sync_commit_message(
+                            plan, actions_executed
+                        )
+                        success, message = git_commit_and_push(commit_message)
+                        if not success:
+                            typer.echo(f"   ⚠ {message}", err=True)
+                        else:
+                            typer.echo("   ✓ Changes pushed to remote")
 
                 typer.echo("\n" + "=" * 60)
                 typer.echo("✅ Sync complete!")

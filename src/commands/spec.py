@@ -9,6 +9,11 @@ from git import Repo
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
+from src.commands.sync import (
+    git_commit_and_push,
+    git_fetch_and_pull,
+    git_has_mem_changes,
+)
 from src.utils import specs, tasks
 from src.utils.github.api import (
     close_issue_with_comment,
@@ -401,13 +406,22 @@ def complete(
     Complete a specification.
 
     This command:
-    1. Validates that all tasks are completed.
-    2. Commits and pushes all changes.
-    3. Creates a Pull Request on GitHub.
-    4. Marks the spec as 'merge_ready'.
-    5. Switches back to the 'dev' branch.
+    1. Pulls latest changes from remote.
+    2. Validates that all tasks are completed.
+    3. Commits and pushes all changes.
+    4. Creates a Pull Request on GitHub.
+    5. Marks the spec as 'merge_ready'.
+    6. Switches back to the 'dev' branch.
     """
     try:
+        # 0. Pull latest changes first
+        typer.echo("Pulling latest changes...")
+        success, pull_msg = git_fetch_and_pull()
+        if not success:
+            typer.echo(f"Error: {pull_msg}", err=True)
+            typer.echo("Please resolve conflicts and try again.", err=True)
+            raise typer.Exit(code=1)
+
         # 1. Get spec info
         spec = specs.get_spec(spec_slug)
         if not spec:

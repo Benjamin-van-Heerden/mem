@@ -80,15 +80,41 @@ def new(
         raise typer.Exit(code=1)
 
 
+def _truncate(text: str, max_len: int) -> str:
+    """Truncate text to max_len, adding ... if truncated."""
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
+def _get_first_lines(body: str, max_chars: int = 150) -> str:
+    """Get first portion of body text, truncated."""
+    if not body:
+        return ""
+    # Remove any heading markers and clean up
+    lines = body.strip().split("\n")
+    text = " ".join(
+        line.strip() for line in lines if line.strip() and not line.startswith("#")
+    )
+    return _truncate(text, max_chars)
+
+
 @app.command("list")
 def list_tasks_cmd(
     spec_slug: Annotated[
         Optional[str],
         typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
     ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Show full task descriptions"),
+    ] = False,
 ):
     """
     List tasks for a specification.
+
+    Shows task status, title, description preview, and subtask summary.
+    Use --verbose for full descriptions.
     """
     try:
         resolved_slug = _resolve_spec_slug(spec_slug)
@@ -99,15 +125,53 @@ def list_tasks_cmd(
             return
 
         typer.echo(f"\nTasks for '{resolved_slug}':\n")
-        for task in task_list:
-            status_icon = "[x]" if task["status"] == "completed" else "[ ]"
-            typer.echo(f"{status_icon} {task['title']}")
 
-            # List subtasks (now embedded in frontmatter)
+        for task in task_list:
+            # Status display
+            status = task["status"]
+            if status == "completed":
+                status_display = "[completed]"
+            else:
+                status_display = "[todo]"
+
+            # Title
+            typer.echo(f"{status_display} {task['title']}")
+
+            # Description (body)
+            body = task.get("body", "")
+            if verbose and body:
+                typer.echo(f"       {body.strip()}")
+            elif body:
+                preview = _get_first_lines(body)
+                if preview:
+                    typer.echo(f"       {preview}")
+
+            # Subtasks summary
             subtask_list = task.get("subtasks", [])
-            for sub in subtask_list:
-                sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
-                typer.echo(f"    {sub_icon} {sub['title']}")
+            if subtask_list:
+                completed_count = sum(
+                    1 for s in subtask_list if s["status"] == "completed"
+                )
+                total_count = len(subtask_list)
+                typer.echo(f"       Subtasks: {completed_count}/{total_count} complete")
+
+                if verbose:
+                    for sub in subtask_list:
+                        sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
+                        typer.echo(f"         {sub_icon} {sub['title']}")
+
+            # Created date
+            created = task.get("created_at", "")
+            if created:
+                # Just show the date part
+                date_part = created.split("T")[0] if "T" in created else created
+                typer.echo(f"       Created: {date_part}")
+
+            typer.echo()  # Blank line between tasks
+
+        # Summary
+        completed = sum(1 for t in task_list if t["status"] == "completed")
+        typer.echo(f"Total: {len(task_list)} task(s), {completed} completed")
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
