@@ -9,11 +9,10 @@
 # mem uses this to sync specs with GitHub issues
 github_token_env = "GITHUB_TOKEN"
 
-# Path to shared generic templates directory
-# These are reusable coding guidelines that apply across projects
-# Each template is a markdown file (e.g., python.md, react.md)
-# Example: "/Users/yourname/.config/mem/templates"
-generic_templates_location = ""
+# Path to global mem config directory
+# Contains shared config defaults and templates (in templates/ subdirectory)
+# Defaults to ~/.config/mem if not specified
+# global_config_dir = "~/.config/mem"
 
 # =============================================================================
 # PROJECT
@@ -29,7 +28,7 @@ description = """
 {project_description}
 """
 
-# Generic templates to include from generic_templates_location
+# Generic templates to include from global_config_dir/templates/
 # These are loaded and displayed during `mem onboard`
 # Example: ["python", "react"] loads python.md and react.md
 generic_templates = []

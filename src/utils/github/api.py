@@ -238,6 +238,7 @@ def update_github_issue(
     body: Optional[str] = None,
     state: Optional[str] = None,
     labels: Optional[List[str]] = None,
+    assignees: Optional[List[str]] = None,
 ) -> Issue.Issue:
     """
     Update an existing GitHub issue.
@@ -249,6 +250,7 @@ def update_github_issue(
         body: New body content (optional)
         state: New state - 'open' or 'closed' (optional)
         labels: New labels to set (replaces existing labels) (optional)
+        assignees: New assignees to set (replaces existing assignees) (optional)
 
     Returns:
         The updated Issue instance
@@ -266,6 +268,8 @@ def update_github_issue(
             edit_kwargs["state"] = state
         if labels is not None:
             edit_kwargs["labels"] = labels
+        if assignees is not None:
+            edit_kwargs["assignees"] = assignees
 
         if edit_kwargs:
             issue.edit(**edit_kwargs)
@@ -382,3 +386,101 @@ def is_pr_merged(
     if pr is None:
         return False
     return pr.merged
+
+
+def get_pr_mergeable_status(
+    repo: Repository.Repository,
+    pr_url: str,
+) -> Dict[str, Any]:
+    """
+    Get the mergeable status of a Pull Request.
+
+    Args:
+        repo: PyGithub Repository instance
+        pr_url: The full PR URL
+
+    Returns:
+        Dict with keys:
+            - exists: bool - whether the PR exists
+            - merged: bool - whether already merged
+            - mergeable: bool | None - whether it can be merged (None if unknown/checking)
+            - mergeable_state: str - 'clean', 'dirty', 'blocked', 'behind', 'unknown'
+            - pr: PullRequest | None - the PR object if it exists
+    """
+    pr = get_pull_request_by_url(repo, pr_url)
+    if pr is None:
+        return {
+            "exists": False,
+            "merged": False,
+            "mergeable": False,
+            "mergeable_state": "unknown",
+            "pr": None,
+        }
+
+    return {
+        "exists": True,
+        "merged": pr.merged,
+        "mergeable": pr.mergeable,
+        "mergeable_state": pr.mergeable_state or "unknown",
+        "pr": pr,
+    }
+
+
+def merge_pull_request(
+    pr: PullRequest.PullRequest,
+    merge_method: str = "rebase",
+    commit_message: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Merge a Pull Request.
+
+    Args:
+        pr: PyGithub PullRequest instance
+        merge_method: 'merge', 'squash', or 'rebase'
+        commit_message: Optional commit message (used for merge/squash)
+
+    Returns:
+        Dict with keys:
+            - success: bool
+            - sha: str | None - merge commit SHA if successful
+            - message: str - success/error message
+    """
+    try:
+        if commit_message:
+            result = pr.merge(merge_method=merge_method, commit_message=commit_message)
+        else:
+            result = pr.merge(merge_method=merge_method)
+
+        return {
+            "success": result.merged,
+            "sha": result.sha if result.merged else None,
+            "message": result.message or "Merged successfully",
+        }
+    except GithubException as e:
+        return {
+            "success": False,
+            "sha": None,
+            "message": f"Failed to merge: {e.data.get('message', str(e))}",
+        }
+
+
+def delete_branch(
+    repo: Repository.Repository,
+    branch_name: str,
+) -> bool:
+    """
+    Delete a branch from the remote repository.
+
+    Args:
+        repo: PyGithub Repository instance
+        branch_name: Name of the branch to delete
+
+    Returns:
+        True if deleted successfully, False otherwise
+    """
+    try:
+        ref = repo.get_git_ref(f"heads/{branch_name}")
+        ref.delete()
+        return True
+    except GithubException:
+        return False

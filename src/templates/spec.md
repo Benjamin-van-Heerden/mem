@@ -11,6 +11,11 @@
 
 {How to implement this}
 
+## Success Criteria
+
+- {Criterion 1}
+- {Criterion 2}
+
 ## Notes
 
 {Additional context}
