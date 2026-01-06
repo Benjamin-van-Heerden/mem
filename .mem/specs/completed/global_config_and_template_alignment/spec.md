@@ -1,14 +1,14 @@
 ---
 title: Global config and template alignment
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 3
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/3
 branch: dev-benjamin_van_heerden-global_config_and_template_alignment
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/4
 created_at: '2026-01-06T13:42:32.138219'
-updated_at: '2026-01-06T14:27:31.800866'
-completed_at: null
+updated_at: '2026-01-06T14:32:07.454227'
+completed_at: '2026-01-06T14:32:07.453195'
 last_synced_at: '2026-01-06T14:24:05.334422'
 local_content_hash: 1e393df540afc5a0f6f9f571bae9fc1eb0c0513c06fe90f3a76931c27d94e5ed
 remote_content_hash: 1e393df540afc5a0f6f9f571bae9fc1eb0c0513c06fe90f3a76931c27d94e5ed
