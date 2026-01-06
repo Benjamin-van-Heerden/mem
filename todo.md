@@ -18,5 +18,5 @@ PR: https://github.com/Benjamin-van-Heerden/mem/pull/2
 
 Next steps: Merge the PR on GitHub.
 (should happen with less friction, i.e. commit + push, I think maybe the order of things is wrong)
-- mem merge command, which shows a list of pr's and lets you merge them in editor. Also deletes spec branch so remote stays nice and clean
+- mem merge command, which shows a list of pr's and lets you merge them in editor.
 - sanitize tests (one would hope that our large test suite would have caught an issue like this)
