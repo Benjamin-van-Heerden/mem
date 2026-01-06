@@ -1,18 +1,18 @@
 """
 Merge command for mem.
 
-Lists PRs ready to merge, allows selection, and performs rebase merges.
+Queries GitHub for PRs ready to merge (with [Complete]: prefix),
+allows selection, and performs merges via GitHub API.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
 from env_settings import ENV_SETTINGS
-from src.utils import specs
 from src.utils.github.api import (
     delete_branch,
-    get_pr_mergeable_status,
+    list_merge_ready_prs,
     merge_pull_request,
 )
 from src.utils.github.client import get_github_client
@@ -20,10 +20,6 @@ from src.utils.github.repo import get_repo_from_git
 
 
 def merge(
-    spec_slug: Annotated[
-        Optional[str],
-        typer.Argument(help="Specific spec slug to merge (optional)"),
-    ] = None,
     all_ready: Annotated[
         bool,
         typer.Option("--all", "-a", help="Merge all ready PRs without prompting"),
@@ -33,6 +29,16 @@ def merge(
         typer.Option(
             "--dry-run", "-n", help="Show what would be merged without merging"
         ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f", help="Merge even if checks are failing (with warning)"
+        ),
+    ] = False,
+    no_sync: Annotated[
+        bool,
+        typer.Option("--no-sync", help="Skip running sync after merge"),
     ] = False,
     delete_branches: Annotated[
         bool,
@@ -45,10 +51,11 @@ def merge(
     """
     Merge pull requests for completed specs.
 
-    Lists all PRs from specs with 'merge_ready' status, checks their
-    mergeability, and allows you to select which ones to merge.
+    Queries GitHub for open PRs with '[Complete]:' in the title (created by
+    mem spec complete). Shows PR status and allows selection for merge.
 
     Uses rebase merge strategy for clean linear history.
+    After merging, runs 'mem sync' to update local state.
     """
     try:
         # Get GitHub client and repo
@@ -56,123 +63,92 @@ def merge(
         repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
         gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
 
-        # Get all merge_ready specs
-        merge_ready_specs = specs.list_specs(status="merge_ready")
+        typer.echo("Querying GitHub for merge-ready PRs...\n")
 
-        if not merge_ready_specs:
-            typer.echo("No specs with 'merge_ready' status found.")
+        # Query GitHub for PRs with [Complete]: in title
+        prs = list_merge_ready_prs(gh_repo)
+
+        if not prs:
+            typer.echo("No PRs ready to merge.")
+            typer.echo("\nPRs must have '[Complete]:' in the title to appear here.")
+            typer.echo("Use 'mem spec complete <slug> \"message\"' to create such PRs.")
             raise typer.Exit(code=0)
 
-        # Filter to specific spec if provided
-        if spec_slug:
-            merge_ready_specs = [s for s in merge_ready_specs if s["slug"] == spec_slug]
-            if not merge_ready_specs:
-                typer.echo(
-                    f"Spec '{spec_slug}' not found or not in 'merge_ready' status."
-                )
-                raise typer.Exit(code=1)
-
-        # Check PR status for each spec
+        # Categorize PRs
         ready_to_merge = []
+        checks_failing = []
         has_conflicts = []
-        already_merged = []
-        no_pr = []
 
-        typer.echo("Checking PR status...\n")
-
-        for spec in merge_ready_specs:
-            pr_url = spec.get("pr_url")
-            if not pr_url:
-                no_pr.append(spec)
-                continue
-
-            status = get_pr_mergeable_status(gh_repo, pr_url)
-
-            if not status["exists"]:
-                no_pr.append(spec)
-            elif status["merged"]:
-                already_merged.append({"spec": spec, "status": status})
-            elif status["mergeable"] is True and status["mergeable_state"] == "clean":
-                ready_to_merge.append({"spec": spec, "status": status})
-            elif status["mergeable"] is False or status["mergeable_state"] in (
-                "dirty",
-                "blocked",
-            ):
-                has_conflicts.append({"spec": spec, "status": status})
+        for pr in prs:
+            if pr["mergeable"] is False:
+                has_conflicts.append(pr)
+            elif pr["checks_passing"] is False:
+                checks_failing.append(pr)
             else:
-                # mergeable is None or state is 'behind' - might be okay
-                # GitHub is still computing or needs update
-                if status["mergeable_state"] == "behind":
-                    # Behind but no conflicts - can still merge
-                    ready_to_merge.append({"spec": spec, "status": status})
-                else:
-                    # Unknown state, treat as not ready
-                    has_conflicts.append({"spec": spec, "status": status})
+                ready_to_merge.append(pr)
 
-        # Display status
+        # Display PRs
         if ready_to_merge:
             typer.echo("Ready to merge:")
-            for i, item in enumerate(ready_to_merge, 1):
-                spec = item["spec"]
-                pr_url = spec.get("pr_url", "")
-                pr_num = pr_url.split("/")[-1] if pr_url else "?"
-                state = item["status"]["mergeable_state"]
-                state_info = f" (behind)" if state == "behind" else ""
-                typer.echo(
-                    f'  {i}. [PR #{pr_num}] {spec["slug"]} - "{spec["title"]}"{state_info}'
+            for i, pr in enumerate(ready_to_merge, 1):
+                issue_info = (
+                    f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
                 )
+                checks_info = ""
+                if pr["checks_passing"] is True:
+                    checks_info = " [checks: passing]"
+                elif pr["checks_passing"] is None:
+                    checks_info = " [checks: none]"
+                typer.echo(
+                    f"  {i}. #{pr['number']} {pr['title']}{issue_info}{checks_info}"
+                )
+                typer.echo(
+                    f"      Author: {pr['author']} | Branch: {pr['head_branch']}"
+                )
+            typer.echo()
+
+        if checks_failing:
+            typer.echo("Checks failing (use --force to merge anyway):")
+            for pr in checks_failing:
+                issue_info = (
+                    f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
+                )
+                typer.echo(f"  - #{pr['number']} {pr['title']}{issue_info}")
             typer.echo()
 
         if has_conflicts:
-            typer.echo("Has conflicts (resolve on GitHub):")
-            for item in has_conflicts:
-                spec = item["spec"]
-                pr_url = spec.get("pr_url", "")
-                pr_num = pr_url.split("/")[-1] if pr_url else "?"
-                state = item["status"]["mergeable_state"]
-                typer.echo(f"  - [PR #{pr_num}] {spec['slug']} - {state}")
+            typer.echo("Has conflicts (resolve on GitHub first):")
+            for pr in has_conflicts:
+                issue_info = (
+                    f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
+                )
+                typer.echo(f"  - #{pr['number']} {pr['title']}{issue_info}")
             typer.echo()
 
-        if already_merged:
-            typer.echo("Already merged (will update local status):")
-            for item in already_merged:
-                spec = item["spec"]
-                typer.echo(f"  - {spec['slug']}")
-            typer.echo()
-
-        if no_pr:
-            typer.echo("No PR found:")
-            for spec in no_pr:
-                typer.echo(f"  - {spec['slug']}")
-            typer.echo()
-
-        # Handle already merged specs
-        for item in already_merged:
-            spec = item["spec"]
-            typer.echo(f"Moving '{spec['slug']}' to completed (already merged)...")
-            if not dry_run:
-                specs.move_spec_to_completed(spec["slug"])
-                if delete_branches and spec.get("branch"):
-                    if delete_branch(gh_repo, spec["branch"]):
-                        typer.echo(f"  Deleted remote branch: {spec['branch']}")
+        # Include failing checks if --force
+        if force and checks_failing:
+            typer.echo("--force: Including PRs with failing checks")
+            ready_to_merge.extend(checks_failing)
 
         if not ready_to_merge:
-            if not already_merged:
-                typer.echo("No PRs ready to merge.")
+            typer.echo("No PRs ready to merge.")
+            raise typer.Exit(code=0)
+
+        # Dry run - just show what would happen
+        if dry_run:
+            typer.echo(f"Dry run: Would merge {len(ready_to_merge)} PR(s)")
             raise typer.Exit(code=0)
 
         # Select PRs to merge
-        if dry_run:
-            typer.echo("Dry run - no changes will be made.")
-            raise typer.Exit(code=0)
-
-        if all_ready:
+        if all_ready or len(ready_to_merge) == 1:
             selected = ready_to_merge
+            if len(ready_to_merge) == 1:
+                typer.echo(f"Merging PR #{ready_to_merge[0]['number']}...")
         else:
             typer.echo(
                 "Select PRs to merge (comma-separated numbers, 'all', or 'q' to quit):"
             )
-            selection = typer.prompt("Selection", default="q")
+            selection = typer.prompt("Selection", default="all")
 
             if selection.lower() == "q":
                 typer.echo("Cancelled.")
@@ -200,33 +176,35 @@ def merge(
         typer.echo(f"\nMerging {len(selected)} PR(s)...\n")
 
         success_count = 0
-        for item in selected:
-            spec = item["spec"]
-            pr = item["status"]["pr"]
-            typer.echo(f"Merging '{spec['slug']}'...")
+        for pr_info in selected:
+            typer.echo(f"Merging #{pr_info['number']}: {pr_info['title']}...")
 
+            # Get full PR object for merge
+            pr = gh_repo.get_pull(pr_info["number"])
             result = merge_pull_request(pr, merge_method="rebase")
 
             if result["success"]:
-                typer.echo(f"  Merged successfully (SHA: {result['sha'][:7]})")
+                typer.echo(f"  Merged (SHA: {result['sha'][:7]})")
                 success_count += 1
 
-                # Move spec to completed
-                specs.move_spec_to_completed(spec["slug"])
-                typer.echo(f"  Moved to completed/")
-
                 # Delete remote branch
-                if delete_branches and spec.get("branch"):
-                    if delete_branch(gh_repo, spec["branch"]):
-                        typer.echo(f"  Deleted remote branch: {spec['branch']}")
+                if delete_branches:
+                    branch = pr_info["head_branch"]
+                    if delete_branch(gh_repo, branch):
+                        typer.echo(f"  Deleted branch: {branch}")
                     else:
-                        typer.echo(
-                            f"  Warning: Could not delete branch: {spec['branch']}"
-                        )
+                        typer.echo(f"  Warning: Could not delete branch: {branch}")
             else:
                 typer.echo(f"  Failed: {result['message']}", err=True)
 
-        typer.echo(f"\nDone. {success_count}/{len(selected)} PRs merged successfully.")
+        typer.echo(f"\nMerged {success_count}/{len(selected)} PR(s).")
+
+        # Run sync to update local state
+        if not no_sync and success_count > 0:
+            typer.echo("\nRunning sync to update local state...")
+            from src.commands.sync import sync as run_sync
+
+            run_sync(dry_run=False, no_git=False)
 
     except typer.Exit:
         raise
