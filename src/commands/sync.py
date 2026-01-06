@@ -11,6 +11,7 @@ import typer
 from env_settings import ENV_SETTINGS
 from src.utils import specs, todos
 from src.utils.github.api import (
+    close_issue_with_comment,
     create_github_issue,
     get_comments,
     get_status_from_labels,
@@ -571,7 +572,7 @@ def execute_sync_plan(plan: SyncPlan, repo: Any) -> int:
                 # Todo already exists
                 typer.echo(f'   ⚠ Todo "{todo_data["title"][:30]}..." already exists')
 
-    # Move completed specs
+    # Move completed specs and close their GitHub issues
     if plan.specs_to_complete:
         typer.echo("\n✅ Moving merged specs to completed...")
         for spec in plan.specs_to_complete:
@@ -579,6 +580,21 @@ def execute_sync_plan(plan: SyncPlan, repo: Any) -> int:
                 specs.move_spec_to_completed(spec["slug"])
                 typer.echo(f'   ✓ Moved "{spec["slug"]}" to completed/')
                 actions_executed += 1
+
+                # Close the GitHub issue if it exists
+                if spec.get("issue_id"):
+                    try:
+                        pr_url = spec.get("pr_url", "")
+                        if pr_url:
+                            comment = f"Completed via PR: {pr_url}"
+                        else:
+                            comment = "Completed and merged."
+                        close_issue_with_comment(repo, spec["issue_id"], comment)
+                        typer.echo(f"   ✓ Closed issue #{spec['issue_id']}")
+                    except Exception as e:
+                        typer.echo(
+                            f"   ⚠ Could not close issue #{spec['issue_id']}: {e}"
+                        )
             except Exception as e:
                 typer.echo(f'   ⚠ Could not move "{spec["slug"]}": {e}')
 
