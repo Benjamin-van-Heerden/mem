@@ -44,8 +44,18 @@ class EnvSettings(BaseSettings):
         return self.mem_dir / "todos"
 
     @property
+    def global_config_dir(self) -> Path:
+        """Global mem config directory"""
+        return Path.home() / ".config" / "mem"
+
+    @property
+    def global_config_file(self) -> Path:
+        """Path to the global config.toml file"""
+        return self.global_config_dir / "config.toml"
+
+    @property
     def config_file(self) -> Path:
-        """Path to the config.toml file"""
+        """Path to the local config.toml file"""
         return self.mem_dir / "config.toml"
 
     @property

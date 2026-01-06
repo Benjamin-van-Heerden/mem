@@ -1,282 +1,260 @@
 # mem
 
-A command-line utility for managing project context, specifications, tasks, and work logs in agentic coding workflows.
+A command-line utility for managing project context, specifications, tasks, and work logs in AI-assisted development workflows.
 
-## Vision
+## What is mem?
 
-`mem` solves a critical problem in AI-assisted development: maintaining consistent context, tracking work history, and managing project specifications across multiple projects. Instead of duplicating `.cursorrules`, `AGENTS.md`, and workflow documentation across every project, `mem` provides a centralized, project-agnostic system that works consistently everywhere.
+`mem` solves a critical problem in AI-assisted development: maintaining consistent context across projects without duplicating documentation like `.cursorrules`, `AGENTS.md`, and workflow templates.
 
-## Core Concepts
+The project uses a **file-first, git-native** architecture where all data is stored as markdown files with YAML frontmatter. Git is the persistence layer, ensuring human readability, natural version control, and seamless GitHub integration.
 
-### Primitives
+## Core Philosophy
 
-`mem` is built around five core primitives:
-
-1. **Specs** - High-level feature specifications or project goals
-2. **Tasks** - Concrete work items linked to specs
-3. **Subtasks** - Granular breakdown of tasks (tasks with a `parent_id`)
-4. **Todos** - Detached reminders not tied to any spec or task
-5. **Work Logs** - Historical records of interactions, progress, blockers, and suggestions
-
-### Key Design Principles
-
-- **Project-agnostic**: Works the same way in any project
-- **Project-specific provisions**: Extensible for language/framework-specific rules (e.g., Python patterns)
+- **Project-agnostic**: Same commands work across Python, Node.js, Rust, or any project
 - **Context-first**: Designed for AI agents to quickly understand project state
-- **History tracking**: Accurate record of what was done, why, and how
-- **File + Database hybrid**: Markdown files for human editing, SQLite for querying
-- **Caller vs. mem directory awareness**: Clear distinction between project paths and `mem` internal paths
+- **Git-native**: Uses branches to track active specs; git history for audit trail
+- **File-based**: No database; markdown files are the source of truth
+- **History tracking**: Every interaction is logged and tracked
 
 ## Installation
 
 ```bash
-# TODO: Installation instructions
-pip install mem-cli
+# Clone the repository
+git clone https://github.com/Benjamin-van-Heerden/mem.git
+cd mem
+
+# Install with uv
+uv sync
 ```
+
+### Prerequisites
+
+- Python 3.12+
+- Git
+- GitHub CLI (`gh`)
+- `GITHUB_TOKEN` environment variable (with `repo` and `read:user` scopes)
 
 ## Quick Start
 
-### Initialize a Project
-
 ```bash
-# In your project root
+# Initialize mem in your project
 mem init
-```
 
-This creates a `.mem/` directory containing:
-- `mem.db` - SQLite database
-- `config.toml` - Project-specific configuration
-- `specs/` - Directory for specification markdown files
-- `tasks/` - Directory for task/subtask markdown files
-- `logs/` - Directory for work log files
+# Create a new spec
+mem spec new "User Authentication"
 
-### Onboard to a Project
+# Activate the spec (creates and switches to feature branch)
+mem spec activate user_authentication
 
-```bash
+# Create tasks
+mem task new "Set up OAuth" "Configure OAuth providers"
+mem subtask new "Register app" --task "Set up OAuth"
+
+# Complete work
+mem subtask complete "Register app" --task "Set up OAuth"
+mem task complete "Set up OAuth" "OAuth working with Google and GitHub"
+
+# Complete the spec (creates PR, marks as merge_ready)
+mem spec complete user_authentication "Implemented OAuth"
+
+# Sync with GitHub
+mem sync
+
+# Get context for AI agent
 mem onboard
 ```
 
-The `onboard` command constructs initial context by:
-- Reading project-specific configuration
-- Identifying important files
-- Loading active specs and their tasks
-- Providing AI agents with everything they need to start working
+## The Five Primitives
+
+### 1. Specs
+High-level feature specifications or project goals.
+- Stored in `.mem/specs/{slug}/spec.md`
+- Status: `todo`, `merge_ready`, `completed`, `abandoned`
+- Linked to GitHub issues
+- Contain goals, technical approach, success criteria
+
+### 2. Tasks
+Concrete work items linked to specs.
+- Stored in `.mem/specs/{spec_slug}/tasks/{order}_{slug}.md`
+- Status: `todo` or `completed`
+- Can have embedded subtasks
+
+### 3. Subtasks
+Granular breakdown of tasks.
+- Embedded in task frontmatter (not separate files)
+- Status: `todo` or `completed`
+- Task cannot be completed until all subtasks are done
+
+### 4. Todos
+Standalone reminders not tied to specs/tasks.
+- Quick notes with optional GitHub issue linking
+- Independent lifecycle
+
+### 5. Work Logs
+Historical records of work sessions.
+- Stored in `.mem/logs/{date}_{username}_{slug}.md`
+- Capture accomplishments, blockers, next steps
+- Linked to active specs for context tracing
 
 ## Commands
 
 ### Initialization
 
 ```bash
-mem init                    # Initialize mem in current directory
-mem config edit             # Edit project-specific configuration
+mem init                    # Initialize with GitHub integration
 ```
 
-### Specs
+Creates `.mem/` directory, validates GitHub auth, sets up branches and labels.
+
+### Specifications
 
 ```bash
-mem spec new "feature name"           # Create new spec with markdown file
-mem spec list                         # List all specs
-mem spec show <spec-id>               # Show spec details and tasks
-mem spec update <spec-id>             # Update spec status/metadata
-mem spec complete <spec-id>           # Mark spec complete (prompts for completion context)
+mem spec new "feature"      # Create new spec
+mem spec list               # List specs (optionally filter by status)
+mem spec show [slug]        # Show details and tasks
+mem spec activate <slug>    # Switch to spec's branch
+mem spec deactivate         # Switch back to dev
+mem spec complete <slug>    # Create PR, mark merge_ready
+mem spec abandon <slug>     # Move to abandoned, close issue
 ```
 
-When you create a spec:
-1. Entry created in SQLite database
-2. Markdown file created at `.mem/specs/{date}_feature_name.md`
-3. Prompt displayed: "Edit the spec file with goals and create tasks with `mem task new`"
-
-### Tasks
+### Tasks & Subtasks
 
 ```bash
-mem task new "task description"            # Create task (prompts for spec link)
-mem task new "task" --spec <spec-id>       # Create task linked to spec
-mem task list                              # List all tasks
-mem task show <task-id>                    # Show task details
-mem task update <task-id>                  # Update task status/metadata
-mem task complete <task-id>                # Mark complete (prompts for implementation details)
+mem task new <title> <desc> [--spec <slug>]  # Create task
+mem task complete <title> [--spec <slug>]    # Complete task
+
+mem subtask new <title> --task <task>        # Add subtask to task
+mem subtask complete <title> --task <task>   # Complete subtask
 ```
 
-Tasks follow the same pattern as specs:
-1. Database entry created
-2. Markdown file created at `.mem/tasks/{date}_task_description.md`
-3. AI prompted to fill in implementation details
-
-### Subtasks
+### Context & Sync
 
 ```bash
-mem subtask new "subtask" --parent <task-id>    # Create subtask under a task
-mem subtask list --parent <task-id>             # List subtasks for a task
-mem subtask complete <subtask-id>               # Mark subtask complete
-```
-
-**Important**: A task cannot be marked complete until all its subtasks are complete.
-
-### Todos
-
-```bash
-mem todo new "reminder"             # Create detached todo
-mem todo list                       # List all todos
-mem todo complete <todo-id>         # Mark todo complete
-mem todo delete <todo-id>           # Delete todo
+mem onboard                 # Build context for AI agent
+mem sync [--dry-run]        # Bidirectional GitHub sync
 ```
 
 ### Work Logs
 
 ```bash
-mem log new                         # Create new work log entry
-mem log today                       # Show today's work log
-mem log list                        # List recent work logs
-mem log show <log-id>               # Show specific work log
+mem log                     # Create or update today's work log
 ```
 
-Work logs capture:
-- What was worked on
-- What was accomplished
-- Errors or blockers encountered
-- Suggestions for next steps
+## Directory Structure
 
-### Context Building
+```
+.mem/
+├── config.toml              # Project configuration
+├── user_mappings.toml       # Git user -> GitHub username
+├── specs/
+│   ├── {slug}/
+│   │   ├── spec.md          # Spec with frontmatter
+│   │   └── tasks/
+│   │       └── 01_{slug}.md # Tasks with embedded subtasks
+│   ├── completed/           # Completed specs
+│   └── abandoned/           # Abandoned specs
+├── todos/                   # Standalone todos
+└── logs/                    # Work session logs
+```
+
+## File Format
+
+All files use YAML frontmatter + markdown body:
+
+```yaml
+---
+title: "Feature Name"
+status: "todo"
+subtasks:
+  - title: "Subtask 1"
+    status: "completed"
+  - title: "Subtask 2"
+    status: "todo"
+created_at: "2025-01-05T10:00:00"
+updated_at: "2025-01-05T10:00:00"
+---
+Markdown body content here...
+```
+
+## GitHub Integration
+
+### Two-Way Sync
+- **Outbound**: Local specs create GitHub issues with `mem-spec` label
+- **Inbound**: GitHub issues sync back to local specs
+- **Conflict detection**: Content hashes track changes on both sides
+
+### Labels
+- `mem-spec` - Marks issue as a spec
+- `mem-status:todo` - Not started
+- `mem-status:merge-ready` - Ready for review
+- `mem-status:completed` - Done
+- `mem-status:abandoned` - Abandoned
+
+## Branch-Based Workflow
+
+Active spec is determined by current git branch, not a stored status field:
 
 ```bash
-mem onboard                         # Build initial context for AI agent
-mem context refresh                 # Refresh context cache
-mem context show                    # Display current context
+# On dev branch - no active spec
+mem spec activate my_feature
+# Now on dev-username-my_feature branch - spec is active
+
+mem spec deactivate
+# Back on dev branch
 ```
+
+When you complete a spec:
+1. Status updated to `merge_ready`
+2. All changes committed and pushed
+3. Pull Request created targeting `dev`
+4. Switches back to `dev` branch
 
 ## Configuration
 
-### Project Configuration (`.mem/config.toml`)
+### `.mem/config.toml`
 
 ```toml
 [project]
 name = "My Project"
 description = "What this project is about"
-type = "python"  # or "typescript", "rust", etc.
 
 [context]
-# Files to always include in onboard
 important_files = [
     "README.md",
     "pyproject.toml",
     "src/main.py"
 ]
 
-# Directories to scan for context
-scan_directories = ["src/", "tests/"]
-
-[rules.python]
-# Python-specific coding patterns and rules
-style = "Follow PEP 8"
-type_hints = "Always use type hints"
-testing = "Use pytest for testing"
-
-[rules.typescript]
-# TypeScript-specific rules (if applicable)
-# ...
+[templates]
+generic = [
+    "path/to/coding-guidelines.md"
+]
 ```
-
-## Database Schema
-
-```sql
--- Specs
-CREATE TABLE specs (
-    id INTEGER PRIMARY KEY,
-    title TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    status TEXT DEFAULT 'active',  -- active, completed, archived
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP
-);
-
--- Tasks (and subtasks)
-CREATE TABLE tasks (
-    id INTEGER PRIMARY KEY,
-    spec_id INTEGER,
-    parent_id INTEGER,  -- NULL for tasks, set for subtasks
-    title TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    status TEXT DEFAULT 'todo',  -- todo, in_progress, blocked, completed
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    FOREIGN KEY (spec_id) REFERENCES specs(id),
-    FOREIGN KEY (parent_id) REFERENCES tasks(id)
-);
-
--- Todos
-CREATE TABLE todos (
-    id INTEGER PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    status TEXT DEFAULT 'open',  -- open, completed
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP
-);
-
--- Work Logs
-CREATE TABLE work_logs (
-    id INTEGER PRIMARY KEY,
-    file_path TEXT NOT NULL,
-    summary TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Path Handling
-
-`mem` distinguishes between two types of paths:
-
-- **Caller paths**: Relative to the directory where `mem` is invoked (the project root)
-- **Mem paths**: Relative to `.mem/` directory
-
-Example:
-- Caller path: `src/main.py` (in project)
-- Mem path: `specs/2024-01-15_new_feature.md` (in `.mem/` directory)
-
-Configuration files and database queries handle this distinction automatically.
-
-## Future Enhancements
-
-### TUI Viewer
-
-A Textual-based terminal UI for:
-- Viewing tasks by status
-- Filtering specs and tasks
-- Interactive task management
-- Work log browsing
-
-```bash
-mem tui                     # Launch interactive viewer
-```
-
-### Advanced Features
-
-- Task dependencies and blocking relationships
-- Time tracking and effort estimates
-- Export to other formats (JSON, Markdown reports)
-- Git integration for automatic work log generation
-- Multi-project views and cross-project task management
 
 ## Development
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/mem.git
-cd mem
-
-# Install in development mode
-pip install -e .
+# Install dependencies
+uv sync
 
 # Run tests
-pytest
+uv run python -m pytest tests/ -v
+
+# Run a specific test file
+uv run python -m pytest tests/test_spec_complete.py -v
 ```
 
-## Contributing
+## Technology Stack
 
-Contributions welcome! Please open an issue to discuss major changes.
+- **Language**: Python 3.12+
+- **CLI Framework**: Typer
+- **Data Validation**: Pydantic
+- **File Format**: Markdown + YAML frontmatter
+- **Git Integration**: GitPython
+- **GitHub API**: PyGithub
+- **Configuration**: TOML
 
 ## License
 
-MIT
+Do what you want

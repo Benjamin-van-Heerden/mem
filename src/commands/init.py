@@ -15,6 +15,10 @@ from src.utils.github.client import get_authenticated_user, get_github_client
 from src.utils.github.exceptions import GitHubError
 from src.utils.github.git_ops import ensure_branches_exist, switch_to_branch
 from src.utils.github.repo import get_git_user_info, get_repo_from_git
+from src.utils.spec_template import (
+    ensure_global_config_exists,
+    generate_github_issue_template,
+)
 
 
 def check_prerequisites() -> list[str]:
@@ -224,61 +228,26 @@ def init(
         typer.echo(f"⚠️  Warning: {e}", err=True)
         typer.echo("  (You can manually create branches later)")
 
-    # Step 8: Create GitHub issue template
-    typer.echo("\nStep 8/10: Creating GitHub issue template...")
+    # Step 8: Ensure global config and create GitHub issue template
+    typer.echo("\nStep 8/10: Setting up global config and GitHub issue template...")
+
+    # Ensure ~/.config/mem/ exists with default templates
+    try:
+        ensure_global_config_exists()
+        typer.echo(f"✓ Ensured global config exists: {ENV_SETTINGS.global_config_dir}")
+    except Exception as e:
+        typer.echo(f"⚠️  Warning: Could not create global config: {e}", err=True)
+
+    # Create GitHub issue template from spec template
     template_dir = ENV_SETTINGS.caller_dir / ".github" / "ISSUE_TEMPLATE"
     template_dir.mkdir(parents=True, exist_ok=True)
-    template_file = template_dir / "mem-spec.yml"
+    template_file = template_dir / "mem-spec.md"
 
-    template_content = """name: mem Specification
-description: Create a new specification for mem
-title: "[Spec]: "
-labels: ["mem-spec"]
-body:
-  - type: markdown
-    attributes:
-      value: |
-        Please fill out the specification details below.
-  - type: textarea
-    id: overview
-    attributes:
-      label: Overview
-      description: High-level summary of the specification.
-    validations:
-      required: true
-  - type: textarea
-    id: goals
-    attributes:
-      label: Goals
-      description: What are the primary goals of this feature?
-    validations:
-      required: true
-  - type: textarea
-    id: technical-approach
-    attributes:
-      label: Technical Approach
-      description: How will this be implemented?
-    validations:
-      required: true
-  - type: textarea
-    id: success-criteria
-    attributes:
-      label: Success Criteria
-      description: List the criteria for success.
-    validations:
-      required: true
-  - type: textarea
-    id: notes
-    attributes:
-      label: Notes
-      description: Additional context or references.
-    validations:
-      required: false
-"""
+    template_content = generate_github_issue_template()
     repo = None
     try:
         template_file.write_text(template_content)
-        typer.echo("✓ Created issue template: .github/ISSUE_TEMPLATE/mem-spec.yml")
+        typer.echo("✓ Created issue template: .github/ISSUE_TEMPLATE/mem-spec.md")
     except Exception as e:
         typer.echo(f"⚠️  Warning: Could not create issue template: {e}", err=True)
 

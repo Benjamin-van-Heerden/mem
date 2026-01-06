@@ -31,9 +31,10 @@ def _get_template_dir() -> Path:
 
 
 def _load_spec_template() -> str:
-    """Load the spec template file."""
-    template_file = _get_template_dir() / "spec.md"
-    return template_file.read_text()
+    """Load the spec template file, preferring global over local."""
+    from src.utils.spec_template import load_spec_template
+
+    return load_spec_template()
 
 
 def _get_specs_dir() -> Path:

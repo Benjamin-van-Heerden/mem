@@ -10,7 +10,11 @@ from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
 from src.utils import specs, tasks
-from src.utils.github.api import close_issue_with_comment, create_pull_request
+from src.utils.github.api import (
+    close_issue_with_comment,
+    create_pull_request,
+    update_github_issue,
+)
 from src.utils.github.client import get_authenticated_user, get_github_client
 from src.utils.github.exceptions import GitHubError
 from src.utils.github.git_ops import push_branch, smart_switch, switch_to_branch
@@ -37,10 +41,12 @@ def new(
         typer.echo(f"✓ Created spec: {relative_path}")
         typer.echo("\n✨ Spec created successfully!")
         typer.echo("\nNext steps:")
-        typer.echo(f"1. Edit the spec file: {relative_path}")
-        typer.echo(
-            f'2. Create tasks with: mem task new "task description" --spec {slug}'
-        )
+        typer.echo(f"  1. Edit the spec file: {relative_path}")
+        typer.echo("  2. Run 'mem sync' to create the GitHub issue")
+        typer.echo(f"  3. Run 'mem spec assign {slug}' to assign yourself")
+        typer.echo(f"  4. Run 'mem spec activate {slug}' to start working")
+        typer.echo("")
+        typer.echo("Note: Unassigned specs cannot be activated to prevent conflicts.")
 
     except ValueError as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -211,10 +217,17 @@ def show(
 @app.command()
 def assign(
     spec_slug: Annotated[str, typer.Argument(help="Slug of the specification")],
-    username: Annotated[str, typer.Argument(help="GitHub username to assign to")],
+    username: Annotated[
+        Optional[str],
+        typer.Argument(help="GitHub username to assign to (defaults to current user)"),
+    ] = None,
 ):
     """
     Assign a specification to a GitHub user.
+
+    If no username is provided, assigns to the current authenticated user.
+    The assignment is synced to GitHub to prevent multiple people working
+    on the same spec simultaneously.
     """
     try:
         spec = specs.get_spec(spec_slug)
@@ -222,8 +235,54 @@ def assign(
             typer.echo(f"❌ Error: Spec '{spec_slug}' not found.", err=True)
             raise typer.Exit(code=1)
 
+        # Get current user if no username provided
+        if not username:
+            try:
+                client = get_github_client()
+                username = get_authenticated_user(client)["username"]
+            except Exception as e:
+                typer.echo(f"❌ Error: Could not get current user: {e}", err=True)
+                raise typer.Exit(code=1)
+
+        # Check if spec is synced to GitHub
+        if not spec.get("issue_id"):
+            typer.echo(
+                f"❌ Error: Spec '{spec_slug}' is not synced to GitHub.", err=True
+            )
+            typer.echo("\nRun 'mem sync' first to create the GitHub issue.")
+            raise typer.Exit(code=1)
+
+        # Check if already assigned to someone else
+        current_assignee = spec.get("assigned_to")
+        if current_assignee and current_assignee != username:
+            typer.echo(
+                f"❌ Error: Spec is already assigned to '{current_assignee}'.", err=True
+            )
+            typer.echo(
+                "\nSpecs can only be reassigned by the current assignee or repo admin."
+            )
+            raise typer.Exit(code=1)
+
+        # Update local assignment
         specs.assign_spec(spec_slug, username)
-        typer.echo(f"✓ Spec '{spec['title']}' assigned to {username}")
+
+        # Sync assignment to GitHub
+        try:
+            client = get_github_client()
+            repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
+            repo = client.get_repo(f"{repo_owner}/{repo_name}")
+
+            update_github_issue(repo, spec["issue_id"], assignees=[username])
+            typer.echo(f"✓ Spec '{spec['title']}' assigned to {username}")
+            typer.echo("✓ Assignment synced to GitHub")
+        except Exception as e:
+            typer.echo(
+                f"⚠️  Warning: Could not sync assignment to GitHub: {e}", err=True
+            )
+            typer.echo("  Local assignment saved. Run 'mem sync' to retry.")
+
+    except typer.Exit:
+        raise
     except Exception as e:
         typer.echo(f"❌ Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -251,28 +310,59 @@ def activate(
 
         title = spec["title"]
 
-        # 2. Check if already on this spec's branch
+        # 2. Check if spec is synced to GitHub
+        if not spec.get("issue_id"):
+            typer.echo(f"Error: Spec '{spec_slug}' is not synced to GitHub.", err=True)
+            typer.echo("\nTo activate a spec, it must first be synced:")
+            typer.echo("  1. Edit the spec file if needed")
+            typer.echo("  2. Run 'mem sync' to create the GitHub issue")
+            typer.echo("  3. Run 'mem spec assign <slug>' to assign yourself")
+            typer.echo("  4. Then run 'mem spec activate <slug>'")
+            raise typer.Exit(code=1)
+
+        # 3. Check if spec is assigned
+        if not spec.get("assigned_to"):
+            typer.echo(
+                f"Error: Spec '{spec_slug}' is not assigned to anyone.", err=True
+            )
+            typer.echo("\nTo activate a spec, it must be assigned to you:")
+            typer.echo("  Run 'mem spec assign <slug>' to assign yourself")
+            raise typer.Exit(code=1)
+
+        # 4. Check if assigned to current user
+        try:
+            client = get_github_client()
+            current_gh_user = get_authenticated_user(client)["username"]
+            if spec.get("assigned_to") != current_gh_user:
+                typer.echo(
+                    f"Error: Spec '{spec_slug}' is assigned to '{spec.get('assigned_to')}', not you.",
+                    err=True,
+                )
+                typer.echo("\nYou can only activate specs assigned to you.")
+                raise typer.Exit(code=1)
+        except Exception as e:
+            if "assigned to" in str(e).lower():
+                raise
+            # If we can't verify, proceed with warning
+            typer.echo(f"Warning: Could not verify GitHub user: {e}", err=True)
+
+        # 5. Check if already on this spec's branch
         current_branch = specs.get_current_branch()
         if spec.get("branch") and current_branch == spec.get("branch"):
             typer.echo(f"Already on spec '{spec_slug}' branch: {current_branch}")
             return
 
-        # 3. Prepare branch name
+        # 6. Prepare branch name
         branch_name = spec.get("branch")
         if not branch_name:
             # Create a new branch name for this spec
-            try:
-                client = get_github_client()
-                current_gh_user = get_authenticated_user(client)["username"]
-                user_slug = slugify(current_gh_user)
-            except Exception:
-                user_slug = "user"
+            user_slug = slugify(current_gh_user)
             branch_name = f"dev-{user_slug}-{spec_slug}"
 
         typer.echo(f"Activating spec: {title}")
         typer.echo(f"Branch: {branch_name}")
 
-        # 4. Git operations
+        # 7. Git operations
         try:
             is_new = smart_switch(ENV_SETTINGS.caller_dir, branch_name)
             if is_new:
@@ -285,7 +375,7 @@ def activate(
             typer.echo("Please manually resolve the git issue and try again.", err=True)
             raise typer.Exit(code=1)
 
-        # 5. Update spec with branch name (if it was new)
+        # 8. Update spec with branch name (if it was new)
         if not spec.get("branch"):
             specs.update_spec(spec_slug, branch=branch_name)
 
@@ -362,8 +452,11 @@ def complete(
                 typer.echo(f"  - {t['title']} ({t['status']})", err=True)
             raise typer.Exit(code=1)
 
-        # 4. Git operations
+        # 4. Mark spec as merge_ready before committing
         typer.echo(f"Completing spec: {spec['title']}...")
+        specs.update_spec_status(spec_slug, "merge_ready")
+
+        # 5. Git operations
         repo = Repo(ENV_SETTINGS.caller_dir)
         branch_name = spec.get("branch")
 
@@ -382,7 +475,7 @@ def complete(
 
         repo.git.push("origin", branch_name)
 
-        # 5. GitHub PR
+        # 6. GitHub PR
         pr_url = None
         if spec.get("issue_id"):
             typer.echo("Creating Pull Request...")
@@ -402,13 +495,19 @@ def complete(
                 pr_url = pr.html_url
                 specs.update_spec_pr_url(spec_slug, pr_url)
                 typer.echo(f"Created Pull Request: {pr_url}")
+
+                # Commit and push the PR URL update
+                repo.git.add(A=True)
+                try:
+                    repo.git.commit("-m", f"Add PR URL for {spec_slug}")
+                    repo.git.push("origin", branch_name)
+                except Exception as e:
+                    if "nothing to commit" not in str(e).lower():
+                        raise e
             except Exception as e:
                 typer.echo(f"Warning: Could not create Pull Request: {e}", err=True)
         else:
             typer.echo("Warning: Spec has no GitHub issue. Skipping PR creation.")
-
-        # 6. Finalize
-        specs.update_spec_status(spec_slug, "merge_ready")
 
         # 7. Switch back to dev
         try:
