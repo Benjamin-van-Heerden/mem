@@ -1,13 +1,13 @@
 ---
 title: Onboard and workflow refinements
-status: todo
-assigned_to: null
+status: merge_ready
+assigned_to: Benjamin-van-Heerden
 issue_id: 15
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/15
-branch: null
+branch: dev-benjamin_van_heerden-onboard_and_workflow_refinements
 pr_url: null
 created_at: '2026-01-07T11:37:48.359696'
-updated_at: '2026-01-07T11:45:44.736974'
+updated_at: '2026-01-07T12:03:29.727226'
 completed_at: null
 last_synced_at: '2026-01-07T11:45:44.736098'
 local_content_hash: 5d32b8b4666bfa9179b3a7a9f52f59f860bc255eb5d73cee54ecfad51f3dfce7

@@ -12,10 +12,11 @@ from env_settings import ENV_SETTINGS
 from src.commands.sync import (
     git_fetch_and_pull,
 )
-from src.utils import specs, tasks
+from src.utils import logs, specs, tasks
 from src.utils.github.api import (
     close_issue_with_comment,
     create_pull_request,
+    sync_status_labels,
     update_github_issue,
 )
 from src.utils.github.client import get_authenticated_user, get_github_client
@@ -48,8 +49,17 @@ def new(
         typer.echo("  2. Run 'mem sync' to create the GitHub issue")
         typer.echo(f"  3. Run 'mem spec assign {slug}' to assign yourself")
         typer.echo(f"  4. Run 'mem spec activate {slug}' to start working")
+        typer.echo(
+            f'  5. Add tasks: mem task new "title" "detailed description" --spec {slug}'
+        )
         typer.echo("")
         typer.echo("Note: Unassigned specs cannot be activated to prevent conflicts.")
+        typer.echo(
+            "Note: Do not add tasks in the spec body - use 'mem task new' instead."
+        )
+        typer.echo(
+            'Note: If the spec is active, add tasks like: mem task new "title" "detailed description"'
+        )
 
     except ValueError as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -404,6 +414,13 @@ def activate(
             specs.update_spec(spec_slug, branch=branch_name)
 
         typer.echo(f"\nSpec '{spec_slug}' is now active.")
+        typer.echo("")
+        typer.echo("IMPORTANT: Mark each task complete AS SOON AS you finish it.")
+        typer.echo("Do not batch task completions - complete them one at a time.")
+        typer.echo("")
+
+        # Show spec details
+        show(spec_slug, verbose=True)
 
     except GitHubError as e:
         typer.echo(f"GitHub Error: {e}", err=True)
@@ -485,11 +502,36 @@ def complete(
                 typer.echo(f"  - {t['title']} ({t['status']})", err=True)
             raise typer.Exit(code=1)
 
-        # 4. Mark spec as merge_ready before committing
+        # 4. Validate work logs exist
+        spec_logs = logs.list_logs(limit=100, spec_slug=spec_slug)
+        if not spec_logs:
+            typer.echo(
+                f"Error: Cannot complete spec '{spec_slug}'. No work logs found.",
+                err=True,
+            )
+            typer.echo(
+                "\nAt least one work log is required before completing a spec.",
+                err=True,
+            )
+            typer.echo("Create a work log with: mem log", err=True)
+            raise typer.Exit(code=1)
+
+        # 5. Mark spec as merge_ready before committing
         typer.echo(f"Completing spec: {spec['title']}...")
         specs.update_spec_status(spec_slug, "merge_ready")
 
-        # 5. Git operations
+        # 5b. Sync merge_ready status to GitHub immediately
+        if spec.get("issue_id"):
+            try:
+                client = get_github_client()
+                repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
+                gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
+                sync_status_labels(gh_repo, spec["issue_id"], "merge_ready")
+                typer.echo("Updated GitHub issue label to 'merge_ready'")
+            except Exception as e:
+                typer.echo(f"Warning: Could not update GitHub label: {e}", err=True)
+
+        # 6. Git operations
         repo = Repo(ENV_SETTINGS.caller_dir)
         branch_name = spec.get("branch")
 
@@ -508,7 +550,7 @@ def complete(
 
         repo.git.push("origin", branch_name)
 
-        # 6. GitHub PR
+        # 7. GitHub PR
         pr_url = None
         if spec.get("issue_id"):
             typer.echo("Creating Pull Request...")
@@ -542,7 +584,7 @@ def complete(
         else:
             typer.echo("Warning: Spec has no GitHub issue. Skipping PR creation.")
 
-        # 7. Switch back to dev
+        # 8. Switch back to dev
         try:
             switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
             typer.echo("Switched back to 'dev' branch")

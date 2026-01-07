@@ -67,6 +67,46 @@ def read_file_safely(file_path: Path) -> str | None:
     return None
 
 
+def filter_readme_sections(content: str) -> str:
+    """Filter out Installation and Prerequisites sections from README content."""
+    sections_to_remove = ["installation", "prerequisites"]
+    lines = content.split("\n")
+    result_lines = []
+    skip_until_next_section = False
+    current_heading_level = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Check if this is a heading
+        if stripped.startswith("#"):
+            # Count heading level
+            heading_level = 0
+            for char in stripped:
+                if char == "#":
+                    heading_level += 1
+                else:
+                    break
+
+            # Get heading text (lowercase for comparison)
+            heading_text = stripped.lstrip("#").strip().lower()
+
+            # Check if this heading should be skipped
+            if heading_text in sections_to_remove:
+                skip_until_next_section = True
+                current_heading_level = heading_level
+                continue
+
+            # If we were skipping and hit a heading at same or higher level, stop skipping
+            if skip_until_next_section and heading_level <= current_heading_level:
+                skip_until_next_section = False
+
+        if not skip_until_next_section:
+            result_lines.append(line)
+
+    return "\n".join(result_lines)
+
+
 def get_global_config_dir(config: dict) -> Path:
     """Get the global config directory, with default to ~/.config/mem."""
     vars_config = config.get("vars", {})
@@ -187,11 +227,11 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
 
 
 def run_sync_quietly():
-    """Run sync in background, fail gracefully."""
+    """Run sync, fail gracefully."""
     try:
         from src.commands.sync import sync
 
-        sync()
+        sync(dry_run=False)
     except Exception:
         pass
 
@@ -212,11 +252,7 @@ def format_work_log_entry(log: dict[str, Any]) -> str:
 
     body = log.get("body", "").strip()
     if body:
-        # Show first 500 chars of body
-        preview = body[:500]
-        if len(body) > 500:
-            preview += "..."
-        output.append(preview)
+        output.append(body)
 
     return "\n".join(output)
 
@@ -308,6 +344,7 @@ def onboard():
         for name, content in generic_templates.items():
             output.append(f"\n## {name}\n")
             output.append(content.strip())
+            output.append("\n" + "=" * 40 + "\n")
         output.append("")
 
     # Important files
@@ -321,10 +358,14 @@ def onboard():
             desc = file_entry.get("description", "")
             content = read_file_safely(Path(path))
             if content:
+                # Filter out Installation/Prerequisites from README files
+                if path.lower().endswith("readme.md"):
+                    content = filter_readme_sections(content)
                 output.append(f"\n## {path}")
                 if desc:
                     output.append(f"*{desc}*\n")
                 output.append(content)
+                output.append("\n" + "=" * 40 + "\n")
         output.append("")
 
     # Spec context
@@ -454,8 +495,9 @@ def onboard():
             "  - Complete ONE task at a time, then STOP and await further instructions"
         )
         output.append(
-            "  - Mark tasks complete as soon as you finish them (don't batch)"
+            "  - **IMPORTANT**: Mark each task complete AS SOON AS you finish it!"
         )
+        output.append("  - Do not batch task completions - complete them one at a time")
         output.append(
             '  - When all tasks are done, run: mem spec complete <slug> "message"'
         )
