@@ -739,6 +739,9 @@ def sync(
     no_git: bool = typer.Option(
         False, "--no-git", help="Skip git pull/commit/push operations"
     ),
+    no_cleanup: bool = typer.Option(
+        False, "--no-cleanup", help="Skip branch cleanup after sync"
+    ),
 ):
     """
     Bidirectional sync between GitHub issues and local specs.
@@ -810,6 +813,14 @@ def sync(
                 typer.echo(f"   Actions executed: {actions_executed}")
                 if plan.conflicts:
                     typer.echo(f"   Conflicts skipped: {len(plan.conflicts)}")
+
+        # 7. Run cleanup (unless --no-cleanup or --dry-run)
+        if not no_cleanup and not dry_run:
+            from src.commands.cleanup import run_cleanup
+
+            deleted, _ = run_cleanup(dry_run=False, silent=True)
+            if deleted > 0:
+                typer.echo(f"\n🧹 Cleaned up {deleted} stale branch(es)")
 
     except Exception as e:
         typer.echo(f"\n❌ Sync failed: {e}", err=True)
