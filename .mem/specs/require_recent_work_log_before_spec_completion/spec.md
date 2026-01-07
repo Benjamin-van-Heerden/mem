@@ -1,13 +1,13 @@
 ---
 title: Require recent work log before spec completion
-status: todo
-assigned_to: null
+status: merge_ready
+assigned_to: Benjamin-van-Heerden
 issue_id: 17
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/17
-branch: null
+branch: dev-benjamin_van_heerden-require_recent_work_log_before_spec_completion
 pr_url: null
 created_at: '2026-01-07T12:33:26.358977'
-updated_at: '2026-01-07T12:35:00.018306'
+updated_at: '2026-01-07T12:44:34.767968'
 completed_at: null
 last_synced_at: '2026-01-07T12:35:00.017118'
 local_content_hash: aace85264d07705b122d0058500d009310661f7fc42c723912eddbd25a6e17da
