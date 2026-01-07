@@ -235,19 +235,19 @@ def complete(
         pending = [t for t in task_list if t["status"] != "completed"]
 
         typer.echo("")
-        typer.echo("-" * 60)
         if not pending and task_list:
             typer.echo("All spec tasks are complete!")
             typer.echo(
                 f'Spec ready for completion via: mem spec complete {resolved_slug} "commit message"'
             )
         else:
-            typer.echo("AGENT: Stop here. Take inventory of what was accomplished")
-            typer.echo("and await further instructions before proceeding.")
             if pending:
                 typer.echo("")
                 typer.echo(f"Remaining tasks: {len(pending)}")
-        typer.echo("-" * 60)
+        typer.echo("Stop here AT ONCE and Report what was accomplished")
+        typer.echo(
+            "Await review of what you have done and further instructions. DO NOT continue with the next task or action."
+        )
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)

@@ -207,7 +207,7 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
             )
         else:
             steps.append(
-                f'Add tasks to spec: mem task new "title" "description" --spec {active_spec["slug"]}'
+                f'Add tasks to spec: mem task new "title" "detailed description with implementation notes if necessary" --spec {active_spec["slug"]}'
             )
     else:
         if branch_name in ("dev", "main", "master"):
@@ -308,7 +308,9 @@ def onboard():
     output.append("")
     output.append("**Key commands:**")
     output.append("- `mem spec activate <slug>` - Switch to a spec's feature branch")
-    output.append('- `mem task new "title" "desc"` - Create a task for active spec')
+    output.append(
+        '- `mem task new "title" "detailed description with implementation notes if necessary"` - Create a task for active spec'
+    )
     output.append('- `mem task complete "title"` - Mark task done')
     output.append(
         '- `mem spec complete <slug> "msg"` - Create PR, mark spec merge_ready'
@@ -473,7 +475,9 @@ def onboard():
         output.append("-" * 70)
         output.append("")
         output.append("Working with tasks:")
-        output.append('  - Create task: mem task new "title" "description"')
+        output.append(
+            '  - Create task: mem task new "title" "detailed description with implementation notes if necessary"'
+        )
         output.append(
             '  - Complete task: mem task complete "title" "notes about what was done"'
         )

@@ -25,14 +25,14 @@ Created spec to address 7 items:
 ### Updated spec new command output
 
 Added task creation instructions to `mem spec new` output:
-- Step 5: `mem task new "title" "description" --spec <slug>`
+- Step 5: `mem task new "title" "detailed description with implementation notes if necessary" --spec <slug>`
 - Note about not adding tasks in spec body
 - Note about simpler syntax when spec is active
 
 ```python
-typer.echo(f'  5. Add tasks: mem task new "title" "description" --spec {slug}')
+typer.echo(f'  5. Add tasks: mem task new "title" "detailed description with implementation notes if necessary" --spec {slug}')
 typer.echo("Note: Do not add tasks in the spec body - use 'mem task new' instead.")
-typer.echo('Note: If the spec is active, add tasks like: mem task new "title" "description"')
+typer.echo('Note: If the spec is active, add tasks like: mem task new "title" "detailed description with implementation notes if necessary"')
 ```
 
 ## Key Files Affected

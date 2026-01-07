@@ -51,7 +51,7 @@ def new(
         typer.echo(f"  3. Run 'mem spec assign {slug}' to assign yourself")
         typer.echo(f"  4. Run 'mem spec activate {slug}' to start working")
         typer.echo(
-            f'  5. Add tasks: mem task new "title" "detailed description" --spec {slug}'
+            f'  5. Add tasks: mem task new "title" "detailed description with implementation notes if necessary" --spec {slug}'
         )
         typer.echo("")
         typer.echo("Note: Unassigned specs cannot be activated to prevent conflicts.")
@@ -59,7 +59,7 @@ def new(
             "Note: Do not add tasks in the spec body - use 'mem task new' instead."
         )
         typer.echo(
-            'Note: If the spec is active, add tasks like: mem task new "title" "detailed description"'
+            'Note: If the spec is active, add tasks like: mem task new "title" "detailed description with implementation notes if necessary"'
         )
 
     except ValueError as e:
@@ -241,7 +241,9 @@ def show(
             typer.echo("\nNo tasks associated with this spec.")
 
         typer.echo("\nCommands:")
-        typer.echo(f'  mem task new "title" "description" --spec {spec_slug}')
+        typer.echo(
+            f'  mem task new "title" "detailed description with implementation notes if necessary" --spec {spec_slug}'
+        )
         typer.echo(f"  mem spec activate {spec_slug}")
 
     except Exception as e:
