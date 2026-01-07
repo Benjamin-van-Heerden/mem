@@ -22,12 +22,11 @@ def log():
     try:
         log_file = logs.create_log(spec_slug=spec_slug)
         relative_path = log_file.relative_to(ENV_SETTINGS.caller_dir)
-        template_path = "src/templates/log.md"
 
         typer.echo(f"Created log file: {relative_path}")
         typer.echo("")
         typer.echo(
-            f"Please read {template_path} and fill in the {{placeholders}} based on this session."
+            "Please read the file and fill in the {placeholders} based on our current interaction session."
         )
 
     except ValueError as e:
