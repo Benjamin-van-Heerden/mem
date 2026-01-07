@@ -1,14 +1,14 @@
 ---
 title: Cleanup command improvements
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 13
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/13
 branch: dev-benjamin_van_heerden-cleanup_command_improvements
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/14
 created_at: '2026-01-07T11:16:55.097013'
-updated_at: '2026-01-07T11:20:39.765573'
-completed_at: null
+updated_at: '2026-01-07T11:21:15.073711'
+completed_at: '2026-01-07T11:21:15.071701'
 last_synced_at: '2026-01-07T11:17:28.862293'
 local_content_hash: 175083c8f7886c790eb13397a8d9dab7e76ee79de683e275660ada697fd82354
 remote_content_hash: 175083c8f7886c790eb13397a8d9dab7e76ee79de683e275660ada697fd82354
