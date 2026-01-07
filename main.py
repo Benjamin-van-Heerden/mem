@@ -25,10 +25,10 @@ Usage:
 """
 
 import typer
-from src.commands.merge import merge as merge_command
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Static
 
+from src.commands.cleanup import cleanup as cleanup_command
 from src.commands.init import init as init_command
 from src.commands.log import log as log_command
 from src.commands.merge import merge as merge_command
@@ -49,6 +49,9 @@ app.command(name="sync", help="Synchronize with GitHub")(sync_command)
 app.command(name="onboard", help="Build context for AI agent")(onboard_command)
 app.command(name="log", help="Create work session log")(log_command)
 app.command(name="merge", help="Merge pull requests for completed specs")(merge_command)
+app.command(name="cleanup", help="Remove stale branches from completed specs")(
+    cleanup_command
+)
 app.add_typer(spec_app, name="spec", help="Manage specifications")
 app.add_typer(task_app, name="task", help="Manage tasks")
 app.add_typer(subtask_app, name="subtask", help="Manage subtasks")

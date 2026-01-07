@@ -197,14 +197,35 @@ def show(
             typer.echo("\nTASKS:")
             typer.echo("-" * 60)
             for task in task_list:
-                status_icon = "x" if task["status"] == "completed" else " "
-                typer.echo(f"[{status_icon}] {task['title']}")
+                status_display = (
+                    "[completed]" if task["status"] == "completed" else "[todo]"
+                )
+                typer.echo(f"{status_display} {task['title']}")
 
-                # Show subtasks (now embedded in task frontmatter)
-                subtask_list = task.get("subtasks", [])
-                for subtask in subtask_list:
-                    sub_icon = "x" if subtask["status"] == "completed" else " "
-                    typer.echo(f"    [{sub_icon}] {subtask['title']}")
+                if verbose:
+                    # Show full description
+                    body = task.get("body", "").strip()
+                    if body:
+                        typer.echo(f"       {body}")
+
+                    # Show subtasks in detail
+                    subtask_list = task.get("subtasks", [])
+                    if subtask_list:
+                        for sub in subtask_list:
+                            sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
+                            typer.echo(f"       {sub_icon} {sub['title']}")
+
+                    # Show created date
+                    created = task.get("created_at", "")
+                    if created:
+                        typer.echo(f"       Created: {created[:10]}")
+                    typer.echo()
+                else:
+                    # Show subtasks inline (simple view)
+                    subtask_list = task.get("subtasks", [])
+                    for subtask in subtask_list:
+                        sub_icon = "x" if subtask["status"] == "completed" else " "
+                        typer.echo(f"    [{sub_icon}] {subtask['title']}")
         else:
             typer.echo("\nNo tasks associated with this spec.")
 

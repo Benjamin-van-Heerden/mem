@@ -388,13 +388,21 @@ def onboard():
     output.append("")
 
     try:
-        recent_logs = logs.list_logs(limit=5)
+        if active_spec:
+            recent_logs = logs.list_logs(limit=3, spec_slug=active_spec["slug"])
+        else:
+            recent_logs = logs.list_logs(limit=3)
         if recent_logs:
             for log in recent_logs:
                 output.append(format_work_log_entry(log))
                 output.append("")
         else:
-            output.append("No work logs yet. Create one with: mem log")
+            if active_spec:
+                output.append(
+                    f"No work logs for spec '{active_spec['slug']}' yet. Create one with: mem log"
+                )
+            else:
+                output.append("No work logs yet. Create one with: mem log")
             output.append("")
     except Exception:
         output.append("Could not load work logs.")
@@ -416,6 +424,42 @@ def onboard():
             output.append("")
     except Exception:
         pass
+
+    # Agent workflow hints
+    if active_spec:
+        output.append("-" * 70)
+        output.append("AGENT WORKFLOW HINTS")
+        output.append("-" * 70)
+        output.append("")
+        output.append("Working with tasks:")
+        output.append('  - Create task: mem task new "title" "description"')
+        output.append(
+            '  - Complete task: mem task complete "title" "notes about what was done"'
+        )
+        output.append("  - List tasks: mem task list")
+        output.append("")
+        output.append("For complex tasks, break them into subtasks:")
+        output.append(
+            '  - Add subtask: mem subtask new "subtask title" --task "parent task title"'
+        )
+        output.append(
+            '  - Complete subtask: mem subtask complete "subtask title" --task "parent task title"'
+        )
+        output.append(
+            "  - All subtasks must be completed before completing the parent task"
+        )
+        output.append("")
+        output.append("Important workflow rules:")
+        output.append(
+            "  - Complete ONE task at a time, then STOP and await further instructions"
+        )
+        output.append(
+            "  - Mark tasks complete as soon as you finish them (don't batch)"
+        )
+        output.append(
+            '  - When all tasks are done, run: mem spec complete <slug> "message"'
+        )
+        output.append("")
 
     # Next steps
     output.append("-" * 70)
