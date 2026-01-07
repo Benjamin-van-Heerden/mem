@@ -2,6 +2,7 @@
 Spec command - Manage specifications
 """
 
+from datetime import datetime, timedelta
 from typing import Optional
 
 import typer
@@ -437,6 +438,13 @@ def complete(
         str, typer.Argument(help="Slug of the specification to complete")
     ],
     message: Annotated[str, typer.Argument(help="Commit message for the final push")],
+    no_log: Annotated[
+        bool,
+        typer.Option(
+            "--no-log",
+            help="Skip the recent work log timing check (not recommended)",
+        ),
+    ] = False,
 ):
     """
     Complete a specification.
@@ -516,11 +524,57 @@ def complete(
             typer.echo("Create a work log with: mem log", err=True)
             raise typer.Exit(code=1)
 
-        # 5. Mark spec as merge_ready before committing
+        # 5. Validate recent work log (within last 3 minutes)
+        if not no_log:
+            now = datetime.now()
+            recent_threshold = now - timedelta(minutes=3)
+            recent_log_found = False
+
+            for log in spec_logs:
+                log_created_at = log.get("created_at")
+                if log_created_at:
+                    try:
+                        log_datetime = datetime.fromisoformat(log_created_at)
+                        if log_datetime >= recent_threshold:
+                            recent_log_found = True
+                            break
+                    except (ValueError, TypeError):
+                        continue
+
+            if not recent_log_found:
+                typer.echo(
+                    f"Error: Cannot complete spec '{spec_slug}'. No recent work log found.",
+                    err=True,
+                )
+                typer.echo("", err=True)
+                typer.echo(
+                    "A work log must be created within the last 3 minutes before completing a spec.",
+                    err=True,
+                )
+                typer.echo(
+                    "This ensures your work is documented while it's fresh.",
+                    err=True,
+                )
+                typer.echo("", err=True)
+                typer.echo("To fix this:", err=True)
+                typer.echo("  1. Run 'mem log' to create a work log", err=True)
+                typer.echo("  2. Document what you accomplished", err=True)
+                typer.echo(
+                    f"  3. Run 'mem spec complete {spec_slug} \"{message}\"' again",
+                    err=True,
+                )
+                typer.echo("", err=True)
+                typer.echo(
+                    "To skip this check (not recommended): --no-log",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+
+        # 6. Mark spec as merge_ready before committing
         typer.echo(f"Completing spec: {spec['title']}...")
         specs.update_spec_status(spec_slug, "merge_ready")
 
-        # 5b. Sync merge_ready status to GitHub immediately
+        # 6b. Sync merge_ready status to GitHub immediately
         if spec.get("issue_id"):
             try:
                 client = get_github_client()
@@ -531,7 +585,7 @@ def complete(
             except Exception as e:
                 typer.echo(f"Warning: Could not update GitHub label: {e}", err=True)
 
-        # 6. Git operations
+        # 7. Git operations
         repo = Repo(ENV_SETTINGS.caller_dir)
         branch_name = spec.get("branch")
 
@@ -550,7 +604,7 @@ def complete(
 
         repo.git.push("origin", branch_name)
 
-        # 7. GitHub PR
+        # 8. GitHub PR
         pr_url = None
         if spec.get("issue_id"):
             typer.echo("Creating Pull Request...")
@@ -584,7 +638,7 @@ def complete(
         else:
             typer.echo("Warning: Spec has no GitHub issue. Skipping PR creation.")
 
-        # 8. Switch back to dev
+        # 9. Switch back to dev
         try:
             switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
             typer.echo("Switched back to 'dev' branch")
