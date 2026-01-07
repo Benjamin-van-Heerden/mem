@@ -1,7 +1,7 @@
 """
 Cleanup command for mem.
 
-Removes stale local branches from completed/abandoned specs.
+Removes stale local and remote branches from completed/abandoned specs.
 """
 
 import subprocess
@@ -12,6 +12,9 @@ import typer
 from env_settings import ENV_SETTINGS
 from src.commands.merge import delete_local_branch, prune_remote_refs
 from src.utils import specs
+from src.utils.github.api import delete_branch
+from src.utils.github.client import get_github_client
+from src.utils.github.repo import get_repo_from_git
 
 
 def get_local_branches() -> list[str]:
@@ -28,6 +31,31 @@ def get_local_branches() -> list[str]:
         branch = line.strip().lstrip("* ")
         if branch:
             branches.append(branch)
+    return branches
+
+
+def get_remote_branches() -> list[str]:
+    """Get list of remote branches matching dev-* pattern."""
+    cwd = ENV_SETTINGS.caller_dir
+    # Fetch first to get latest remote state
+    subprocess.run(
+        ["git", "fetch", "--prune", "origin"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        ["git", "branch", "-r", "--list", "origin/dev-*"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    branches = []
+    for line in result.stdout.strip().split("\n"):
+        branch = line.strip()
+        if branch and branch.startswith("origin/"):
+            # Remove origin/ prefix
+            branches.append(branch[7:])
     return branches
 
 
@@ -48,31 +76,37 @@ def extract_spec_slug_from_branch(branch_name: str) -> str | None:
     return parts[2]
 
 
-def cleanup(
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run", "-n", help="Show what would be deleted without deleting"
-        ),
-    ] = False,
-):
+def run_cleanup(dry_run: bool = False, silent: bool = False) -> tuple[int, int]:
     """
-    Remove stale local branches from completed or abandoned specs.
+    Core cleanup logic - removes stale local and remote branches.
 
-    Scans local branches matching 'dev-*' pattern, extracts the spec slug,
-    and deletes the branch if the spec is in completed/ or abandoned/ status.
+    Returns (deleted_count, skipped_count) tuple.
     """
-    typer.echo("Scanning for stale branches...\n")
+    local_branches = get_local_branches()
+    remote_branches = get_remote_branches()
 
-    branches = get_local_branches()
-    if not branches:
-        typer.echo("No dev-* branches found.")
-        raise typer.Exit(code=0)
+    # Combine and deduplicate
+    all_branches = set(local_branches) | set(remote_branches)
+
+    if not all_branches:
+        if not silent:
+            typer.echo("No dev-* branches found.")
+        return 0, 0
+
+    # Get GitHub repo for remote deletion
+    gh_repo = None
+    if not dry_run:
+        try:
+            client = get_github_client()
+            repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
+            gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
+        except Exception:
+            pass  # Will skip remote deletion if can't get repo
 
     deleted_count = 0
     skipped_count = 0
 
-    for branch in branches:
+    for branch in sorted(all_branches):
         spec_slug = extract_spec_slug_from_branch(branch)
         if not spec_slug:
             continue
@@ -87,20 +121,73 @@ def cleanup(
             skipped_count += 1
             continue
 
+        is_local = branch in local_branches
+        is_remote = branch in remote_branches
+
         if dry_run:
-            typer.echo(f"Would delete: {branch} (spec {status})")
+            location = []
+            if is_local:
+                location.append("local")
+            if is_remote:
+                location.append("remote")
+            if not silent:
+                typer.echo(
+                    f"Would delete: {branch} ({', '.join(location)}) (spec {status})"
+                )
             deleted_count += 1
         else:
-            if delete_local_branch(branch):
-                typer.echo(f"Deleted: {branch} (spec {status})")
+            deleted_any = False
+
+            # Delete local branch
+            if is_local:
+                if delete_local_branch(branch):
+                    if not silent:
+                        typer.echo(f"Deleted local: {branch} (spec {status})")
+                    deleted_any = True
+                elif not silent:
+                    typer.echo(f"Failed to delete local: {branch}")
+
+            # Delete remote branch
+            if is_remote and gh_repo:
+                if delete_branch(gh_repo, branch):
+                    if not silent:
+                        typer.echo(f"Deleted remote: {branch} (spec {status})")
+                    deleted_any = True
+                elif not silent:
+                    typer.echo(f"Failed to delete remote: {branch}")
+
+            if deleted_any:
                 deleted_count += 1
-            else:
-                typer.echo(f"Failed to delete: {branch}")
 
     # Prune remote refs
     if not dry_run and deleted_count > 0:
         prune_remote_refs()
-        typer.echo("\nPruned stale remote tracking refs.")
+        if not silent:
+            typer.echo("\nPruned stale remote tracking refs.")
+
+    return deleted_count, skipped_count
+
+
+def cleanup(
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run", "-n", help="Show what would be deleted without deleting"
+        ),
+    ] = False,
+):
+    """
+    Remove stale local and remote branches from completed or abandoned specs.
+
+    Scans branches matching 'dev-*' pattern, extracts the spec slug,
+    and deletes the branch if the spec is in completed/ or abandoned/ status.
+    """
+    typer.echo("Scanning for stale branches...\n")
+
+    deleted_count, skipped_count = run_cleanup(dry_run=dry_run, silent=False)
+
+    if deleted_count == 0 and skipped_count == 0:
+        return
 
     typer.echo(
         f"\n{'Would delete' if dry_run else 'Deleted'}: {deleted_count} branch(es)"
