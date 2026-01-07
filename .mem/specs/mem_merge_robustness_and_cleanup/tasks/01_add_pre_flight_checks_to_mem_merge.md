@@ -1,10 +1,10 @@
 ---
 title: Add pre-flight checks to mem merge
-status: todo
+status: completed
 subtasks: []
 created_at: '2026-01-06T15:43:31.142487'
-updated_at: '2026-01-06T15:43:31.142487'
-completed_at: null
+updated_at: '2026-01-07T10:28:34.808940'
+completed_at: '2026-01-07T10:28:34.808935'
 ---
 Before merging any PRs, mem merge should fail early if the local state isn't clean:
 
@@ -21,3 +21,7 @@ Before merging any PRs, mem merge should fail early if the local state isn't cle
 Location: src/commands/merge.py - add checks at start of merge() function
 
 Import git_fetch_and_pull from src.commands.sync and reuse it.
+
+## Completion Notes
+
+Added check_working_directory_clean() and git_fetch_and_pull() at start of merge command

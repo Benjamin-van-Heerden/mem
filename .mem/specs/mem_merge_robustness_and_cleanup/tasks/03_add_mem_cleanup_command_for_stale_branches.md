@@ -1,10 +1,10 @@
 ---
 title: Add mem cleanup command for stale branches
-status: todo
+status: completed
 subtasks: []
 created_at: '2026-01-06T15:43:51.325673'
-updated_at: '2026-01-06T15:43:51.325673'
-completed_at: null
+updated_at: '2026-01-07T10:28:48.115697'
+completed_at: '2026-01-07T10:28:48.115692'
 ---
 Add a cleanup command to remove stale branches from completed/abandoned specs.
 
@@ -26,3 +26,7 @@ Output example:
   Deleted: dev-user-another_spec (spec abandoned)
   Pruned 3 stale remote tracking refs
   Done.
+
+## Completion Notes
+
+Created src/commands/cleanup.py with cleanup command, registered in main.py

@@ -74,6 +74,9 @@ def new(
 
         typer.echo(f"Created task: {task_file.name}")
         typer.echo(f"  Spec: {resolved_slug}")
+        typer.echo("")
+        typer.echo("Hint: For complex tasks, break them into subtasks:")
+        typer.echo(f'  mem subtask new "subtask title" --task "{title}"')
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -171,7 +174,21 @@ def list_tasks_cmd(
 
         # Summary
         completed = sum(1 for t in task_list if t["status"] == "completed")
-        typer.echo(f"Total: {len(task_list)} task(s), {completed} completed")
+        total = len(task_list)
+        typer.echo(f"Total: {total} task(s), {completed} completed")
+
+        # Hints based on state
+        pending = [t for t in task_list if t["status"] != "completed"]
+        if pending:
+            typer.echo("")
+            typer.echo(f"Next task: {pending[0]['title']}")
+            typer.echo(
+                f'  Complete with: mem task complete "{pending[0]["title"]}" "notes"'
+            )
+        elif total > 0:
+            typer.echo("")
+            typer.echo("All tasks complete! Spec ready for completion:")
+            typer.echo(f'  mem spec complete {resolved_slug} "commit message"')
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -212,6 +229,25 @@ def complete(
 
         tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
         typer.echo(f"Completed task: {title}")
+
+        # Check if all tasks are now complete
+        task_list = tasks.list_tasks(resolved_slug)
+        pending = [t for t in task_list if t["status"] != "completed"]
+
+        typer.echo("")
+        typer.echo("-" * 60)
+        if not pending and task_list:
+            typer.echo("All spec tasks are complete!")
+            typer.echo(
+                f'Spec ready for completion via: mem spec complete {resolved_slug} "commit message"'
+            )
+        else:
+            typer.echo("AGENT: Stop here. Take inventory of what was accomplished")
+            typer.echo("and await further instructions before proceeding.")
+            if pending:
+                typer.echo("")
+                typer.echo(f"Remaining tasks: {len(pending)}")
+        typer.echo("-" * 60)
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)

@@ -5,11 +5,13 @@ Queries GitHub for PRs ready to merge (with [Complete]: prefix),
 allows selection, and performs merges via GitHub API.
 """
 
+import subprocess
 from typing import Annotated
 
 import typer
 
 from env_settings import ENV_SETTINGS
+from src.commands.sync import git_fetch_and_pull
 from src.utils.github.api import (
     delete_branch,
     list_merge_ready_prs,
@@ -17,6 +19,65 @@ from src.utils.github.api import (
 )
 from src.utils.github.client import get_github_client
 from src.utils.github.repo import get_repo_from_git
+
+
+def check_working_directory_clean() -> tuple[bool, str]:
+    """
+    Check if working directory has uncommitted changes.
+
+    Returns:
+        (is_clean, message) tuple
+    """
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.stdout.strip():
+        return False, "Uncommitted changes detected. Commit or stash before merging."
+    return True, ""
+
+
+def delete_local_branch(branch_name: str) -> bool:
+    """
+    Delete a local git branch.
+
+    Tries -d first (safe delete), falls back to -D (force delete) if needed.
+    Returns True if deleted successfully, False otherwise.
+    """
+    cwd = ENV_SETTINGS.caller_dir
+
+    # Try safe delete first
+    result = subprocess.run(
+        ["git", "branch", "-d", branch_name],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True
+
+    # Fall back to force delete
+    result = subprocess.run(
+        ["git", "branch", "-D", branch_name],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def prune_remote_refs() -> None:
+    """Prune stale remote tracking references."""
+    cwd = ENV_SETTINGS.caller_dir
+    subprocess.run(
+        ["git", "remote", "prune", "origin"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
 
 
 def merge(
@@ -58,6 +119,19 @@ def merge(
     After merging, runs 'mem sync' to update local state.
     """
     try:
+        # Pre-flight checks
+        is_clean, message = check_working_directory_clean()
+        if not is_clean:
+            typer.echo(f"Error: {message}", err=True)
+            raise typer.Exit(code=1)
+
+        typer.echo("Fetching latest changes...")
+        success, message = git_fetch_and_pull()
+        if not success:
+            typer.echo(f"Error: {message}", err=True)
+            raise typer.Exit(code=1)
+        typer.echo("Local branch is up to date.\n")
+
         # Get GitHub client and repo
         client = get_github_client()
         repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
@@ -191,13 +265,28 @@ def merge(
                 if delete_branches:
                     branch = pr_info["head_branch"]
                     if delete_branch(gh_repo, branch):
-                        typer.echo(f"  Deleted branch: {branch}")
+                        typer.echo(f"  Deleted remote branch: {branch}")
                     else:
-                        typer.echo(f"  Warning: Could not delete branch: {branch}")
+                        typer.echo(
+                            f"  Warning: Could not delete remote branch: {branch}"
+                        )
+
+                    # Delete local branch
+                    if delete_local_branch(branch):
+                        typer.echo(f"  Deleted local branch: {branch}")
+                    else:
+                        typer.echo(
+                            f"  Warning: Could not delete local branch: {branch}"
+                        )
             else:
                 typer.echo(f"  Failed: {result['message']}", err=True)
 
         typer.echo(f"\nMerged {success_count}/{len(selected)} PR(s).")
+
+        # Prune stale remote tracking refs
+        if delete_branches and success_count > 0:
+            prune_remote_refs()
+            typer.echo("Pruned stale remote tracking refs.")
 
         # Run sync to update local state
         if not no_sync and success_count > 0:
