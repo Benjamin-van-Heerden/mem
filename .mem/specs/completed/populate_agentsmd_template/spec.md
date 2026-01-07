@@ -1,14 +1,14 @@
 ---
 title: Populate AGENTS.md template
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 19
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/19
 branch: dev-benjamin_van_heerden-populate_agentsmd_template
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/20
 created_at: '2026-01-07T12:53:11.198548'
-updated_at: '2026-01-07T13:28:14.469234'
-completed_at: null
+updated_at: '2026-01-07T13:29:29.434471'
+completed_at: '2026-01-07T13:29:29.432230'
 last_synced_at: '2026-01-07T12:54:45.931675'
 local_content_hash: 7511840a95781e4d4cbf3a90634c9546dd7fd394130c26ac8a45b4b4911ab00b
 remote_content_hash: 7511840a95781e4d4cbf3a90634c9546dd7fd394130c26ac8a45b4b4911ab00b
