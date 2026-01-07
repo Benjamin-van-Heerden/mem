@@ -92,7 +92,7 @@ Standalone reminders not tied to specs/tasks.
 
 ### 5. Work Logs
 Historical records of work sessions.
-- Stored in `.mem/logs/{date}_{username}_{slug}.md`
+- Stored in `.mem/logs/{username}_{YYYYMMDD}_{HHMMSS}_session.md`
 - Capture accomplishments, blockers, next steps
 - Linked to active specs for context tracing
 
@@ -215,21 +215,25 @@ When you complete a spec:
 ### `.mem/config.toml`
 
 ```toml
+[vars]
+# Environment variable containing GitHub token
+github_token_env = "GITHUB_TOKEN"
+
 [project]
 name = "My Project"
 description = "What this project is about"
 
-[context]
-important_files = [
-    "README.md",
-    "pyproject.toml",
-    "src/main.py"
-]
+# Generic templates to load from global config (~/.config/mem/templates/)
+generic_templates = ["python", "general"]
 
-[templates]
-generic = [
-    "path/to/coding-guidelines.md"
-]
+# Important files to include in onboard context
+[[files]]
+path = "README.md"
+description = "Project overview and setup instructions"
+
+[[files]]
+path = "src/main.py"
+description = "Application entry point"
 ```
 
 ## Development

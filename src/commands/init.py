@@ -66,6 +66,34 @@ def _get_template_path() -> Path:
     return Path(__file__).parent.parent / "templates" / "config.toml"
 
 
+def _get_agents_template_path() -> Path:
+    """Get path to the AGENTS.md template."""
+    return Path(__file__).parent.parent / "templates" / "AGENTS.md"
+
+
+def create_agents_files(project_root: Path):
+    """Create AGENTS.md and CLAUDE.md symlink in project root."""
+    agents_file = project_root / "AGENTS.md"
+    claude_file = project_root / "CLAUDE.md"
+
+    if not agents_file.exists():
+        template_path = _get_agents_template_path()
+        if template_path.exists():
+            shutil.copy(template_path, agents_file)
+            typer.echo("✓ Created AGENTS.md")
+        else:
+            typer.echo("⚠️  Warning: AGENTS.md template not found", err=True)
+            return
+
+    if not claude_file.exists():
+        claude_file.symlink_to("AGENTS.md")
+        typer.echo("✓ Created CLAUDE.md symlink -> AGENTS.md")
+    elif claude_file.is_symlink():
+        typer.echo("✓ CLAUDE.md symlink already exists")
+    else:
+        typer.echo("⚠️  Warning: CLAUDE.md exists but is not a symlink", err=True)
+
+
 def create_config_with_discovery(repo_name: str):
     """Create config.toml from template with discovered values."""
     template_path = _get_template_path()
@@ -215,6 +243,10 @@ def init(
         create_user_mappings(github_username, git_name, git_email)
     else:
         typer.echo("✓ User mappings file already exists")
+
+    # Create AGENTS.md and CLAUDE.md symlink
+    typer.echo("\nCreating agent configuration files...")
+    create_agents_files(ENV_SETTINGS.caller_dir)
 
     # Step 7: Ensure branches exist and switch to dev
     typer.echo("\nStep 7/10: Setting up git branches...")
