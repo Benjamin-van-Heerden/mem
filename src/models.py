@@ -98,7 +98,7 @@ class SubtaskFrontmatter(BaseModel):
 class LogFrontmatter(BaseModel):
     """Frontmatter for work log files."""
 
-    date: str  # ISO format date string (YYYY-MM-DD)
+    created_at: str  # ISO format datetime string (YYYY-MM-DDTHH:MM:SS)
     username: str
     spec_slug: str | None = None
 
@@ -159,11 +159,11 @@ def create_subtask_frontmatter(
 
 
 def create_log_frontmatter(
-    log_date: date, username: str, spec_slug: str | None = None
+    created_at: datetime, username: str, spec_slug: str | None = None
 ) -> LogFrontmatter:
     """Create LogFrontmatter for a work log."""
     return LogFrontmatter(
-        date=log_date.isoformat(),
+        created_at=created_at.isoformat(),
         username=username,
         spec_slug=spec_slug,
     )

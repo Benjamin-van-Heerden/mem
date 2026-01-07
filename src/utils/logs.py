@@ -2,11 +2,12 @@
 Markdown-based work log operations.
 
 Work logs are stored as:
-  .mem/logs/{username}_{date}_session.md
+  .mem/logs/{username}_{YYYYMMDD}_{HHMMSS}_session.md
 
-Example: .mem/logs/benjamin_van_heerden_20251229_session.md
+Example: .mem/logs/benjamin_van_heerden_20251229_143052_session.md
 
 Each log has YAML frontmatter with metadata and markdown body.
+Multiple logs per day are supported.
 """
 
 import tomllib
@@ -68,23 +69,24 @@ def _get_current_github_username() -> str:
     return slugify(git_name)
 
 
-def _get_log_filename(log_date: date, username: str | None = None) -> str:
-    """Get log filename for a date and user."""
+def _get_log_filename(created_at: datetime, username: str | None = None) -> str:
+    """Get log filename for a datetime and user."""
     if username is None:
         username = _get_current_github_username()
-    return f"{username}_{log_date.strftime('%Y%m%d')}_session.md"
+    return f"{username}_{created_at.strftime('%Y%m%d')}_{created_at.strftime('%H%M%S')}_session.md"
 
 
-def _get_log_file(log_date: date, username: str | None = None) -> Path:
+def _get_log_file(created_at: datetime, username: str | None = None) -> Path:
     """Get path to a log file."""
-    return _get_logs_dir() / _get_log_filename(log_date, username)
+    return _get_logs_dir() / _get_log_filename(created_at, username)
 
 
-def _parse_log_filename(filename: str) -> tuple[str, date] | None:
-    """Parse username and date from log filename.
+def _parse_log_filename(filename: str) -> tuple[str, datetime] | None:
+    """Parse username and datetime from log filename.
 
-    Filename format: {username}_{YYYYMMDD}_session.md
-    Returns (username, date) or None if invalid.
+    Filename format: {username}_{YYYYMMDD}_{HHMMSS}_session.md
+    Also supports legacy format: {username}_{YYYYMMDD}_session.md
+    Returns (username, datetime) or None if invalid.
     """
     if not filename.endswith("_session.md"):
         return None
@@ -92,78 +94,90 @@ def _parse_log_filename(filename: str) -> tuple[str, date] | None:
     # Remove suffix
     base = filename.replace("_session.md", "")
 
-    # Split on underscore to find date (last 8 chars should be YYYYMMDD)
+    # Try new format first: {username}_{YYYYMMDD}_{HHMMSS}
+    parts = base.rsplit("_", 2)
+    if len(parts) == 3:
+        username = parts[0]
+        date_str = parts[1]
+        time_str = parts[2]
+        try:
+            log_datetime = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+            return (username, log_datetime)
+        except ValueError:
+            pass
+
+    # Fall back to legacy format: {username}_{YYYYMMDD}
     parts = base.rsplit("_", 1)
-    if len(parts) != 2:
-        return None
+    if len(parts) == 2:
+        username = parts[0]
+        date_str = parts[1]
+        try:
+            log_datetime = datetime.strptime(date_str, "%Y%m%d")
+            return (username, log_datetime)
+        except ValueError:
+            pass
 
-    username = parts[0]
-    date_str = parts[1]
-
-    try:
-        log_date = datetime.strptime(date_str, "%Y%m%d").date()
-        return (username, log_date)
-    except ValueError:
-        return None
+    return None
 
 
 def _log_to_dict(
-    username: str, log_date: date, metadata: dict, body: str
+    username: str, log_datetime: datetime, metadata: dict, body: str, filename: str
 ) -> dict[str, Any]:
     """Convert parsed log file to a dict."""
     return {
         "username": username,
-        "date": log_date.isoformat(),
-        "filename": _get_log_filename(log_date, username),
+        "created_at": log_datetime.isoformat(),
+        "date": log_datetime.date().isoformat(),
+        "filename": filename,
         "body": body,
         **metadata,
     }
 
 
 def create_log(spec_slug: str | None = None) -> Path:
-    """Create work log for today for the current user.
+    """Create work log for the current user.
 
     Creates a log file with Pydantic-generated frontmatter and template body.
-    If a log for today (for this user) exists, raises ValueError.
+    Multiple logs per day are supported - each gets a unique timestamp.
     Returns path to the created log file.
     """
     logs_dir = _get_logs_dir()
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    today = date.today()
+    now = datetime.now()
     username = _get_current_github_username()
-    log_file = _get_log_file(today, username)
+    log_file = _get_log_file(now, username)
 
-    if log_file.exists():
-        raise ValueError(f"Log for {today} (user: {username}) already exists")
-
-    frontmatter = create_log_frontmatter(today, username, spec_slug)
+    frontmatter = create_log_frontmatter(now, username, spec_slug)
     body = _load_log_template()
 
     write_md_file(log_file, frontmatter.to_dict(), body)
     return log_file
 
 
-def get_log(log_date: date, username: str | None = None) -> dict[str, Any] | None:
-    """Get log for a specific date and user.
-
-    If username is not provided, uses the current user.
-    """
-    if username is None:
-        username = _get_current_github_username()
-
-    log_file = _get_log_file(log_date, username)
+def get_log_by_filename(filename: str) -> dict[str, Any] | None:
+    """Get log by its filename."""
+    log_file = _get_logs_dir() / filename
 
     if not log_file.exists():
         return None
 
+    parsed = _parse_log_filename(filename)
+    if parsed is None:
+        return None
+
+    file_username, log_datetime = parsed
     metadata, body = read_md_file(log_file)
-    return _log_to_dict(username, log_date, metadata, body)
+    return _log_to_dict(file_username, log_datetime, metadata, body, filename)
 
 
-def get_today_log() -> dict[str, Any] | None:
-    """Get today's work log for the current user if exists."""
-    return get_log(date.today())
+def get_latest_log(username: str | None = None) -> dict[str, Any] | None:
+    """Get the most recent work log for a user.
+
+    If username is not provided, uses the current user.
+    """
+    logs = list_logs(limit=1, username=username)
+    return logs[0] if logs else None
 
 
 def list_logs(
@@ -188,7 +202,7 @@ def list_logs(
         if parsed is None:
             continue
 
-        file_username, log_date = parsed
+        file_username, log_datetime = parsed
 
         metadata, body = read_md_file(log_file)
 
@@ -198,26 +212,22 @@ def list_logs(
         if username is not None and file_username != username:
             continue
 
-        logs.append(_log_to_dict(file_username, log_date, metadata, body))
+        logs.append(
+            _log_to_dict(file_username, log_datetime, metadata, body, log_file.name)
+        )
 
-    # Sort by date, newest first
-    logs.sort(key=lambda log: log.get("date", ""), reverse=True)
+    # Sort by created_at, newest first
+    logs.sort(key=lambda log: log.get("created_at", ""), reverse=True)
 
     return logs[:limit]
 
 
-def update_log(log_date: date, username: str | None = None, **updates) -> None:
-    """Update log frontmatter fields.
-
-    If username is not provided, uses the current user.
-    """
-    if username is None:
-        username = _get_current_github_username()
-
-    log_file = _get_log_file(log_date, username)
+def update_log(filename: str, **updates) -> None:
+    """Update log frontmatter fields by filename."""
+    log_file = _get_logs_dir() / filename
 
     if not log_file.exists():
-        raise ValueError(f"Log for {log_date} (user: {username}) not found")
+        raise ValueError(f"Log '{filename}' not found")
 
     metadata, body = read_md_file(log_file)
 
@@ -227,34 +237,23 @@ def update_log(log_date: date, username: str | None = None, **updates) -> None:
     write_md_file(log_file, metadata, body)
 
 
-def update_log_body(log_date: date, body: str, username: str | None = None) -> None:
-    """Update log body content.
-
-    If username is not provided, uses the current user.
-    """
-    if username is None:
-        username = _get_current_github_username()
-
-    log_file = _get_log_file(log_date, username)
+def update_log_body(filename: str, body: str) -> None:
+    """Update log body content by filename."""
+    log_file = _get_logs_dir() / filename
 
     if not log_file.exists():
-        raise ValueError(f"Log for {log_date} (user: {username}) not found")
+        raise ValueError(f"Log '{filename}' not found")
 
     metadata, _ = read_md_file(log_file)
     write_md_file(log_file, metadata, body)
 
 
-def append_to_log(section: str, content: str) -> None:
-    """Append content to a section of today's log for the current user.
-
-    Creates today's log if it doesn't exist.
-    """
-    today = date.today()
-    username = _get_current_github_username()
-    log_file = _get_log_file(today, username)
+def append_to_log(filename: str, section: str, content: str) -> None:
+    """Append content to a section of a log file."""
+    log_file = _get_logs_dir() / filename
 
     if not log_file.exists():
-        create_log()
+        raise ValueError(f"Log '{filename}' not found")
 
     metadata, body = read_md_file(log_file)
 
@@ -291,17 +290,11 @@ def append_to_log(section: str, content: str) -> None:
     write_md_file(log_file, metadata, body)
 
 
-def delete_log(log_date: date, username: str | None = None) -> None:
-    """Delete a log file.
-
-    If username is not provided, uses the current user.
-    """
-    if username is None:
-        username = _get_current_github_username()
-
-    log_file = _get_log_file(log_date, username)
+def delete_log(filename: str) -> None:
+    """Delete a log file by filename."""
+    log_file = _get_logs_dir() / filename
 
     if not log_file.exists():
-        raise ValueError(f"Log for {log_date} (user: {username}) not found")
+        raise ValueError(f"Log '{filename}' not found")
 
     log_file.unlink()
