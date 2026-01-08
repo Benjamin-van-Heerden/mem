@@ -29,6 +29,13 @@ def log():
             "Please read the file and fill in the {placeholders} based on our current interaction session."
         )
 
+        if active_spec:
+            typer.echo("")
+            typer.echo("IMPORTANT: When done editing, commit and push your changes:")
+            typer.echo(
+                f"  git add -A && git commit -m 'WIP: {active_spec['slug']}' && git push"
+            )
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)

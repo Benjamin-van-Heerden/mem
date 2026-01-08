@@ -71,6 +71,66 @@ def _get_agents_template_path() -> Path:
     return Path(__file__).parent.parent / "templates" / "AGENTS.md"
 
 
+def create_pre_push_hook(project_root: Path):
+    """Create pre-push hook to enforce branch merge rules.
+
+    Rules enforced:
+    - Anything can be pushed to dev
+    - Only dev and hotfix/* can be pushed to test
+    - Only test can be pushed to main
+    """
+    git_hooks_dir = project_root / ".git" / "hooks"
+    hook_file = git_hooks_dir / "pre-push"
+
+    hook_content = """#!/bin/bash
+# mem: Git branch push rules enforcement
+# Rules:
+#   - Anything can push to dev
+#   - Only dev and hotfix/* can push to test
+#   - Only test can push to main
+
+REMOTE="$1"
+
+while read LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+    # Extract branch name from ref
+    REMOTE_BRANCH=$(echo "$REMOTE_REF" | sed 's|refs/heads/||')
+    LOCAL_BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+
+    case "$REMOTE_BRANCH" in
+        dev)
+            # Anything can push to dev
+            ;;
+        test)
+            # Only dev and hotfix/* can push to test
+            if [ "$LOCAL_BRANCH" != "dev" ] && [[ "$LOCAL_BRANCH" != hotfix/* ]]; then
+                echo "ERROR: Cannot push '$LOCAL_BRANCH' to 'test'"
+                echo "Only 'dev' and 'hotfix/*' branches can be pushed to 'test'"
+                exit 1
+            fi
+            ;;
+        main)
+            # Only test can push to main
+            if [ "$LOCAL_BRANCH" != "test" ]; then
+                echo "ERROR: Cannot push '$LOCAL_BRANCH' to 'main'"
+                echo "Only 'test' branch can be pushed to 'main'"
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+exit 0
+"""
+
+    if not git_hooks_dir.exists():
+        typer.echo("⚠️  Warning: .git/hooks directory not found", err=True)
+        return
+
+    hook_file.write_text(hook_content)
+    hook_file.chmod(0o755)
+    typer.echo("✓ Created pre-push hook for branch rules")
+
+
 def create_agents_files(project_root: Path):
     """Create AGENTS.md and CLAUDE.md symlink in project root."""
     agents_file = project_root / "AGENTS.md"
@@ -259,6 +319,9 @@ def init(
     except GitHubError as e:
         typer.echo(f"⚠️  Warning: {e}", err=True)
         typer.echo("  (You can manually create branches later)")
+
+    # Create pre-push hook for branch rules
+    create_pre_push_hook(ENV_SETTINGS.caller_dir)
 
     # Step 8: Ensure global config and create GitHub issue template
     typer.echo("\nStep 8/10: Setting up global config and GitHub issue template...")

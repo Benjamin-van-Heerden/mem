@@ -12,6 +12,7 @@ from typing import Any
 
 from env_settings import ENV_SETTINGS
 from src.utils import logs, specs, tasks, todos
+from src.utils.specs import ensure_on_dev_branch
 
 
 def ensure_mem_initialized() -> bool:
@@ -263,6 +264,11 @@ def onboard():
     if not ensure_mem_initialized():
         print("mem is not initialized. Run 'mem init' first.", file=sys.stderr)
         sys.exit(1)
+
+    # Auto-switch to dev if on main or test
+    switched, switch_msg = ensure_on_dev_branch()
+    if switched and switch_msg:
+        print(f"⚠️  {switch_msg}", file=sys.stderr)
 
     # 1. Run sync (optional, fail silently)
     print("Syncing with GitHub...", file=sys.stderr)

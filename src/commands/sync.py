@@ -24,6 +24,7 @@ from src.utils.github.api import (
 )
 from src.utils.github.client import get_github_client
 from src.utils.github.repo import get_repo_from_git
+from src.utils.specs import ensure_on_dev_branch
 from src.utils.sync_utils import (
     SEPARATOR,
     compute_content_hash,
@@ -757,6 +758,11 @@ def sync(
     Use --dry-run to preview changes without applying them.
     Use --no-git to skip git operations.
     """
+    # Auto-switch to dev if on main or test
+    switched, switch_msg = ensure_on_dev_branch()
+    if switched and switch_msg:
+        typer.echo(f"⚠️  {switch_msg}")
+
     typer.echo("🔄 Synchronizing with GitHub...")
 
     try:
