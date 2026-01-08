@@ -4,6 +4,7 @@ Init command - Initialize mem in a project with GitHub integration
 
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -71,64 +72,90 @@ def _get_agents_template_path() -> Path:
     return Path(__file__).parent.parent / "templates" / "AGENTS.md"
 
 
-def create_pre_push_hook(project_root: Path):
-    """Create pre-push hook to enforce branch merge rules.
+def configure_merge_settings(project_root: Path):
+    """Configure git merge settings.
+
+    Sets merge.ff to false to prevent fast-forward merges,
+    ensuring pre-merge-commit hook always triggers.
+    """
+    try:
+        subprocess.run(
+            ["git", "config", "merge.ff", "false"],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+        )
+        typer.echo("✓ Configured merge.ff=false (ensures merge hooks trigger)")
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"⚠️  Warning: Could not set merge.ff config: {e}", err=True)
+
+
+def create_pre_merge_commit_hook(project_root: Path, quiet: bool = False):
+    """Create pre-merge-commit hook to enforce branch merge rules.
 
     Rules enforced:
-    - Anything can be pushed to dev
-    - Only dev and hotfix/* can be pushed to test
-    - Only test can be pushed to main
+    - Anything can merge into dev
+    - Only dev and hotfix/* can merge into test
+    - Only test can merge into main
     """
     git_hooks_dir = project_root / ".git" / "hooks"
-    hook_file = git_hooks_dir / "pre-push"
+    hook_file = git_hooks_dir / "pre-merge-commit"
 
     hook_content = """#!/bin/bash
-# mem: Git branch push rules enforcement
+# mem: Git merge rules enforcement
 # Rules:
-#   - Anything can push to dev
-#   - Only dev and hotfix/* can push to test
-#   - Only test can push to main
+#   - Anything can merge into dev
+#   - Only dev and hotfix/* can merge into test
+#   - Only test can merge into main
 
-REMOTE="$1"
+TARGET_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Use name-rev to get branch name from MERGE_HEAD (rev-parse returns literal "MERGE_HEAD")
+SOURCE_BRANCH=$(git name-rev --name-only MERGE_HEAD 2>/dev/null | sed 's|remotes/origin/||')
 
-while read LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
-    # Extract branch name from ref
-    REMOTE_BRANCH=$(echo "$REMOTE_REF" | sed 's|refs/heads/||')
-    LOCAL_BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+# If we can't determine source branch, allow (might be a commit merge)
+if [ -z "$SOURCE_BRANCH" ]; then
+    exit 0
+fi
 
-    case "$REMOTE_BRANCH" in
-        dev)
-            # Anything can push to dev
-            ;;
-        test)
-            # Only dev and hotfix/* can push to test
-            if [ "$LOCAL_BRANCH" != "dev" ] && [[ "$LOCAL_BRANCH" != hotfix/* ]]; then
-                echo "ERROR: Cannot push '$LOCAL_BRANCH' to 'test'"
-                echo "Only 'dev' and 'hotfix/*' branches can be pushed to 'test'"
-                exit 1
-            fi
-            ;;
-        main)
-            # Only test can push to main
-            if [ "$LOCAL_BRANCH" != "test" ]; then
-                echo "ERROR: Cannot push '$LOCAL_BRANCH' to 'main'"
-                echo "Only 'test' branch can be pushed to 'main'"
-                exit 1
-            fi
-            ;;
-    esac
-done
-
-exit 0
+case "$TARGET_BRANCH" in
+    dev)
+        # Anything can merge into dev
+        exit 0
+        ;;
+    test)
+        # Only dev and hotfix/* can merge into test
+        if [ "$SOURCE_BRANCH" = "dev" ] || [[ "$SOURCE_BRANCH" == hotfix/* ]]; then
+            exit 0
+        fi
+        echo "ERROR: Cannot merge '$SOURCE_BRANCH' into 'test'"
+        echo "Only 'dev' and 'hotfix/*' branches can merge into 'test'"
+        exit 1
+        ;;
+    main)
+        # Only test can merge into main
+        if [ "$SOURCE_BRANCH" = "test" ]; then
+            exit 0
+        fi
+        echo "ERROR: Cannot merge '$SOURCE_BRANCH' into 'main'"
+        echo "Only 'test' branch can merge into 'main'"
+        exit 1
+        ;;
+    *)
+        # Other branches: allow
+        exit 0
+        ;;
+esac
 """
 
     if not git_hooks_dir.exists():
-        typer.echo("⚠️  Warning: .git/hooks directory not found", err=True)
+        if not quiet:
+            typer.echo("⚠️  Warning: .git/hooks directory not found", err=True)
         return
 
     hook_file.write_text(hook_content)
     hook_file.chmod(0o755)
-    typer.echo("✓ Created pre-push hook for branch rules")
+    if not quiet:
+        typer.echo("✓ Created pre-merge-commit hook for branch rules")
 
 
 def create_agents_files(project_root: Path):
@@ -320,8 +347,11 @@ def init(
         typer.echo(f"⚠️  Warning: {e}", err=True)
         typer.echo("  (You can manually create branches later)")
 
-    # Create pre-push hook for branch rules
-    create_pre_push_hook(ENV_SETTINGS.caller_dir)
+    # Create pre-merge-commit hook for branch rules
+    create_pre_merge_commit_hook(ENV_SETTINGS.caller_dir)
+
+    # Configure merge settings (disable fast-forward)
+    configure_merge_settings(ENV_SETTINGS.caller_dir)
 
     # Step 8: Ensure global config and create GitHub issue template
     typer.echo("\nStep 8/10: Setting up global config and GitHub issue template...")

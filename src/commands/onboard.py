@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from env_settings import ENV_SETTINGS
+from src.commands.init import create_pre_merge_commit_hook
 from src.utils import logs, specs, tasks, todos
 from src.utils.specs import ensure_on_dev_branch
 
@@ -265,6 +266,9 @@ def onboard():
         print("mem is not initialized. Run 'mem init' first.", file=sys.stderr)
         sys.exit(1)
 
+    # Ensure git hooks are in place (silent)
+    create_pre_merge_commit_hook(ENV_SETTINGS.caller_dir, quiet=True)
+
     # Auto-switch to dev if on main or test
     switched, switch_msg = ensure_on_dev_branch()
     if switched and switch_msg:
@@ -324,6 +328,11 @@ def onboard():
     output.append("- `mem merge` - Merge completed PRs and clean up branches")
     output.append("- `mem log` - Create/update work log for the session")
     output.append("- `mem sync` - Bidirectional sync with GitHub issues")
+    output.append("")
+    output.append("**Branch merge rules:**")
+    output.append("- anything → dev (feature branches merge here)")
+    output.append("- dev or hotfix/* → test")
+    output.append("- test → main")
     output.append("")
 
     # Project info
@@ -389,6 +398,16 @@ def onboard():
             f'`mem spec complete {active_spec["slug"]} "detailed commit message"` to create a PR.'
         )
         output.append("")
+
+        # Show files changed in this spec branch
+        diff_stat = specs.get_branch_diff_stat()
+        if diff_stat:
+            output.append("### Files modified in this spec (vs dev):")
+            output.append("```")
+            output.append(diff_stat)
+            output.append("```")
+            output.append("")
+
         output.append(format_spec_detail(active_spec))
     else:
         output.append("AVAILABLE SPECS")
@@ -421,6 +440,15 @@ def onboard():
                 output.append(
                     'No specs available. Create one with: mem spec new "title"'
                 )
+                output.append("")
+
+                # Show recently completed specs for context
+                completed_specs = specs.list_specs(status="completed")
+                if completed_specs:
+                    output.append("### Recently completed specs:")
+                    output.append("These were the last completed specs for context:")
+                    for spec in completed_specs[:2]:
+                        output.append(f"  - {spec['slug']}: {spec['title']}")
     output.append("")
 
     # Work Logs section - show recent logs prominently

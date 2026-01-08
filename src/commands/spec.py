@@ -422,6 +422,13 @@ def activate(
         typer.echo("Do not batch task completions - complete them one at a time.")
         typer.echo("")
 
+        # Show files changed in this branch (if any)
+        diff_stat = specs.get_branch_diff_stat(branch_name)
+        if diff_stat:
+            typer.echo("Files modified in this spec (vs dev):")
+            typer.echo(diff_stat)
+            typer.echo("")
+
         # Show spec details
         show(spec_slug, verbose=True)
 
