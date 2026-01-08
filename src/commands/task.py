@@ -233,8 +233,7 @@ def complete(
             raise typer.Exit(code=1)
 
         tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
-        typer.echo("")
-        typer.echo(f"  ✓ Task completed: {title}")
+        typer.echo(f"✓ Task completed: {title}")
         typer.echo("")
 
         # Check if all tasks are now complete
@@ -242,7 +241,7 @@ def complete(
         pending = [t for t in task_list if t["status"] != "completed"]
 
         if not pending and task_list:
-            typer.echo("  All spec tasks are complete!")
+            typer.echo("All spec tasks are complete!")
             typer.echo(
                 f'  Spec ready for completion via: mem spec complete {resolved_slug} "detailed commit message"'
             )

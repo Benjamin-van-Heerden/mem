@@ -4,6 +4,7 @@ Init command - Initialize mem in a project with GitHub integration
 
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -69,6 +70,24 @@ def _get_template_path() -> Path:
 def _get_agents_template_path() -> Path:
     """Get path to the AGENTS.md template."""
     return Path(__file__).parent.parent / "templates" / "AGENTS.md"
+
+
+def configure_merge_settings(project_root: Path):
+    """Configure git merge settings.
+
+    Sets merge.ff to false to prevent fast-forward merges,
+    ensuring pre-merge-commit hook always triggers.
+    """
+    try:
+        subprocess.run(
+            ["git", "config", "merge.ff", "false"],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+        )
+        typer.echo("✓ Configured merge.ff=false (ensures merge hooks trigger)")
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"⚠️  Warning: Could not set merge.ff config: {e}", err=True)
 
 
 def create_pre_push_hook(project_root: Path):
@@ -322,6 +341,9 @@ def init(
 
     # Create pre-push hook for branch rules
     create_pre_push_hook(ENV_SETTINGS.caller_dir)
+
+    # Configure merge settings (disable fast-forward)
+    configure_merge_settings(ENV_SETTINGS.caller_dir)
 
     # Step 8: Ensure global config and create GitHub issue template
     typer.echo("\nStep 8/10: Setting up global config and GitHub issue template...")
