@@ -204,7 +204,7 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
             steps.append(f"Continue working on: {pending[0]['title']}")
         elif task_list:
             steps.append(
-                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "commit message"'
+                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "detailed commit message"'
             )
         else:
             steps.append(
@@ -319,7 +319,7 @@ def onboard():
     )
     output.append('- `mem task complete "title"` - Mark task done')
     output.append(
-        '- `mem spec complete <slug> "msg"` - Create PR, mark spec merge_ready'
+        '- `mem spec complete <slug> "detailed commit message"` - Create PR, mark spec merge_ready'
     )
     output.append("- `mem merge` - Merge completed PRs and clean up branches")
     output.append("- `mem log` - Create/update work log for the session")
@@ -386,7 +386,7 @@ def onboard():
             "You are currently working on this spec. Complete its tasks, then run"
         )
         output.append(
-            f'`mem spec complete {active_spec["slug"]} "commit message"` to create a PR.'
+            f'`mem spec complete {active_spec["slug"]} "detailed commit message"` to create a PR.'
         )
         output.append("")
         output.append(format_spec_detail(active_spec))
@@ -509,7 +509,7 @@ def onboard():
         )
         output.append("  - Do not batch task completions - complete them one at a time")
         output.append(
-            '  - When all tasks are done, run: mem spec complete <slug> "message"'
+            '  - When all tasks are done, run: mem spec complete <slug> "detailed commit message"'
         )
         output.append("")
 

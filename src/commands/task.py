@@ -75,8 +75,13 @@ def new(
         typer.echo(f"Created task: {task_file.name}")
         typer.echo(f"  Spec: {resolved_slug}")
         typer.echo("")
-        typer.echo("Hint: For complex tasks, break them into subtasks:")
-        typer.echo(f'  mem subtask new "subtask title" --task "{title}"')
+        typer.echo("Hints:")
+        typer.echo(
+            f'  Complete with: mem task complete "{title}" "detailed completion notes"'
+        )
+        typer.echo(
+            f'  For complex tasks, break into subtasks: mem subtask new "subtask title" --task "{title}"'
+        )
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -188,7 +193,7 @@ def list_tasks_cmd(
         elif total > 0:
             typer.echo("")
             typer.echo("All tasks complete! Spec ready for completion:")
-            typer.echo(f'  mem spec complete {resolved_slug} "commit message"')
+            typer.echo(f'  mem spec complete {resolved_slug} "detailed commit message"')
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -228,26 +233,28 @@ def complete(
             raise typer.Exit(code=1)
 
         tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
-        typer.echo(f"Completed task: {title}")
+        typer.echo("")
+        typer.echo(f"  ✓ Task completed: {title}")
+        typer.echo("")
 
         # Check if all tasks are now complete
         task_list = tasks.list_tasks(resolved_slug)
         pending = [t for t in task_list if t["status"] != "completed"]
 
-        typer.echo("")
         if not pending and task_list:
-            typer.echo("All spec tasks are complete!")
+            typer.echo("  All spec tasks are complete!")
             typer.echo(
-                f'Spec ready for completion via: mem spec complete {resolved_slug} "commit message"'
+                f'  Spec ready for completion via: mem spec complete {resolved_slug} "detailed commit message"'
             )
-        else:
-            if pending:
-                typer.echo("")
-                typer.echo(f"Remaining tasks: {len(pending)}")
-        typer.echo("Stop here AT ONCE and Report what was accomplished")
-        typer.echo(
-            "Await review of what you have done and further instructions. DO NOT continue with the next task or action."
-        )
+        elif pending:
+            typer.echo(f"  Remaining tasks: {len(pending)}")
+
+        typer.echo("")
+        typer.echo("[AGENT INSTRUCTION]")
+        typer.echo("Your next response must:")
+        typer.echo("1. Summarize what was done for this task")
+        typer.echo("2. Ask the user if they want to continue")
+        typer.echo("Do NOT call any tools. Do NOT start the next task.")
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
