@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from env_settings import ENV_SETTINGS
+from src.commands.init import create_pre_merge_commit_hook
 from src.utils import logs, specs, tasks, todos
 from src.utils.specs import ensure_on_dev_branch
 
@@ -264,6 +265,9 @@ def onboard():
     if not ensure_mem_initialized():
         print("mem is not initialized. Run 'mem init' first.", file=sys.stderr)
         sys.exit(1)
+
+    # Ensure git hooks are in place (silent)
+    create_pre_merge_commit_hook(ENV_SETTINGS.caller_dir, quiet=True)
 
     # Auto-switch to dev if on main or test
     switched, switch_msg = ensure_on_dev_branch()
