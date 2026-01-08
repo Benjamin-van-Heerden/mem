@@ -32,8 +32,9 @@ def log():
         if active_spec:
             typer.echo("")
             typer.echo("If this is the LAST log before completing the spec:")
+            typer.echo("  `mem spec complete` handles git automatically.")
             typer.echo(
-                "  No action needed - `mem spec complete` handles git automatically."
+                f'  Run `mem spec complete {spec_slug} "detailed commit message"` once you are done editing the log file'
             )
             typer.echo("")
             typer.echo("Otherwise, commit and push your changes:")
