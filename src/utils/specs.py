@@ -211,6 +211,28 @@ def get_current_branch() -> str | None:
         return None
 
 
+def ensure_on_dev_branch() -> tuple[bool, str | None]:
+    """Ensure we're on the dev branch, switching if on main or test.
+
+    Returns:
+        (switched, message) - switched is True if we changed branches,
+        message describes what happened or None if already on dev/feature branch.
+    """
+    current = get_current_branch()
+    if current is None:
+        return False, None
+
+    if current in ("main", "test"):
+        try:
+            repo = Repo(ENV_SETTINGS.caller_dir)
+            repo.git.checkout("dev")
+            return True, f"Switched from '{current}' to 'dev' branch"
+        except Exception as e:
+            return False, f"Failed to switch to dev: {e}"
+
+    return False, None
+
+
 def get_active_spec() -> dict[str, Any] | None:
     """Get the currently active spec based on git branch.
 
