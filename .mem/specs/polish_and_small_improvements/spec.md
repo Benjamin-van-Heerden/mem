@@ -1,13 +1,13 @@
 ---
 title: Polish and small improvements
-status: todo
-assigned_to: null
+status: merge_ready
+assigned_to: Benjamin-van-Heerden
 issue_id: 23
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/23
-branch: null
+branch: dev-benjamin_van_heerden-polish_and_small_improvements
 pr_url: null
 created_at: '2026-01-08T12:22:13.410437'
-updated_at: '2026-01-08T12:22:28.945281'
+updated_at: '2026-01-08T12:58:46.203644'
 completed_at: null
 last_synced_at: '2026-01-08T12:22:28.944598'
 local_content_hash: fd7805e0f3283c6b7603dbaa1ce145252b1ef8608764ed7e446811545273bf91
