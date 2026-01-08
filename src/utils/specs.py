@@ -233,6 +233,27 @@ def ensure_on_dev_branch() -> tuple[bool, str | None]:
     return False, None
 
 
+def get_branch_diff_stat(branch_name: str | None = None) -> str | None:
+    """Get git diff --stat for current branch against dev.
+
+    Returns the diff stat output as a string, or None if not available.
+    """
+    if branch_name is None:
+        branch_name = get_current_branch()
+
+    if branch_name is None or branch_name in ("dev", "main", "master", "test"):
+        return None
+
+    try:
+        repo = Repo(ENV_SETTINGS.caller_dir)
+        diff_stat = repo.git.diff("dev", "--stat")
+        if diff_stat.strip():
+            return diff_stat
+        return None
+    except Exception:
+        return None
+
+
 def get_active_spec() -> dict[str, Any] | None:
     """Get the currently active spec based on git branch.
 
