@@ -1,13 +1,13 @@
 ---
 title: Auto-switch to dev and git merge rules
-status: todo
+status: merge_ready
 assigned_to: Benjamin-van-Heerden
 issue_id: 21
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/21
 branch: dev-benjamin_van_heerden-auto_switch_to_dev_and_git_merge_rules
 pr_url: null
 created_at: '2026-01-08T10:19:07.385117'
-updated_at: '2026-01-08T10:45:32.863656'
+updated_at: '2026-01-08T11:20:57.841568'
 completed_at: null
 last_synced_at: '2026-01-08T10:20:20.982673'
 local_content_hash: 904238b1d6d2cb6040ddc6a6ac7f0e44f0d1c4c0792dfecb2a4ec285e354b72e
