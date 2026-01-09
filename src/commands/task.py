@@ -7,7 +7,8 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
-from src.utils import specs, tasks
+from env_settings import ENV_SETTINGS
+from src.utils import specs, tasks, worktrees
 
 app = typer.Typer(help="Manage tasks")
 
@@ -39,6 +40,26 @@ def _resolve_spec_slug(spec_slug: Optional[str]) -> str:
         spec = specs.get_spec(spec_slug)
         if not spec:
             raise ValueError(f"Spec '{spec_slug}' not found")
+
+        # Check if we're in the main repo but a worktree exists for this spec
+        current_dir = ENV_SETTINGS.caller_dir
+        if not worktrees.is_worktree(current_dir):
+            # We're in the main repo - check if spec has a worktree
+            worktree = worktrees.get_worktree_for_spec(current_dir, spec_slug)
+            if worktree:
+                typer.echo(
+                    f"⚠️  Warning: Spec '{spec_slug}' has a worktree at:", err=True
+                )
+                typer.echo(f"   {worktree.path}", err=True)
+                typer.echo("", err=True)
+                typer.echo(
+                    "   You are in the main repo. Tasks should be created in the worktree.",
+                    err=True,
+                )
+                typer.echo(f"   Run: cd {worktree.path}", err=True)
+                typer.echo("   Then: mem task new ...", err=True)
+                raise typer.Exit(code=1)
+
         return spec_slug
 
     return _get_active_spec_slug()
@@ -81,6 +102,15 @@ def new(
         )
         typer.echo(
             f'  For complex tasks, break into subtasks: mem subtask new "subtask title" --task "{title}"'
+        )
+        typer.echo("")
+        typer.echo("Refinement options:")
+        typer.echo(f'  Rename task: mem task rename "{title}" "new title"')
+        typer.echo(
+            f'  Amend after completion: mem task amend "{title}" "additional requirements"'
+        )
+        typer.echo(
+            "    (Amend resets status to todo, enabling iterative refinement cycles)"
         )
 
     except ValueError as e:
@@ -276,6 +306,76 @@ def delete(
         task_filename = _find_task_by_title(resolved_slug, title)
         tasks.delete_task(resolved_slug, task_filename)
         typer.echo(f"Deleted task: {title}")
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def amend(
+    title: Annotated[str, typer.Argument(help="Task title (partial match supported)")],
+    notes: Annotated[str, typer.Argument(help="Amendment notes to append")],
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    Amend a task with additional notes.
+
+    Appends an Amendments section to the task body and resets status to todo.
+    This enables iterative refinement: complete a task, then amend it with
+    new requirements, complete again, and so on.
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_filename = _find_task_by_title(resolved_slug, title)
+        tasks.amend_task(resolved_slug, task_filename, notes)
+
+        task = tasks.get_task(resolved_slug, task_filename)
+        typer.echo(f"Amended task: {task['title']}")
+        typer.echo("  Status reset to: todo")
+        typer.echo("")
+        typer.echo("The task can now be completed again with new completion notes.")
+        typer.echo(
+            f'  Complete with: mem task complete "{task["title"]}" "completion notes"'
+        )
+
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def rename(
+    title: Annotated[
+        str, typer.Argument(help="Current task title (partial match supported)")
+    ],
+    new_title: Annotated[str, typer.Argument(help="New title for the task")],
+    spec_slug: Annotated[
+        Optional[str],
+        typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
+    ] = None,
+):
+    """
+    Rename a task.
+
+    Updates the task title in frontmatter. The filename remains unchanged
+    for stability (references and git history are preserved).
+    """
+    try:
+        resolved_slug = _resolve_spec_slug(spec_slug)
+        task_filename = _find_task_by_title(resolved_slug, title)
+
+        old_task = tasks.get_task(resolved_slug, task_filename)
+        old_title = old_task["title"]
+
+        tasks.rename_task(resolved_slug, task_filename, new_title)
+
+        typer.echo(f"Renamed task:")
+        typer.echo(f"  From: {old_title}")
+        typer.echo(f"  To:   {new_title}")
+
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
