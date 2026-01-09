@@ -64,11 +64,15 @@ def git_fetch_and_pull() -> tuple[bool, str]:
             text=True,
         )
         if result.returncode != 0:
-            if "not possible to fast-forward" in result.stderr.lower():
+            stderr_lower = result.stderr.lower()
+            if "not possible to fast-forward" in stderr_lower:
                 return (
                     False,
                     "Cannot fast-forward. Please resolve conflicts manually and try again.",
                 )
+            # New branches with no upstream are OK - nothing to pull
+            if "no tracking information" in stderr_lower:
+                return True, "OK (no upstream to pull from)"
             return False, f"git pull failed: {result.stderr}"
     except subprocess.CalledProcessError as e:
         return False, f"git pull failed: {e.stderr}"

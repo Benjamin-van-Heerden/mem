@@ -12,7 +12,7 @@ from typing import Any
 
 from env_settings import ENV_SETTINGS
 from src.commands.init import create_pre_merge_commit_hook
-from src.utils import logs, specs, tasks, todos
+from src.utils import logs, specs, tasks, todos, worktrees
 from src.utils.specs import ensure_on_dev_branch
 
 
@@ -205,19 +205,13 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
             steps.append(f"Continue working on: {pending[0]['title']}")
         elif task_list:
             steps.append(
-                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "detailed commit message"'
+                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "commit message"'
             )
         else:
-            steps.append(
-                f'Add tasks to spec: mem task new "title" "detailed description with implementation notes if necessary" --spec {active_spec["slug"]}'
-            )
+            steps.append('Add tasks to spec: mem task new "title" "description"')
     else:
-        if branch_name in ("dev", "main", "master"):
-            steps.append("Activate a spec to start working: mem spec activate <slug>")
-            steps.append('Or create a new spec: mem spec new "feature name"')
-        else:
-            steps.append(f"You're on branch '{branch_name}' with no associated spec.")
-            steps.append("Consider creating a spec for this work or switching to dev.")
+        steps.append('Create a new spec: mem spec new "feature name"')
+        steps.append("Or assign an existing spec: mem spec assign <slug>")
 
     steps.append("Create a work log for this session: mem log")
 
@@ -317,15 +311,18 @@ def onboard():
     output.append("- **Work Logs**: Session records of what was done and what's next")
     output.append("")
     output.append("**Key commands:**")
-    output.append("- `mem spec activate <slug>` - Switch to a spec's feature branch")
+    output.append('- `mem spec new "title"` - Create a new spec')
     output.append(
-        '- `mem task new "title" "detailed description with implementation notes if necessary"` - Create a task for active spec'
+        "- `mem spec assign <slug>` - Assign spec to yourself and create worktree"
+    )
+    output.append(
+        '- `mem task new "title" "description"` - Create a task for active spec'
     )
     output.append('- `mem task complete "title"` - Mark task done')
     output.append(
-        '- `mem spec complete <slug> "detailed commit message"` - Create PR, mark spec merge_ready'
+        '- `mem spec complete <slug> "commit message"` - Create PR, mark spec merge_ready'
     )
-    output.append("- `mem merge` - Merge completed PRs and clean up branches")
+    output.append("- `mem merge` - Merge completed PRs and clean up worktrees")
     output.append("- `mem log` - Create/update work log for the session")
     output.append("- `mem sync` - Bidirectional sync with GitHub issues")
     output.append("")
@@ -413,11 +410,25 @@ def onboard():
         output.append("AVAILABLE SPECS")
         output.append("-" * 70)
         output.append("")
-        output.append("No spec is currently active. You are on the dev branch.")
-        output.append(
-            "Activate a spec with `mem spec activate <slug>` to start working on it."
-        )
+        output.append("No spec is currently active. You are in the main repo.")
         output.append("")
+
+        # Show active worktrees
+        main_repo_path = ENV_SETTINGS.caller_dir
+        all_worktrees = worktrees.list_worktrees(main_repo_path)
+        spec_worktrees = [wt for wt in all_worktrees if not wt.is_main]
+        if spec_worktrees:
+            output.append("### Active worktrees:")
+            output.append("Each worktree is an isolated workspace for a spec.")
+            for wt in spec_worktrees:
+                slug = wt.path.name
+                output.append(f"  - {slug}: {wt.path}")
+            output.append("")
+            output.append(
+                "To work on a spec, open a terminal in its worktree directory."
+            )
+            output.append("")
+
         todo_specs = specs.list_specs(status="todo")
         merge_ready_specs = specs.list_specs(status="merge_ready")
 

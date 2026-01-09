@@ -13,7 +13,7 @@ from env_settings import ENV_SETTINGS
 from src.commands.sync import (
     git_fetch_and_pull,
 )
-from src.utils import logs, specs, tasks
+from src.utils import logs, specs, tasks, worktrees
 from src.utils.github.api import (
     close_issue_with_comment,
     create_pull_request,
@@ -21,8 +21,7 @@ from src.utils.github.api import (
     update_github_issue,
 )
 from src.utils.github.client import get_authenticated_user, get_github_client
-from src.utils.github.exceptions import GitHubError
-from src.utils.github.git_ops import push_branch, smart_switch, switch_to_branch
+from src.utils.github.git_ops import switch_to_branch
 from src.utils.github.repo import get_repo_from_git
 from src.utils.markdown import slugify
 
@@ -37,6 +36,8 @@ def new(
     Create a new specification.
 
     This creates a spec directory with spec.md in .mem/specs/{slug}/
+    Use 'mem sync' to create the GitHub issue, then 'mem spec assign' to
+    claim the spec and create a worktree for working on it.
     """
     try:
         spec_file = specs.create_spec(title)
@@ -48,18 +49,12 @@ def new(
         typer.echo("\nNext steps:")
         typer.echo(f"  1. Edit the spec file: {relative_path}")
         typer.echo("  2. Run 'mem sync' to create the GitHub issue")
-        typer.echo(f"  3. Run 'mem spec assign {slug}' to assign yourself")
-        typer.echo(f"  4. Run 'mem spec activate {slug}' to start working")
         typer.echo(
-            f'  5. Add tasks: mem task new "title" "detailed description with implementation notes if necessary" --spec {slug}'
+            f"  3. Run 'mem spec assign {slug}' to claim it and create a worktree"
         )
         typer.echo("")
-        typer.echo("Note: Unassigned specs cannot be activated to prevent conflicts.")
         typer.echo(
             "Note: Do not add tasks in the spec body - use 'mem task new' instead."
-        )
-        typer.echo(
-            'Note: If the spec is active, add tasks like: mem task new "title" "detailed description with implementation notes if necessary"'
         )
 
     except ValueError as e:
@@ -260,9 +255,10 @@ def assign(
     ] = None,
 ):
     """
-    Assign a specification to a GitHub user.
+    Assign a specification to a GitHub user and create a worktree.
 
     If no username is provided, assigns to the current authenticated user.
+    Creates a git worktree at ../<project>-worktrees/<slug>/ with a feature branch.
     The assignment is synced to GitHub to prevent multiple people working
     on the same spec simultaneously.
     """
@@ -300,8 +296,43 @@ def assign(
             )
             raise typer.Exit(code=1)
 
-        # Update local assignment
+        # Check if worktree already exists
+        main_repo_path = ENV_SETTINGS.caller_dir
+        existing_worktree = worktrees.get_worktree_for_spec(main_repo_path, spec_slug)
+        if existing_worktree:
+            typer.echo(f"Spec '{spec_slug}' already has a worktree at:")
+            typer.echo(f"  {existing_worktree.path}")
+            typer.echo("\nTo work on this spec, open a terminal there.")
+            return
+
+        # Create branch name
+        user_slug = slugify(username)
+        branch_name = spec.get("branch") or f"dev-{user_slug}-{spec_slug}"
+
+        # Update local assignment and branch BEFORE creating worktree
+        # so the worktree has the correct metadata
         specs.assign_spec(spec_slug, username)
+        if not spec.get("branch"):
+            specs.update_spec(spec_slug, branch=branch_name)
+
+        # Commit any uncommitted .mem changes before creating worktree
+        # This ensures the spec file (with branch set) is available in the worktree
+        repo = Repo(main_repo_path)
+        mem_dir = main_repo_path / ".mem"
+        if mem_dir.exists():
+            repo.git.add(str(mem_dir))
+            if repo.is_dirty(index=True):
+                repo.git.commit("-m", f"mem: prepare spec {spec_slug} for assignment")
+
+        try:
+            worktree_path = worktrees.create_worktree(
+                main_repo_path, spec_slug, branch_name
+            )
+            typer.echo(f"✓ Created worktree: {worktree_path}")
+            typer.echo(f"✓ Created branch: {branch_name}")
+        except Exception as e:
+            typer.echo(f"❌ Error creating worktree: {e}", err=True)
+            raise typer.Exit(code=1)
 
         # Sync assignment to GitHub
         try:
@@ -318,126 +349,19 @@ def assign(
             )
             typer.echo("  Local assignment saved. Run 'mem sync' to retry.")
 
+        typer.echo("\n" + "=" * 60)
+        typer.echo("WORKTREE READY")
+        typer.echo("=" * 60)
+        typer.echo("\nTo start working on this spec:")
+        typer.echo(f"  cd {worktree_path}")
+        typer.echo("  claude  # or your preferred agent")
+        typer.echo("")
+        typer.echo("Note: Work happens in the worktree, not in the main repo.")
+
     except typer.Exit:
         raise
     except Exception as e:
         typer.echo(f"❌ Error: {e}", err=True)
-        raise typer.Exit(code=1)
-
-
-@app.command()
-def activate(
-    spec_slug: Annotated[
-        str, typer.Argument(help="Slug of the specification to activate")
-    ],
-):
-    """
-    Activate a specification by switching to its branch.
-
-    If the spec doesn't have a branch yet, creates one and switches to it.
-    A spec is considered "active" when you're on its branch.
-    """
-    try:
-        # 1. Get spec info
-        spec = specs.get_spec(spec_slug)
-
-        if not spec:
-            typer.echo(f"Error: Spec '{spec_slug}' not found.", err=True)
-            raise typer.Exit(code=1)
-
-        title = spec["title"]
-
-        # 2. Check if spec is synced to GitHub
-        if not spec.get("issue_id"):
-            typer.echo(f"Error: Spec '{spec_slug}' is not synced to GitHub.", err=True)
-            typer.echo("\nTo activate a spec, it must first be synced:")
-            typer.echo("  1. Edit the spec file if needed")
-            typer.echo("  2. Run 'mem sync' to create the GitHub issue")
-            typer.echo("  3. Run 'mem spec assign <slug>' to assign yourself")
-            typer.echo("  4. Then run 'mem spec activate <slug>'")
-            raise typer.Exit(code=1)
-
-        # 3. Check if spec is assigned
-        if not spec.get("assigned_to"):
-            typer.echo(
-                f"Error: Spec '{spec_slug}' is not assigned to anyone.", err=True
-            )
-            typer.echo("\nTo activate a spec, it must be assigned to you:")
-            typer.echo("  Run 'mem spec assign <slug>' to assign yourself")
-            raise typer.Exit(code=1)
-
-        # 4. Check if assigned to current user
-        try:
-            client = get_github_client()
-            current_gh_user = get_authenticated_user(client)["username"]
-            if spec.get("assigned_to") != current_gh_user:
-                typer.echo(
-                    f"Error: Spec '{spec_slug}' is assigned to '{spec.get('assigned_to')}', not you.",
-                    err=True,
-                )
-                typer.echo("\nYou can only activate specs assigned to you.")
-                raise typer.Exit(code=1)
-        except Exception as e:
-            if "assigned to" in str(e).lower():
-                raise
-            # If we can't verify, proceed with warning
-            typer.echo(f"Warning: Could not verify GitHub user: {e}", err=True)
-
-        # 5. Check if already on this spec's branch
-        current_branch = specs.get_current_branch()
-        if spec.get("branch") and current_branch == spec.get("branch"):
-            typer.echo(f"Already on spec '{spec_slug}' branch: {current_branch}")
-            return
-
-        # 6. Prepare branch name
-        branch_name = spec.get("branch")
-        if not branch_name:
-            # Create a new branch name for this spec
-            user_slug = slugify(current_gh_user)  # type: ignore
-            branch_name = f"dev-{user_slug}-{spec_slug}"
-
-        typer.echo(f"Activating spec: {title}")
-        typer.echo(f"Branch: {branch_name}")
-
-        # 7. Git operations
-        try:
-            is_new = smart_switch(ENV_SETTINGS.caller_dir, branch_name)
-            if is_new:
-                push_branch(ENV_SETTINGS.caller_dir, branch_name)
-                typer.echo(f"Created and switched to branch '{branch_name}'")
-            else:
-                typer.echo(f"Switched to existing branch '{branch_name}'")
-        except Exception as e:
-            typer.echo(f"\nFailed to switch to branch '{branch_name}': {e}", err=True)
-            typer.echo("Please manually resolve the git issue and try again.", err=True)
-            raise typer.Exit(code=1)
-
-        # 8. Update spec with branch name (if it was new)
-        if not spec.get("branch"):
-            specs.update_spec(spec_slug, branch=branch_name)
-
-        typer.echo(f"\nSpec '{spec_slug}' is now active.")
-        typer.echo("")
-        typer.echo("IMPORTANT: Mark each task complete AS SOON AS you finish it.")
-        typer.echo("Do not batch task completions - complete them one at a time.")
-        typer.echo("")
-
-        # Show files changed in this branch (if any)
-        diff_stat = specs.get_branch_diff_stat(branch_name)
-        if diff_stat:
-            typer.echo("Files modified in this spec (vs dev):")
-            typer.echo(diff_stat)
-            typer.echo("")
-
-        # Show spec details
-        show(spec_slug, verbose=True)
-
-    except GitHubError as e:
-        typer.echo(f"GitHub Error: {e}", err=True)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        if not isinstance(e, typer.Exit):
-            typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
 
 
@@ -481,17 +405,18 @@ def complete(
             typer.echo(f"Error: Spec '{spec_slug}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        # 2. Check if on spec's branch (i.e., spec is active)
-        current_branch = specs.get_current_branch()
-        spec_branch = spec.get("branch")
-        if not spec_branch or current_branch != spec_branch:
+        # 2. Check if this spec is active (in worktree or on branch)
+        active_spec = specs.get_active_spec()
+        if not active_spec or active_spec["slug"] != spec_slug:
             typer.echo(
-                "Error: You must be on the spec's branch to complete it.",
+                f"Error: Spec '{spec_slug}' is not currently active.",
                 err=True,
             )
-            typer.echo(f"Current branch: {current_branch}", err=True)
-            typer.echo(f"Spec branch: {spec_branch or 'not set'}", err=True)
-            typer.echo(f"\nRun: mem spec activate {spec_slug}", err=True)
+            if active_spec:
+                typer.echo(f"Active spec: {active_spec['slug']}", err=True)
+            else:
+                typer.echo("No spec is currently active.", err=True)
+            typer.echo("\nTo complete this spec, work from its worktree.", err=True)
             raise typer.Exit(code=1)
 
         # 3. Validate tasks
@@ -519,9 +444,9 @@ def complete(
                 typer.echo(f"  - {t['title']} ({t['status']})", err=True)
             raise typer.Exit(code=1)
 
-        # 4. Validate work logs exist
+        # 4. Validate work logs exist (unless --no-log)
         spec_logs = logs.list_logs(limit=100, spec_slug=spec_slug)
-        if not spec_logs:
+        if not no_log and not spec_logs:
             typer.echo(
                 f"Error: Cannot complete spec '{spec_slug}'. No work logs found.",
                 err=True,
@@ -647,51 +572,12 @@ def complete(
         else:
             typer.echo("Warning: Spec has no GitHub issue. Skipping PR creation.")
 
-        # 9. Switch back to dev
-        try:
-            switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
-            typer.echo("Switched back to 'dev' branch")
-        except Exception as e:
-            typer.echo(f"Warning: Could not switch to 'dev' branch: {e}", err=True)
-
         typer.echo(f"\nSpec '{spec_slug}' marked as MERGE READY.")
         if pr_url:
             typer.echo(f"PR: {pr_url}")
-        typer.echo("\nNext steps: Merge the PR on GitHub.")
-
-    except Exception as e:
-        if not isinstance(e, typer.Exit):
-            typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1)
-
-
-@app.command()
-def deactivate():
-    """
-    Deactivate the currently active specification.
-
-    This switches back to the 'dev' branch. The spec remains in 'todo' status
-    since activation is now branch-based.
-    """
-    try:
-        # 1. Find active spec
-        active_spec = specs.get_active_spec()
-        if not active_spec:
-            typer.echo("No spec is currently active.")
-            return
-
-        typer.echo(f"Stopping work on: {active_spec['title']} ({active_spec['slug']})")
-
-        # 2. Git operations - switch back to dev
-        try:
-            switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
-            typer.echo("Switched back to 'dev' branch")
-        except Exception as e:
-            typer.echo(f"Warning: Could not switch to 'dev' branch: {e}", err=True)
-            typer.echo("Please switch branches manually.", err=True)
-            raise typer.Exit(code=1)
-
-        typer.echo("Spec deactivated.")
+        typer.echo("\nNext steps:")
+        typer.echo("  1. Merge the PR on GitHub")
+        typer.echo("  2. Run 'mem merge' from the main repo to clean up")
 
     except Exception as e:
         if not isinstance(e, typer.Exit):

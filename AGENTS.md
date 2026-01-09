@@ -89,4 +89,7 @@ Run `mem onboard` again. It always shows the current state.
 
 ## Notes:
 
-- No need to `cd` your shell is already in the project directory
+- There is ALMOST NEVER a need to `cd` into the project directory, YOUR SHELL IS ALREADY LOCATED AT THE ROOT OF THE PROJECT DIRECTORY.  
+- Do not enter plan mode, `mem` is the only tool you need for planning
+- Do not use external task lists or task management tools. Use `mem task` instead
+- When working with tests. Stop after test runs to ask for instruction. DO NOT RUN TESTS IN A LOOP.
