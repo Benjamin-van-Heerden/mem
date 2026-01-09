@@ -33,6 +33,14 @@ description = """
 # Example: ["python", "react"] loads python.md and react.md
 generic_templates = []
 
+# Important information to display at the bottom of onboard output
+# Use this for project-specific notes, reminders, or context that should
+# always be visible to AI agents (e.g., deployment notes, key contacts, etc.)
+# important_infos = """
+# - Remember to run tests before committing
+# - API keys are stored in .env.local
+# """
+
 # =============================================================================
 # IMPORTANT FILES
 # =============================================================================
