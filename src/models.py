@@ -5,7 +5,7 @@ These models define the structure of YAML frontmatter in markdown files.
 Templates contain only the body content; frontmatter is generated from these models.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
