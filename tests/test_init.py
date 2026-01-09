@@ -2,11 +2,7 @@
 Tests for the mem init command.
 """
 
-from pathlib import Path
-
-import pytest
 import typer
-from git import Repo
 
 from src.commands.init import init
 from src.utils.github.client import get_authenticated_user

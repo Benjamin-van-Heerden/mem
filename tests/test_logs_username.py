@@ -2,7 +2,7 @@
 Tests for username-prefixed log files.
 """
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -39,43 +39,47 @@ def test_log_filename_includes_username(initialized_mem):
     # Create a log
     log_path = logs.create_log()
 
-    # Verify filename format: {username}_{YYYYMMDD}_session.md
+    # Verify filename format: {username}_{YYYYMMDD}_{HHMMSS}_session.md
     filename = log_path.name
     assert filename.endswith("_session.md")
 
-    # Should have format: username_YYYYMMDD_session.md
-    parts = filename.replace("_session.md", "").rsplit("_", 1)
-    assert len(parts) == 2
+    # Should have format: username_YYYYMMDD_HHMMSS_session.md
+    parts = filename.replace("_session.md", "").rsplit("_", 2)
+    assert len(parts) == 3
 
     username_part = parts[0]
     date_part = parts[1]
+    time_part = parts[2]
 
     # Username should be slugified
     assert username_part == slugify(username_part)
 
-    # Date part should be 8 digits
+    # Date part should be 8 digits (YYYYMMDD)
     assert len(date_part) == 8
     assert date_part.isdigit()
+
+    # Time part should be 6 digits (HHMMSS)
+    assert len(time_part) == 6
+    assert time_part.isdigit()
 
 
 def test_log_metadata_includes_username(initialized_mem):
     """Test that log metadata includes username field."""
     logs.create_log()
 
-    log = logs.get_today_log()
+    log = logs.get_latest_log()
     assert log is not None
     assert "username" in log
     assert log["username"] is not None
 
 
 def test_get_log_finds_user_log(initialized_mem):
-    """Test that get_log finds the correct user's log."""
+    """Test that get_log_by_filename finds the correct user's log."""
     # Create a log
-    logs.create_log()
+    log_path = logs.create_log()
 
-    # Get it back
-    today = date.today()
-    log = logs.get_log(today)
+    # Get it back by filename
+    log = logs.get_log_by_filename(log_path.name)
 
     assert log is not None
     assert log.get("body") is not None
@@ -148,20 +152,27 @@ def test_list_logs_filter_by_username(initialized_mem):
 
 
 def test_parse_log_filename_extracts_username_and_date(initialized_mem):
-    """Test that _parse_log_filename correctly extracts username and date."""
-    # Test valid filename
-    result = logs._parse_log_filename("benjamin_van_heerden_20251230_session.md")
+    """Test that _parse_log_filename correctly extracts username and datetime."""
+    # Test valid filename with new format (YYYYMMDD_HHMMSS)
+    result = logs._parse_log_filename("benjamin_van_heerden_20251230_143052_session.md")
     assert result is not None
-    username, log_date = result
+    username, log_datetime = result
     assert username == "benjamin_van_heerden"
-    assert log_date == date(2025, 12, 30)
+    assert log_datetime == datetime(2025, 12, 30, 14, 30, 52)
 
-    # Test simple username
+    # Test simple username with new format
+    result = logs._parse_log_filename("alice_20251225_091500_session.md")
+    assert result is not None
+    username, log_datetime = result
+    assert username == "alice"
+    assert log_datetime == datetime(2025, 12, 25, 9, 15, 0)
+
+    # Test legacy format (YYYYMMDD only) still works
     result = logs._parse_log_filename("alice_20251225_session.md")
     assert result is not None
-    username, log_date = result
+    username, log_datetime = result
     assert username == "alice"
-    assert log_date == date(2025, 12, 25)
+    assert log_datetime.date() == date(2025, 12, 25)
 
     # Test invalid filename (no date)
     result = logs._parse_log_filename("invalid_session.md")
@@ -174,11 +185,14 @@ def test_parse_log_filename_extracts_username_and_date(initialized_mem):
 
 def test_append_to_log_uses_current_user(initialized_mem):
     """Test that append_to_log appends to the current user's log."""
-    # Append to log (creates it if doesn't exist)
-    logs.append_to_log("Test Section", "Test content")
+    # Create a log first
+    log_path = logs.create_log()
 
-    # Get today's log
-    log = logs.get_today_log()
+    # Append to log
+    logs.append_to_log(log_path.name, "Test Section", "Test content")
+
+    # Get the log back
+    log = logs.get_log_by_filename(log_path.name)
     assert log is not None
     assert "Test Section" in log["body"]
     assert "Test content" in log["body"]
@@ -187,15 +201,13 @@ def test_append_to_log_uses_current_user(initialized_mem):
 def test_update_log_updates_correct_user_log(initialized_mem):
     """Test that update_log updates the correct user's log."""
     # Create a log
-    logs.create_log()
+    log_path = logs.create_log()
 
-    today = date.today()
-
-    # Update it
-    logs.update_log(today, spec_slug="test_spec")
+    # Update it by filename
+    logs.update_log(log_path.name, spec_slug="test_spec")
 
     # Verify update
-    log = logs.get_log(today)
+    log = logs.get_log_by_filename(log_path.name)
     assert log is not None
     assert log["spec_slug"] == "test_spec"
 
@@ -203,18 +215,17 @@ def test_update_log_updates_correct_user_log(initialized_mem):
 def test_delete_log_deletes_correct_user_log(initialized_mem):
     """Test that delete_log deletes the correct user's log."""
     # Create a log
-    logs.create_log()
-
-    today = date.today()
+    log_path = logs.create_log()
+    filename = log_path.name
 
     # Verify it exists
-    assert logs.get_log(today) is not None
+    assert logs.get_log_by_filename(filename) is not None
 
     # Delete it
-    logs.delete_log(today)
+    logs.delete_log(filename)
 
     # Verify it's gone
-    assert logs.get_log(today) is None
+    assert logs.get_log_by_filename(filename) is None
 
 
 def test_github_username_lookup(initialized_mem):

@@ -21,8 +21,9 @@ from git import Repo
 from git.exc import InvalidGitRepositoryError
 
 from env_settings import ENV_SETTINGS
-from src.models import SpecFrontmatter, create_spec_frontmatter
+from src.models import create_spec_frontmatter
 from src.utils.markdown import read_md_file, slugify, write_md_file
+from src.utils.worktrees import get_spec_slug_from_worktree, is_worktree
 
 
 def _get_template_dir() -> Path:
@@ -255,12 +256,26 @@ def get_branch_diff_stat(branch_name: str | None = None) -> str | None:
 
 
 def get_active_spec() -> dict[str, Any] | None:
-    """Get the currently active spec based on git branch.
+    """Get the currently active spec based on worktree or git branch.
 
-    Returns the spec whose `branch` field matches the current git branch.
-    Returns None if on 'dev', 'main', 'master', or 'test' branch,
+    Detection order:
+    1. If in a worktree, the spec slug is derived from the worktree directory name
+    2. Otherwise, returns the spec whose `branch` field matches the current git branch
+
+    Returns None if on 'dev', 'main', 'master', or 'test' branch in the main repo,
     or if no matching spec is found.
     """
+    current_dir = ENV_SETTINGS.caller_dir
+
+    # Check if we're in a worktree first
+    if is_worktree(current_dir):
+        slug = get_spec_slug_from_worktree(current_dir)
+        if slug:
+            spec = get_spec(slug)
+            if spec:
+                return spec
+
+    # Fall back to branch-based detection
     current_branch = get_current_branch()
 
     if current_branch is None:
@@ -285,6 +300,19 @@ def get_branch_status() -> tuple[str, dict | None, str | None]:
     Returns:
         (branch_name, active_spec_or_none, warning_message_or_none)
     """
+    current_dir = ENV_SETTINGS.caller_dir
+
+    # Check if we're in a worktree
+    if is_worktree(current_dir):
+        slug = get_spec_slug_from_worktree(current_dir)
+        if slug:
+            spec = get_spec(slug)
+            if spec:
+                branch = spec.get("branch", "unknown")
+                return (branch, spec, None)
+            return ("worktree", None, f"In worktree '{slug}' but spec not found")
+        return ("worktree", None, "In a worktree but could not determine spec")
+
     current_branch = get_current_branch()
 
     if current_branch is None:
