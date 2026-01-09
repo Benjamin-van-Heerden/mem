@@ -5,9 +5,9 @@ assigned_to: Benjamin-van-Heerden
 issue_id: 25
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/25
 branch: dev-benjamin_van_heerden-spec_isolation_with_git_worktrees
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/26
 created_at: '2026-01-09T13:33:59.872799'
-updated_at: '2026-01-09T15:22:33.739693'
+updated_at: '2026-01-09T15:22:40.836376'
 completed_at: null
 last_synced_at: '2026-01-09T13:36:05.249356'
 local_content_hash: 961b3fa1877241d8768159de00eaf7b34e8ca098f59be7c66781c597ce12a130
