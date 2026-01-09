@@ -5,9 +5,9 @@ assigned_to: Benjamin-van-Heerden
 issue_id: 27
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/27
 branch: dev-benjamin_van_heerden-task_amendments_and_work_log_improvements
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/30
 created_at: '2026-01-09T15:38:41.022297'
-updated_at: '2026-01-09T16:37:13.549354'
+updated_at: '2026-01-09T16:37:20.350492'
 completed_at: null
 last_synced_at: '2026-01-09T15:39:22.885709'
 local_content_hash: 039a6b034b9a4dbe7fa93afdae92c94ecfb5f69e77685e15b71f66fbc3913a3b
