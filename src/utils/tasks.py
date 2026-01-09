@@ -315,3 +315,45 @@ def delete_task(spec_slug: str, task_filename: str) -> None:
         raise ValueError(f"Task '{task_filename}' not found")
 
     task_file.unlink()
+
+
+def amend_task(spec_slug: str, task_filename: str, notes: str) -> None:
+    """Amend a task by appending notes and resetting status to todo.
+
+    This enables iterative refinement: Amendments -> Completion -> Amendments -> ...
+    """
+    if not task_filename.endswith(".md"):
+        task_filename = task_filename + ".md"
+
+    task_file = _get_tasks_dir(spec_slug) / task_filename
+
+    if not task_file.exists():
+        raise ValueError(f"Task '{task_filename}' not found")
+
+    metadata, body = read_md_file(task_file)
+
+    amendment_section = f"\n\n## Amendments\n\n{notes}"
+    body = body.rstrip() + amendment_section
+
+    metadata["status"] = "todo"
+    metadata["updated_at"] = _now_iso()
+    if "completed_at" in metadata:
+        del metadata["completed_at"]
+
+    write_md_file(task_file, metadata, body)
+
+
+def rename_task(spec_slug: str, task_filename: str, new_title: str) -> None:
+    """Rename a task by updating its title in frontmatter.
+
+    The filename/slug remains unchanged for stability.
+    """
+    if not task_filename.endswith(".md"):
+        task_filename = task_filename + ".md"
+
+    task_file = _get_tasks_dir(spec_slug) / task_filename
+
+    if not task_file.exists():
+        raise ValueError(f"Task '{task_filename}' not found")
+
+    update_task(spec_slug, task_filename, title=new_title)

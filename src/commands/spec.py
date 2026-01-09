@@ -53,9 +53,16 @@ def new(
             f"  3. Run 'mem spec assign {slug}' to claim it and create a worktree"
         )
         typer.echo("")
-        typer.echo(
-            "Note: Do not add tasks in the spec body - use 'mem task new' instead."
-        )
+        typer.echo("─" * 60)
+        typer.echo("IMPORTANT: Worktree Workflow")
+        typer.echo("─" * 60)
+        typer.echo("")
+        typer.echo("After 'mem spec assign', you MUST start a new agent session")
+        typer.echo("in the worktree directory. The current session cannot continue")
+        typer.echo("working on this spec from the main repo.")
+        typer.echo("")
+        typer.echo("Do NOT add tasks from the main repo after assignment.")
+        typer.echo("Tasks must be created from within the worktree.")
 
     except ValueError as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -350,13 +357,22 @@ def assign(
             typer.echo("  Local assignment saved. Run 'mem sync' to retry.")
 
         typer.echo("\n" + "=" * 60)
-        typer.echo("WORKTREE READY")
+        typer.echo("WORKTREE READY - START NEW SESSION")
         typer.echo("=" * 60)
-        typer.echo("\nTo start working on this spec:")
+        typer.echo("")
+        typer.echo("🛑 THIS SESSION MUST END HERE")
+        typer.echo("")
+        typer.echo("To work on this spec, start a NEW agent session in the worktree:")
         typer.echo(f"  cd {worktree_path}")
         typer.echo("  claude  # or your preferred agent")
         typer.echo("")
-        typer.echo("Note: Work happens in the worktree, not in the main repo.")
+        typer.echo("─" * 60)
+        typer.echo("WHY A NEW SESSION?")
+        typer.echo("─" * 60)
+        typer.echo("")
+        typer.echo("• The worktree is an isolated directory with its own branch")
+        typer.echo("• This main repo session cannot access the worktree's files")
+        typer.echo("• Continuing here would create tasks in the wrong location")
 
     except typer.Exit:
         raise

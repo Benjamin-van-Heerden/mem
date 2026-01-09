@@ -233,22 +233,31 @@ def run_sync_quietly():
 
 
 def format_work_log_entry(log: dict[str, Any]) -> str:
-    """Format a work log entry for display."""
+    """Format a work log entry for display with visual separation."""
     output = []
     date = log.get("date", "Unknown date")
     username = log.get("username", "")
     spec_slug = log.get("spec_slug", "")
 
-    header = f"**{date}**"
+    # Top border
+    output.append("┌" + "─" * 68 + "┐")
+
+    # Header line
+    header = f"  {date}"
     if username:
         header += f" ({username})"
     if spec_slug:
         header += f" - spec: {spec_slug}"
     output.append(header)
 
+    output.append("├" + "─" * 68 + "┤")
+
     body = log.get("body", "").strip()
     if body:
         output.append(body)
+
+    # Bottom border
+    output.append("└" + "─" * 68 + "┘")
 
     return "\n".join(output)
 
@@ -458,8 +467,16 @@ def onboard():
                 if completed_specs:
                     output.append("### Recently completed specs:")
                     output.append("These were the last completed specs for context:")
+                    output.append("")
                     for spec in completed_specs[:2]:
-                        output.append(f"  - {spec['slug']}: {spec['title']}")
+                        output.append(f"**{spec['slug']}**: {spec['title']}")
+                        body = spec.get("body", "").strip()
+                        if body:
+                            # Show truncated body (first 500 chars)
+                            if len(body) > 500:
+                                body = body[:500] + "..."
+                            output.append(body)
+                        output.append("")
     output.append("")
 
     # Work Logs section - show recent logs prominently
@@ -477,11 +494,28 @@ def onboard():
 
     try:
         if active_spec:
-            recent_logs = logs.list_logs(limit=3, spec_slug=active_spec["slug"])
+            # Show ALL logs for the active spec (no limit)
+            recent_logs = logs.list_logs(limit=100, spec_slug=active_spec["slug"])
         else:
             recent_logs = logs.list_logs(limit=3)
+            # Ensure diversity: if all 3 logs are from the same spec,
+            # show only 2 from that spec and find 1 from a different spec
+            if len(recent_logs) == 3:
+                spec_slugs = [log.get("spec_slug") for log in recent_logs]
+                if spec_slugs[0] and spec_slugs[0] == spec_slugs[1] == spec_slugs[2]:
+                    # All 3 from same spec - find a log from a different spec
+                    all_logs = logs.list_logs(limit=10)
+                    different_spec_log = None
+                    for log in all_logs:
+                        if log.get("spec_slug") != spec_slugs[0]:
+                            different_spec_log = log
+                            break
+                    if different_spec_log:
+                        # Keep 2 from the dominant spec, add 1 from different spec
+                        recent_logs = recent_logs[:2] + [different_spec_log]
         if recent_logs:
-            for log in recent_logs:
+            # Reverse to chronological order (oldest first, newest last)
+            for log in reversed(recent_logs):
                 output.append(format_work_log_entry(log))
                 output.append("")
         else:
