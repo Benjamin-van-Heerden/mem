@@ -1,13 +1,13 @@
 ---
 title: Config important infos field
-status: todo
+status: merge_ready
 assigned_to: Benjamin-van-Heerden
 issue_id: 28
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/28
 branch: dev-benjamin_van_heerden-config_important_infos_field
 pr_url: null
 created_at: '2026-01-09T16:19:36.032353'
-updated_at: '2026-01-09T16:20:33.139435'
+updated_at: '2026-01-09T16:25:52.211818'
 completed_at: null
 last_synced_at: '2026-01-09T16:20:24.396450'
 local_content_hash: 2dc7a548c621f03b36c6a8250d3a9c7a0114c8972a2a1012dd5f6489fe19b663

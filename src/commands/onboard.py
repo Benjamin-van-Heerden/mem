@@ -561,4 +561,14 @@ def onboard():
     output.append("")
     output.append("Remember to create a work log at the end of your session: mem log")
 
+    # Important infos section (if configured)
+    important_infos = project.get("important_infos", "").strip()
+    if important_infos:
+        output.append("")
+        output.append("-" * 70)
+        output.append("IMPORTANT INFORMATION")
+        output.append("-" * 70)
+        output.append("")
+        output.append(important_infos)
+
     print("\n".join(output))
