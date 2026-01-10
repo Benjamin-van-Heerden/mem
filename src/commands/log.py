@@ -23,7 +23,7 @@ def log():
         log_file = logs.create_log(spec_slug=spec_slug)
         relative_path = log_file.relative_to(ENV_SETTINGS.caller_dir)
 
-        typer.echo(f"Created log file: {relative_path}")
+        typer.echo(f"📝 Created log file: {relative_path}")
         typer.echo("")
         typer.echo(
             "Please read the file and fill in the {placeholders} based on our current interaction session."
@@ -31,13 +31,13 @@ def log():
 
         if active_spec:
             typer.echo("")
-            typer.echo("If this is the LAST log before completing the spec:")
+            typer.echo("💡 If this is the LAST log before completing the spec:")
             typer.echo("  `mem spec complete` handles git automatically.")
             typer.echo(
                 f'  Run `mem spec complete {spec_slug} "detailed commit message"` once you are done editing the log file'
             )
             typer.echo("")
-            typer.echo("Otherwise, commit and push your changes:")
+            typer.echo("💡 Otherwise, commit and push your changes:")
             typer.echo(
                 "  git add -A && git commit -m '<describe what was done>' && git push"
             )

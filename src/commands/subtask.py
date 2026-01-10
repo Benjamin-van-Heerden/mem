@@ -60,9 +60,9 @@ def new(
         task_filename = _find_task_by_title(resolved_slug, task_title)
 
         tasks.add_subtask(resolved_slug, task_filename, title)
-        typer.echo(f"Created subtask: {title}")
-        typer.echo(f"  Task: {task_title}")
-        typer.echo(f"  Spec: {resolved_slug}")
+        typer.echo(f"✅ Created subtask: {title}")
+        typer.echo(f"  ✏️ Task: {task_title}")
+        typer.echo(f"  📋 Spec: {resolved_slug}")
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -86,7 +86,7 @@ def complete(
         task_filename = _find_task_by_title(resolved_slug, task_title)
 
         tasks.complete_subtask(resolved_slug, task_filename, title)
-        typer.echo(f"Completed subtask: {title}")
+        typer.echo(f"✅ Completed subtask: {title}")
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -114,7 +114,7 @@ def list_subtasks_cmd(
             typer.echo(f"No subtasks for task '{task_title}'")
             return
 
-        typer.echo(f"\nSubtasks for '{task_title}':\n")
+        typer.echo(f"\n📝 Subtasks for '{task_title}':\n")
         for sub in subtask_list:
             icon = "[x]" if sub["status"] == "completed" else "[ ]"
             typer.echo(f"  {icon} {sub['title']}")
@@ -141,7 +141,7 @@ def delete(
         task_filename = _find_task_by_title(resolved_slug, task_title)
 
         tasks.delete_subtask(resolved_slug, task_filename, title)
-        typer.echo(f"Deleted subtask: {title}")
+        typer.echo(f"🗑️ Deleted subtask: {title}")
 
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)

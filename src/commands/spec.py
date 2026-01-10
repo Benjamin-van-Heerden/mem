@@ -16,12 +16,12 @@ from src.commands.sync import (
 from src.utils import logs, specs, tasks, worktrees
 from src.utils.github.api import (
     close_issue_with_comment,
+    close_pull_request,
     create_pull_request,
     sync_status_labels,
     update_github_issue,
 )
 from src.utils.github.client import get_authenticated_user, get_github_client
-from src.utils.github.git_ops import switch_to_branch
 from src.utils.github.repo import get_repo_from_git
 from src.utils.markdown import slugify
 
@@ -44,25 +44,23 @@ def new(
         slug = slugify(title)
         relative_path = spec_file.relative_to(ENV_SETTINGS.caller_dir)
 
-        typer.echo(f"✓ Created spec: {relative_path}")
+        typer.echo(f"✅ Created spec: {relative_path}")
         typer.echo("\n✨ Spec created successfully!")
-        typer.echo("\nNext steps:")
+        typer.echo("\n💡 Next steps:")
         typer.echo(f"  1. Edit the spec file: {relative_path}")
         typer.echo("  2. Run 'mem sync' to create the GitHub issue")
+        typer.echo(f'  3. Add tasks: mem task new "title" "description" --spec {slug}')
         typer.echo(
-            f"  3. Run 'mem spec assign {slug}' to claim it and create a worktree"
+            f"  4. Run 'mem spec assign {slug}' to claim it and create a worktree"
         )
         typer.echo("")
         typer.echo("─" * 60)
-        typer.echo("IMPORTANT: Worktree Workflow")
+        typer.echo("🛑 IMPORTANT: Worktree Workflow")
         typer.echo("─" * 60)
         typer.echo("")
-        typer.echo("After 'mem spec assign', you MUST start a new agent session")
-        typer.echo("in the worktree directory. The current session cannot continue")
-        typer.echo("working on this spec from the main repo.")
-        typer.echo("")
-        typer.echo("Do NOT add tasks from the main repo after assignment.")
-        typer.echo("Tasks must be created from within the worktree.")
+        typer.echo("Create tasks BEFORE running 'mem spec assign'.")
+        typer.echo("After assignment, start a NEW agent session in the worktree")
+        typer.echo("to do the implementation work.")
 
     except ValueError as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -110,7 +108,7 @@ def list_specs_cmd(
         # Show active spec info
         if active_spec:
             typer.echo(
-                f"\nActive spec (on branch {active_spec.get('branch')}): {active_spec['slug']}"
+                f"\n📋 Active spec (on branch {active_spec.get('branch')}): {active_spec['slug']}"
             )
 
         # Display specs in a formatted table
@@ -140,11 +138,11 @@ def list_specs_cmd(
                 f"{display_slug:<30} {display_title:<30} {display_status_text:<12} {display_branch:<25}{active_marker}"
             )
 
-        typer.echo(f"\nTotal: {len(spec_list)} spec(s)")
+        typer.echo(f"\n📊 Total: {len(spec_list)} spec(s)")
         if active_spec:
             typer.echo("(* = currently active)")
-        typer.echo("\nTo view details: mem spec show <slug>")
-        typer.echo("To activate: mem spec activate <slug>")
+        typer.echo("\n💡 To view details: mem spec show <slug>")
+        typer.echo("💡 To activate: mem spec activate <slug>")
 
     except Exception as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -182,7 +180,7 @@ def show(
             typer.echo(f"❌ Error: Spec '{spec_slug}' not found.", err=True)
             raise typer.Exit(code=1)
 
-        typer.echo(f"\nSPECIFICATION: {spec['title']}")
+        typer.echo(f"\n📋 SPECIFICATION: {spec['title']}")
         typer.echo("=" * 60)
         typer.echo(f"Slug:         {spec['slug']}")
         typer.echo(f"Status:       {spec['status']}")
@@ -207,7 +205,7 @@ def show(
         task_list = tasks.list_tasks(spec_slug)
 
         if task_list:
-            typer.echo("\nTASKS:")
+            typer.echo("\n✏️ TASKS:")
             typer.echo("-" * 60)
             for task in task_list:
                 status_display = (
@@ -242,7 +240,7 @@ def show(
         else:
             typer.echo("\nNo tasks associated with this spec.")
 
-        typer.echo("\nCommands:")
+        typer.echo("\n💡 Commands:")
         typer.echo(
             f'  mem task new "title" "detailed description with implementation notes if necessary" --spec {spec_slug}'
         )
@@ -307,9 +305,9 @@ def assign(
         main_repo_path = ENV_SETTINGS.caller_dir
         existing_worktree = worktrees.get_worktree_for_spec(main_repo_path, spec_slug)
         if existing_worktree:
-            typer.echo(f"Spec '{spec_slug}' already has a worktree at:")
+            typer.echo(f"📂 Spec '{spec_slug}' already has a worktree at:")
             typer.echo(f"  {existing_worktree.path}")
-            typer.echo("\nTo work on this spec, open a terminal there.")
+            typer.echo("\n💡 To work on this spec, open a terminal there.")
             return
 
         # Create branch name
@@ -322,21 +320,24 @@ def assign(
         if not spec.get("branch"):
             specs.update_spec(spec_slug, branch=branch_name)
 
-        # Commit any uncommitted .mem changes before creating worktree
-        # This ensures the spec file (with branch set) is available in the worktree
+        # Commit and push any uncommitted .mem changes before creating worktree
+        # This ensures the spec file, tasks, etc. are available in the worktree
         repo = Repo(main_repo_path)
         mem_dir = main_repo_path / ".mem"
         if mem_dir.exists():
             repo.git.add(str(mem_dir))
             if repo.is_dirty(index=True):
+                typer.echo("📦 Committing .mem/ changes...")
                 repo.git.commit("-m", f"mem: prepare spec {spec_slug} for assignment")
+                typer.echo("🔄 Pushing to remote...")
+                repo.git.push("origin", repo.active_branch.name)
 
         try:
             worktree_path = worktrees.create_worktree(
                 main_repo_path, spec_slug, branch_name
             )
-            typer.echo(f"✓ Created worktree: {worktree_path}")
-            typer.echo(f"✓ Created branch: {branch_name}")
+            typer.echo(f"📂 Created worktree: {worktree_path}")
+            typer.echo(f"🌿 Created branch: {branch_name}")
         except Exception as e:
             typer.echo(f"❌ Error creating worktree: {e}", err=True)
             raise typer.Exit(code=1)
@@ -348,8 +349,8 @@ def assign(
             repo = client.get_repo(f"{repo_owner}/{repo_name}")
 
             update_github_issue(repo, spec["issue_id"], assignees=[username])
-            typer.echo(f"✓ Spec '{spec['title']}' assigned to {username}")
-            typer.echo("✓ Assignment synced to GitHub")
+            typer.echo(f"✅ Spec '{spec['title']}' assigned to {username}")
+            typer.echo("🐙 Assignment synced to GitHub")
         except Exception as e:
             typer.echo(
                 f"⚠️  Warning: Could not sync assignment to GitHub: {e}", err=True
@@ -357,17 +358,19 @@ def assign(
             typer.echo("  Local assignment saved. Run 'mem sync' to retry.")
 
         typer.echo("\n" + "=" * 60)
-        typer.echo("WORKTREE READY - START NEW SESSION")
+        typer.echo("📂 WORKTREE READY - START NEW SESSION")
         typer.echo("=" * 60)
         typer.echo("")
         typer.echo("🛑 THIS SESSION MUST END HERE")
         typer.echo("")
-        typer.echo("To work on this spec, start a NEW agent session in the worktree:")
+        typer.echo(
+            "💡 To work on this spec, start a NEW agent session in the worktree:"
+        )
         typer.echo(f"  cd {worktree_path}")
         typer.echo("  claude  # or your preferred agent")
         typer.echo("")
         typer.echo("─" * 60)
-        typer.echo("WHY A NEW SESSION?")
+        typer.echo("❓ WHY A NEW SESSION?")
         typer.echo("─" * 60)
         typer.echo("")
         typer.echo("• The worktree is an isolated directory with its own branch")
@@ -408,7 +411,7 @@ def complete(
     """
     try:
         # 0. Pull latest changes first
-        typer.echo("Pulling latest changes...")
+        typer.echo("🔄 Pulling latest changes...")
         success, pull_msg = git_fetch_and_pull()
         if not success:
             typer.echo(f"Error: {pull_msg}", err=True)
@@ -521,7 +524,7 @@ def complete(
                 raise typer.Exit(code=1)
 
         # 6. Mark spec as merge_ready before committing
-        typer.echo(f"Completing spec: {spec['title']}...")
+        typer.echo(f"📋 Completing spec: {spec['title']}...")
         specs.update_spec_status(spec_slug, "merge_ready")
 
         # 6b. Sync merge_ready status to GitHub immediately
@@ -531,7 +534,7 @@ def complete(
                 repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
                 gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
                 sync_status_labels(gh_repo, spec["issue_id"], "merge_ready")
-                typer.echo("Updated GitHub issue label to 'merge_ready'")
+                typer.echo("🐙 Updated GitHub issue label to 'merge_ready'")
             except Exception as e:
                 typer.echo(f"Warning: Could not update GitHub label: {e}", err=True)
 
@@ -543,7 +546,7 @@ def complete(
             typer.echo("Error: No branch associated with this spec.", err=True)
             raise typer.Exit(code=1)
 
-        typer.echo("Committing and pushing changes...")
+        typer.echo("🌿 Committing and pushing changes...")
         repo.git.add(A=True)
         try:
             repo.git.commit("-m", message)
@@ -557,7 +560,7 @@ def complete(
         # 8. GitHub PR
         pr_url = None
         if spec.get("issue_id"):
-            typer.echo("Creating Pull Request...")
+            typer.echo("🐙 Creating Pull Request...")
             client = get_github_client()
             repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
             gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
@@ -573,7 +576,7 @@ def complete(
                 )
                 pr_url = pr.html_url
                 specs.update_spec_pr_url(spec_slug, pr_url)
-                typer.echo(f"Created Pull Request: {pr_url}")
+                typer.echo(f"✅ Created Pull Request: {pr_url}")
 
                 # Commit and push the PR URL update
                 repo.git.add(A=True)
@@ -588,10 +591,10 @@ def complete(
         else:
             typer.echo("Warning: Spec has no GitHub issue. Skipping PR creation.")
 
-        typer.echo(f"\nSpec '{spec_slug}' marked as MERGE READY.")
+        typer.echo(f"\n✅ Spec '{spec_slug}' marked as MERGE READY.")
         if pr_url:
-            typer.echo(f"PR: {pr_url}")
-        typer.echo("\nNext steps:")
+            typer.echo(f"🔗 PR: {pr_url}")
+        typer.echo("\n💡 Next steps:")
         typer.echo("  1. Merge the PR on GitHub")
         typer.echo("  2. Run 'mem merge' from the main repo to clean up")
 
@@ -614,33 +617,75 @@ def abandon(
     """
     Abandon a specification.
 
+    Must be run from the main repository (not from a worktree).
+
     This command:
-    1. Moves the spec to .mem/specs/abandoned/
-    2. Closes the linked GitHub issue with a comment
-    3. Switches back to 'dev' branch if this was the active spec
+    1. Validates we're in the main repo with no active spec
+    2. Removes the worktree if one exists for this spec
+    3. Closes the linked GitHub PR and issue with comments
+    4. Moves the spec to .mem/specs/abandoned/
+    5. Commits and pushes the changes
     """
     try:
-        # 1. Get spec info
-        spec = specs.get_spec(spec_slug)
-        if not spec:
-            typer.echo(f"Error: Spec '{spec_slug}' not found.", err=True)
+        # 1. Check we're in the main repo, not a worktree
+        if worktrees.is_worktree(ENV_SETTINGS.caller_dir):
+            typer.echo("❌ Error: Cannot abandon specs from a worktree.", err=True)
+            typer.echo(
+                "\nRun this command from the main repository directory.", err=True
+            )
             raise typer.Exit(code=1)
 
-        typer.echo(f"Abandoning spec: {spec['title']} ({spec_slug})")
-
-        # 2. If this is the active spec, switch to dev first
+        # 2. Check no spec is currently active
         active_spec = specs.get_active_spec()
-        if active_spec and active_spec["slug"] == spec_slug:
-            typer.echo("Switching away from active spec...")
-            try:
-                switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
-                typer.echo("Switched to 'dev' branch")
-            except Exception as e:
-                typer.echo(f"Warning: Could not switch to 'dev' branch: {e}", err=True)
+        if active_spec:
+            typer.echo(
+                f"❌ Error: Cannot abandon while spec '{active_spec['slug']}' is active.",
+                err=True,
+            )
+            typer.echo("\nSwitch to 'dev' branch first: git checkout dev", err=True)
+            raise typer.Exit(code=1)
 
-        # 3. Close GitHub issue if linked
+        # 3. Get spec info
+        spec = specs.get_spec(spec_slug)
+        if not spec:
+            typer.echo(f"❌ Error: Spec '{spec_slug}' not found.", err=True)
+            raise typer.Exit(code=1)
+
+        typer.echo(f"🗑️ Abandoning spec: {spec['title']} ({spec_slug})")
+
+        # 4. Remove worktree if it exists
+        existing_worktree = worktrees.get_worktree_for_spec(
+            ENV_SETTINGS.caller_dir, spec_slug
+        )
+        if existing_worktree:
+            typer.echo(f"📂 Removing worktree: {existing_worktree.path}")
+            try:
+                worktrees.remove_worktree(
+                    ENV_SETTINGS.caller_dir, spec_slug, force=True
+                )
+                typer.echo("✅ Worktree removed")
+            except Exception as e:
+                typer.echo(f"⚠️ Warning: Could not remove worktree: {e}", err=True)
+
+        # 5. Close GitHub PR if one exists
+        if spec.get("pr_url"):
+            typer.echo("🐙 Closing GitHub PR...")
+            try:
+                client = get_github_client()
+                repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
+                gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
+
+                pr_comment = f"**Spec Abandoned**\n\n{reason}"
+                if close_pull_request(gh_repo, spec["pr_url"], pr_comment):
+                    typer.echo(f"✅ Closed PR: {spec['pr_url']}")
+                else:
+                    typer.echo("⚠️ Warning: Could not close PR (may already be closed)")
+            except Exception as e:
+                typer.echo(f"⚠️ Warning: Could not close GitHub PR: {e}", err=True)
+
+        # 6. Close GitHub issue if linked
         if spec.get("issue_id"):
-            typer.echo("Closing GitHub issue...")
+            typer.echo("🐙 Closing GitHub issue...")
             try:
                 client = get_github_client()
                 repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
@@ -648,20 +693,33 @@ def abandon(
 
                 comment = f"**Spec Abandoned**\n\n{reason}"
                 close_issue_with_comment(gh_repo, spec["issue_id"], comment)
-                typer.echo(f"Closed issue #{spec['issue_id']}")
+                typer.echo(f"✅ Closed issue #{spec['issue_id']}")
             except Exception as e:
-                typer.echo(f"Warning: Could not close GitHub issue: {e}", err=True)
+                typer.echo(f"⚠️ Warning: Could not close GitHub issue: {e}", err=True)
 
-        # 4. Move spec to abandoned directory
+        # 7. Move spec to abandoned directory
         new_path = specs.move_spec_to_abandoned(spec_slug)
-        typer.echo(f"Moved to {new_path.relative_to(ENV_SETTINGS.caller_dir)}")
+        typer.echo(f"📂 Moved to {new_path.relative_to(ENV_SETTINGS.caller_dir)}")
 
-        typer.echo(f"\nSpec abandoned. Moved to .mem/specs/abandoned/{spec_slug}/")
-        typer.echo("To view abandoned specs: mem spec list --status abandoned")
+        # 8. Commit and push the changes
+        typer.echo("📦 Committing changes...")
+        repo = Repo(ENV_SETTINGS.caller_dir)
+        repo.git.add(A=True)
+        try:
+            repo.git.commit("-m", f"mem: abandon spec {spec_slug}")
+            typer.echo("🔄 Pushing to remote...")
+            repo.git.push("origin", repo.active_branch.name)
+        except Exception as e:
+            if "nothing to commit" not in str(e).lower():
+                typer.echo(f"⚠️ Warning: Could not commit/push: {e}", err=True)
 
+        typer.echo(f"\n✅ Spec '{spec_slug}' abandoned.")
+        typer.echo("💡 To view abandoned specs: mem spec list --status abandoned")
+
+    except typer.Exit:
+        raise
     except Exception as e:
-        if not isinstance(e, typer.Exit):
-            typer.echo(f"Error: {e}", err=True)
+        typer.echo(f"❌ Error: {e}", err=True)
         raise typer.Exit(code=1)
 
 
