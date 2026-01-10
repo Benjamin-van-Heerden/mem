@@ -152,19 +152,13 @@ def format_spec_detail(spec: dict[str, Any]) -> str:
         output.append("\n### Details:\n")
         output.append(body)
 
-    # List tasks with subtasks
+    # List tasks
     task_list = tasks.list_tasks(spec["slug"])
     if task_list:
         output.append("\n### Tasks:")
         for task in task_list:
             status_icon = "[x]" if task["status"] == "completed" else "[ ]"
             output.append(f"  {status_icon} {task['title']}")
-
-            # Show subtasks (embedded in frontmatter)
-            subtask_list = task.get("subtasks", [])
-            for subtask in subtask_list:
-                sub_icon = "[x]" if subtask["status"] == "completed" else "[ ]"
-                output.append(f"      {sub_icon} {subtask['title']}")
 
     return "\n".join(output)
 
@@ -316,7 +310,6 @@ def onboard():
         "- **Specs**: High-level feature specifications (linked to GitHub issues)"
     )
     output.append("- **Tasks**: Concrete work items within a spec")
-    output.append("- **Subtasks**: Granular breakdown embedded in task frontmatter")
     output.append("- **Work Logs**: Session records of what was done and what's next")
     output.append("")
     output.append("**Key commands:**")
@@ -561,17 +554,6 @@ def onboard():
             '  - Complete task: mem task complete "title" "notes about what was done"'
         )
         output.append("  - List tasks: mem task list")
-        output.append("")
-        output.append("For complex tasks, break them into subtasks:")
-        output.append(
-            '  - Add subtask: mem subtask new "subtask title" --task "parent task title"'
-        )
-        output.append(
-            '  - Complete subtask: mem subtask complete "subtask title" --task "parent task title"'
-        )
-        output.append(
-            "  - All subtasks must be completed before completing the parent task"
-        )
         output.append("")
         output.append("Important workflow rules:")
         output.append(

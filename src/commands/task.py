@@ -100,17 +100,9 @@ def new(
         typer.echo(
             f'  Complete with: mem task complete "{title}" "detailed completion notes"'
         )
-        typer.echo(
-            f'  For complex tasks, break into subtasks: mem subtask new "subtask title" --task "{title}"'
-        )
-        typer.echo("")
-        typer.echo("🔧 Refinement options:")
         typer.echo(f'  Rename task: mem task rename "{title}" "new title"')
         typer.echo(
             f'  Amend after completion: mem task amend "{title}" "additional requirements"'
-        )
-        typer.echo(
-            "    (Amend resets status to todo, enabling iterative refinement cycles)"
         )
 
     except ValueError as e:
@@ -151,7 +143,7 @@ def list_tasks_cmd(
     """
     List tasks for a specification.
 
-    Shows task status, title, description preview, and subtask summary.
+    Shows task status, title, and description preview.
     Use --verbose for full descriptions.
     """
     try:
@@ -183,20 +175,6 @@ def list_tasks_cmd(
                 preview = _get_first_lines(body)
                 if preview:
                     typer.echo(f"       {preview}")
-
-            # Subtasks summary
-            subtask_list = task.get("subtasks", [])
-            if subtask_list:
-                completed_count = sum(
-                    1 for s in subtask_list if s["status"] == "completed"
-                )
-                total_count = len(subtask_list)
-                typer.echo(f"       Subtasks: {completed_count}/{total_count} complete")
-
-                if verbose:
-                    for sub in subtask_list:
-                        sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
-                        typer.echo(f"         {sub_icon} {sub['title']}")
 
             # Created date
             created = task.get("created_at", "")
@@ -249,18 +227,6 @@ def complete(
     try:
         resolved_slug = _resolve_spec_slug(spec_slug)
         task_filename = _find_task_by_title(resolved_slug, title)
-
-        # Check for incomplete subtasks
-        if tasks.has_incomplete_subtasks(resolved_slug, task_filename):
-            typer.echo(
-                "Error: Cannot complete task with incomplete subtasks.", err=True
-            )
-            subtask_list = tasks.list_subtasks(resolved_slug, task_filename)
-            incomplete = [s for s in subtask_list if s["status"] != "completed"]
-            typer.echo("\nIncomplete subtasks:", err=True)
-            for s in incomplete:
-                typer.echo(f"  - {s['title']}", err=True)
-            raise typer.Exit(code=1)
 
         tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
         typer.echo(f"✅ Task completed: {title}")
