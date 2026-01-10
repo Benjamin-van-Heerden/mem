@@ -5,9 +5,9 @@ assigned_to: Benjamin-van-Heerden
 issue_id: 34
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/34
 branch: dev-benjamin_van_heerden-remove_subtasks_feature
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/35
 created_at: '2026-01-10T15:54:30.433486'
-updated_at: '2026-01-10T16:23:10.614316'
+updated_at: '2026-01-10T16:23:16.596284'
 completed_at: null
 last_synced_at: '2026-01-10T16:03:54.024526'
 local_content_hash: 63ed17ccee87034b5d9f0a0aee6ddbb2993203c7d3268932faef73e0bcc0f3bc
