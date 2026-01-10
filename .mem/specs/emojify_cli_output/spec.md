@@ -1,13 +1,13 @@
 ---
 title: Emojify CLI output
 status: todo
-assigned_to: null
+assigned_to: Benjamin-van-Heerden
 issue_id: 31
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/31
-branch: null
+branch: dev-benjamin_van_heerden-emojify_cli_output
 pr_url: null
 created_at: '2026-01-10T11:34:28.559274'
-updated_at: '2026-01-10T11:35:20.386693'
+updated_at: '2026-01-10T11:35:29.045839'
 completed_at: null
 last_synced_at: '2026-01-10T11:35:20.385652'
 local_content_hash: 5dab4d6100e838e11b35148b48dbe46ba28ed4688cbc1b91e241dc4604630125
