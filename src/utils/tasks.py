@@ -5,9 +5,7 @@ Tasks are stored as:
   .mem/specs/{spec_slug}/tasks/01_{task_slug}.md
   .mem/specs/{spec_slug}/tasks/02_{task_slug}.md
 
-Subtasks are embedded in task frontmatter as a list, not separate files.
-
-Each task has YAML frontmatter with metadata (including subtasks) and markdown body.
+Each task has YAML frontmatter with metadata and markdown body.
 """
 
 import re
@@ -197,78 +195,11 @@ def find_task_by_title(spec_slug: str, title: str) -> str | None:
     return None
 
 
-# --- Subtask operations (embedded in task frontmatter) ---
-
-
-def list_subtasks(spec_slug: str, task_filename: str) -> list[dict]:
-    """List subtasks for a task."""
-    task = get_task(spec_slug, task_filename)
-    if not task:
-        return []
-    return task.get("subtasks", [])
-
-
-def has_incomplete_subtasks(spec_slug: str, task_filename: str) -> bool:
-    """Check if task has incomplete subtasks."""
-    subtasks = list_subtasks(spec_slug, task_filename)
-    return any(s.get("status") != "completed" for s in subtasks)
-
-
-def add_subtask(spec_slug: str, task_filename: str, title: str) -> None:
-    """Add a subtask to a task's frontmatter."""
-    task = get_task(spec_slug, task_filename)
-    if not task:
-        raise ValueError(f"Task '{task_filename}' not found")
-
-    subtasks = task.get("subtasks", [])
-    subtasks.append({"title": title, "status": "todo"})
-    update_task(spec_slug, task_filename, subtasks=subtasks)
-
-
-def complete_subtask(spec_slug: str, task_filename: str, subtask_title: str) -> None:
-    """Mark a subtask as completed."""
-    task = get_task(spec_slug, task_filename)
-    if not task:
-        raise ValueError(f"Task '{task_filename}' not found")
-
-    subtasks = task.get("subtasks", [])
-    found = False
-    for subtask in subtasks:
-        if subtask["title"].lower() == subtask_title.lower():
-            subtask["status"] = "completed"
-            found = True
-            break
-
-    if not found:
-        raise ValueError(f"Subtask '{subtask_title}' not found")
-
-    update_task(spec_slug, task_filename, subtasks=subtasks)
-
-
-def delete_subtask(spec_slug: str, task_filename: str, subtask_title: str) -> None:
-    """Delete a subtask from a task's frontmatter."""
-    task = get_task(spec_slug, task_filename)
-    if not task:
-        raise ValueError(f"Task '{task_filename}' not found")
-
-    subtasks = task.get("subtasks", [])
-    original_len = len(subtasks)
-    subtasks = [s for s in subtasks if s["title"].lower() != subtask_title.lower()]
-
-    if len(subtasks) == original_len:
-        raise ValueError(f"Subtask '{subtask_title}' not found")
-
-    update_task(spec_slug, task_filename, subtasks=subtasks)
-
-
 # --- Task completion ---
 
 
 def complete_task(spec_slug: str, task_filename: str) -> None:
-    """Mark task completed (checks subtasks first)."""
-    if has_incomplete_subtasks(spec_slug, task_filename):
-        raise ValueError("Cannot complete task: it has incomplete subtasks.")
-
+    """Mark task completed."""
     update_task(
         spec_slug,
         task_filename,
@@ -286,9 +217,6 @@ def complete_task_with_notes(spec_slug: str, task_filename: str, notes: str) -> 
 
     if not task_file.exists():
         raise ValueError(f"Task '{task_filename}' not found")
-
-    if has_incomplete_subtasks(spec_slug, task_filename):
-        raise ValueError("Cannot complete task: it has incomplete subtasks.")
 
     metadata, body = read_md_file(task_file)
 

@@ -235,24 +235,11 @@ def show(
                     if body:
                         typer.echo(f"       {body}")
 
-                    # Show subtasks in detail
-                    subtask_list = task.get("subtasks", [])
-                    if subtask_list:
-                        for sub in subtask_list:
-                            sub_icon = "[x]" if sub["status"] == "completed" else "[ ]"
-                            typer.echo(f"       {sub_icon} {sub['title']}")
-
                     # Show created date
                     created = task.get("created_at", "")
                     if created:
                         typer.echo(f"       Created: {created[:10]}")
                     typer.echo()
-                else:
-                    # Show subtasks inline (simple view)
-                    subtask_list = task.get("subtasks", [])
-                    for subtask in subtask_list:
-                        sub_icon = "x" if subtask["status"] == "completed" else " "
-                        typer.echo(f"    [{sub_icon}] {subtask['title']}")
         else:
             typer.echo("\nNo tasks associated with this spec.")
 
@@ -456,19 +443,7 @@ def complete(
 
         # 3. Validate tasks
         task_list = tasks.list_tasks(spec_slug)
-        incomplete_tasks = []
-        for task in task_list:
-            if task["status"] != "completed":
-                incomplete_tasks.append(task)
-            # Check subtasks (now embedded in frontmatter)
-            subtask_list = task.get("subtasks", [])
-            incomplete_tasks.extend(
-                [
-                    {"title": s["title"], "status": s["status"]}
-                    for s in subtask_list
-                    if s["status"] != "completed"
-                ]
-            )
+        incomplete_tasks = [task for task in task_list if task["status"] != "completed"]
 
         if incomplete_tasks:
             typer.echo(

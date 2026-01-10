@@ -48,10 +48,8 @@ mem spec activate user_authentication
 
 # Create tasks
 mem task new "Set up OAuth" "Configure OAuth providers"
-mem subtask new "Register app" --task "Set up OAuth"
 
 # Complete work
-mem subtask complete "Register app" --task "Set up OAuth"
 mem task complete "Set up OAuth" "OAuth working with Google and GitHub"
 
 # Complete the spec (creates PR, marks as merge_ready)
@@ -64,7 +62,7 @@ mem sync
 mem onboard
 ```
 
-## The Five Primitives
+## The Four Primitives
 
 ### 1. Specs
 High-level feature specifications or project goals.
@@ -77,20 +75,13 @@ High-level feature specifications or project goals.
 Concrete work items linked to specs.
 - Stored in `.mem/specs/{spec_slug}/tasks/{order}_{slug}.md`
 - Status: `todo` or `completed`
-- Can have embedded subtasks
 
-### 3. Subtasks
-Granular breakdown of tasks.
-- Embedded in task frontmatter (not separate files)
-- Status: `todo` or `completed`
-- Task cannot be completed until all subtasks are done
-
-### 4. Todos
+### 3. Todos
 Standalone reminders not tied to specs/tasks.
 - Quick notes with optional GitHub issue linking
 - Independent lifecycle
 
-### 5. Work Logs
+### 4. Work Logs
 Historical records of work sessions.
 - Stored in `.mem/logs/{username}_{YYYYMMDD}_{HHMMSS}_session.md`
 - Capture accomplishments, blockers, next steps
@@ -118,14 +109,11 @@ mem spec complete <slug>    # Create PR, mark merge_ready
 mem spec abandon <slug>     # Move to abandoned, close issue
 ```
 
-### Tasks & Subtasks
+### Tasks
 
 ```bash
 mem task new <title> <desc> [--spec <slug>]  # Create task
 mem task complete <title> [--spec <slug>]    # Complete task
-
-mem subtask new <title> --task <task>        # Add subtask to task
-mem subtask complete <title> --task <task>   # Complete subtask
 ```
 
 ### Context & Sync
@@ -151,7 +139,7 @@ mem log                     # Create or update today's work log
 │   ├── {slug}/
 │   │   ├── spec.md          # Spec with frontmatter
 │   │   └── tasks/
-│   │       └── 01_{slug}.md # Tasks with embedded subtasks
+│   │       └── 01_{slug}.md # Task files
 │   ├── completed/           # Completed specs
 │   └── abandoned/           # Abandoned specs
 ├── todos/                   # Standalone todos
@@ -166,11 +154,6 @@ All files use YAML frontmatter + markdown body:
 ---
 title: "Feature Name"
 status: "todo"
-subtasks:
-  - title: "Subtask 1"
-    status: "completed"
-  - title: "Subtask 2"
-    status: "todo"
 created_at: "2025-01-05T10:00:00"
 updated_at: "2025-01-05T10:00:00"
 ---
