@@ -61,6 +61,22 @@ def new(
         typer.echo("Create tasks BEFORE running 'mem spec assign'.")
         typer.echo("After assignment, start a NEW agent session in the worktree")
         typer.echo("to do the implementation work.")
+        typer.echo("")
+        typer.echo("─" * 80)
+        typer.echo("❕ Remember")
+        typer.echo("─" * 80)
+        typer.echo(
+            "A new agent session is going to be created when we assign and work on the spec."
+        )
+        typer.echo(
+            "Accordingly, that agent will only have knowledge of important files or decisions made from what is provided through the spec body and tasks."
+        )
+        typer.echo(
+            "It is therefore essential that the spec body and tasks we create are as detailed as possible."
+        )
+        typer.echo(
+            "Think about it this way: if you were provided with the spec body and tasks, could you implement it according to our discussion so far without any additional context?"
+        )
 
     except ValueError as e:
         typer.echo(f"❌ Error: {e}", err=True)
