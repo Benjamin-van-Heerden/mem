@@ -289,15 +289,7 @@ def merge(
                             f"  ⚠️ Warning: Could not delete remote branch: {branch}"
                         )
 
-                    # Delete local branch
-                    if delete_local_branch(branch):
-                        typer.echo(f"  🗑️ Deleted local branch: {branch}")
-                    else:
-                        typer.echo(
-                            f"  ⚠️ Warning: Could not delete local branch: {branch}"
-                        )
-
-                    # Remove worktree if it exists
+                    # Remove worktree first (must happen before branch deletion)
                     spec_slug = extract_spec_slug_from_branch(branch)
                     if spec_slug:
                         try:
@@ -307,6 +299,14 @@ def merge(
                                 typer.echo(f"  📂 Removed worktree: {spec_slug}")
                         except Exception as e:
                             typer.echo(f"  ⚠️ Warning: Could not remove worktree: {e}")
+
+                    # Delete local branch
+                    if delete_local_branch(branch):
+                        typer.echo(f"  🗑️ Deleted local branch: {branch}")
+                    else:
+                        typer.echo(
+                            f"  ⚠️ Warning: Could not delete local branch: {branch}"
+                        )
             else:
                 typer.echo(f"  ❌ Failed: {result['message']}", err=True)
 
