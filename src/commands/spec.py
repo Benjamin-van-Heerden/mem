@@ -10,9 +10,6 @@ from git import Repo
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
-from src.commands.sync import (
-    git_fetch_and_pull,
-)
 from src.utils import logs, specs, tasks, worktrees
 from src.utils.github.api import (
     close_issue_with_comment,
@@ -411,22 +408,14 @@ def complete(
     Complete a specification.
 
     This command:
-    1. Pulls latest changes from remote.
-    2. Validates that all tasks are completed.
-    3. Commits and pushes all changes.
-    4. Creates a Pull Request on GitHub.
-    5. Marks the spec as 'merge_ready'.
-    6. Switches back to the 'dev' branch.
+    1. Validates that all tasks are completed.
+    2. Commits and pushes all changes (so nothing is lost).
+    3. Rebases onto origin/dev.
+    4. Force-pushes the rebased branch.
+    5. Creates a Pull Request on GitHub.
+    6. Marks the spec as 'merge_ready'.
     """
     try:
-        # 0. Pull latest changes first
-        typer.echo("🔄 Pulling latest changes...")
-        success, pull_msg = git_fetch_and_pull()
-        if not success:
-            typer.echo(f"Error: {pull_msg}", err=True)
-            typer.echo("Please resolve conflicts and try again.", err=True)
-            raise typer.Exit(code=1)
-
         # 1. Get spec info
         spec = specs.get_spec(spec_slug)
         if not spec:
@@ -520,11 +509,65 @@ def complete(
                 )
                 raise typer.Exit(code=1)
 
-        # 6. Mark spec as merge_ready before committing
+        # 6. Get branch and repo info
+        repo = Repo(ENV_SETTINGS.caller_dir)
+        branch_name = spec.get("branch")
+
+        if not branch_name:
+            typer.echo("❌ Error: No branch associated with this spec.", err=True)
+            raise typer.Exit(code=1)
+
+        # 7. Commit and push first (so nothing is lost)
         typer.echo(f"📋 Completing spec: {spec['title']}...")
+        typer.echo("🌿 Committing changes...")
+        repo.git.add(A=True)
+        try:
+            repo.git.commit("-m", message)
+        except Exception as e:
+            if "nothing to commit" not in str(e).lower():
+                raise e
+
+        typer.echo("📤 Pushing to origin (saving your work)...")
+        repo.git.push("origin", branch_name)
+
+        # 8. Fetch and rebase onto origin/dev
+        typer.echo("🔄 Fetching origin and rebasing onto origin/dev...")
+        repo.git.fetch("origin")
+        try:
+            repo.git.rebase("origin/dev")
+        except Exception as e:
+            # Abort the failed rebase
+            try:
+                repo.git.rebase("--abort")
+            except Exception:
+                pass
+            typer.echo("\n" + "=" * 60, err=True)
+            typer.echo("🚨 REBASE FAILED - MANUAL INTERVENTION REQUIRED 🚨", err=True)
+            typer.echo("=" * 60, err=True)
+            typer.echo(
+                "\nYour changes have been safely pushed to the remote branch.", err=True
+            )
+            typer.echo("\nTo resolve this manually:", err=True)
+            typer.echo("  1. git fetch origin", err=True)
+            typer.echo("  2. git rebase origin/dev", err=True)
+            typer.echo("  3. Resolve any conflicts", err=True)
+            typer.echo("  4. git rebase --continue", err=True)
+            typer.echo("  5. git push --force-with-lease", err=True)
+            typer.echo(
+                f"  6. Run 'mem spec complete {spec_slug} \"{message}\"' again",
+                err=True,
+            )
+            typer.echo("\n" + "=" * 60, err=True)
+            raise typer.Exit(code=1)
+
+        # 9. Force push the rebased branch
+        typer.echo("📤 Pushing rebased branch...")
+        repo.git.push("--force-with-lease", "origin", branch_name)
+
+        # 10. Mark spec as merge_ready
         specs.update_spec_status(spec_slug, "merge_ready")
 
-        # 6b. Sync merge_ready status to GitHub immediately
+        # 10b. Sync merge_ready status to GitHub
         if spec.get("issue_id"):
             try:
                 client = get_github_client()
@@ -533,28 +576,9 @@ def complete(
                 sync_status_labels(gh_repo, spec["issue_id"], "merge_ready")
                 typer.echo("🐙 Updated GitHub issue label to 'merge_ready'")
             except Exception as e:
-                typer.echo(f"Warning: Could not update GitHub label: {e}", err=True)
+                typer.echo(f"⚠️ Warning: Could not update GitHub label: {e}", err=True)
 
-        # 7. Git operations
-        repo = Repo(ENV_SETTINGS.caller_dir)
-        branch_name = spec.get("branch")
-
-        if not branch_name:
-            typer.echo("Error: No branch associated with this spec.", err=True)
-            raise typer.Exit(code=1)
-
-        typer.echo("🌿 Committing and pushing changes...")
-        repo.git.add(A=True)
-        try:
-            repo.git.commit("-m", message)
-        except Exception as e:
-            # If nothing to commit, continue
-            if "nothing to commit" not in str(e).lower():
-                raise e
-
-        repo.git.push("origin", branch_name)
-
-        # 8. GitHub PR
+        # 11. GitHub PR
         pr_url = None
         if spec.get("issue_id"):
             typer.echo("🐙 Creating Pull Request...")
@@ -579,7 +603,7 @@ def complete(
                 repo.git.add(A=True)
                 try:
                     repo.git.commit("-m", f"Add PR URL for {spec_slug}")
-                    repo.git.push("origin", branch_name)
+                    repo.git.push("--force-with-lease", "origin", branch_name)
                 except Exception as e:
                     if "nothing to commit" not in str(e).lower():
                         raise e
