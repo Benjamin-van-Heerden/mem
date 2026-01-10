@@ -1,13 +1,13 @@
 ---
 title: Remove subtasks feature
 status: todo
-assigned_to: null
+assigned_to: Benjamin-van-Heerden
 issue_id: 34
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/34
-branch: null
+branch: dev-benjamin_van_heerden-remove_subtasks_feature
 pr_url: null
 created_at: '2026-01-10T15:54:30.433486'
-updated_at: '2026-01-10T16:03:54.025194'
+updated_at: '2026-01-10T16:04:02.085031'
 completed_at: null
 last_synced_at: '2026-01-10T16:03:54.024526'
 local_content_hash: 63ed17ccee87034b5d9f0a0aee6ddbb2993203c7d3268932faef73e0bcc0f3bc
