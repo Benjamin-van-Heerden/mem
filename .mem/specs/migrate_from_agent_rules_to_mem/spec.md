@@ -5,9 +5,9 @@ assigned_to: Benjamin-van-Heerden
 issue_id: 33
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/33
 branch: dev-benjamin_van_heerden-migrate_from_agent_rules_to_mem
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/36
 created_at: '2026-01-10T15:00:16.744004'
-updated_at: '2026-01-10T18:24:50.419153'
+updated_at: '2026-01-10T18:30:28.891172'
 completed_at: null
 last_synced_at: '2026-01-10T15:13:30.169960'
 local_content_hash: d392e8b93147a8f54ca6019660204da9eb8e686c11b471b29c66cd161fb92f9f
