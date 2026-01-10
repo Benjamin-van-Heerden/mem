@@ -341,6 +341,12 @@ def assign(
             )
             typer.echo(f"📂 Created worktree: {worktree_path}")
             typer.echo(f"🌿 Created branch: {branch_name}")
+
+            # Push the new branch to origin with upstream tracking
+            typer.echo("🔄 Pushing branch to origin...")
+            worktree_repo = Repo(worktree_path)
+            worktree_repo.git.push("--set-upstream", "origin", branch_name)
+            typer.echo(f"✅ Branch '{branch_name}' pushed to origin")
         except Exception as e:
             typer.echo(f"❌ Error creating worktree: {e}", err=True)
             raise typer.Exit(code=1)
