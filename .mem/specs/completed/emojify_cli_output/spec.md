@@ -1,14 +1,14 @@
 ---
 title: Emojify CLI output
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 31
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/31
 branch: dev-benjamin_van_heerden-emojify_cli_output
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/32
 created_at: '2026-01-10T11:34:28.559274'
-updated_at: '2026-01-10T12:06:18.406094'
-completed_at: null
+updated_at: '2026-01-10T12:09:15.747001'
+completed_at: '2026-01-10T12:09:15.745428'
 last_synced_at: '2026-01-10T11:35:20.385652'
 local_content_hash: 5dab4d6100e838e11b35148b48dbe46ba28ed4688cbc1b91e241dc4604630125
 remote_content_hash: 5dab4d6100e838e11b35148b48dbe46ba28ed4688cbc1b91e241dc4604630125
