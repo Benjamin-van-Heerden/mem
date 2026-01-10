@@ -558,3 +558,36 @@ def delete_branch(
         return True
     except GithubException:
         return False
+
+
+def close_pull_request(
+    repo: Repository.Repository,
+    pr_url: str,
+    comment: Optional[str] = None,
+) -> bool:
+    """
+    Close a Pull Request without merging.
+
+    Args:
+        repo: PyGithub Repository instance
+        pr_url: The full PR URL
+        comment: Optional comment to add before closing
+
+    Returns:
+        True if closed successfully, False otherwise
+    """
+    try:
+        pr = get_pull_request_by_url(repo, pr_url)
+        if pr is None:
+            return False
+
+        if pr.state == "closed":
+            return True
+
+        if comment:
+            pr.create_issue_comment(comment)
+
+        pr.edit(state="closed")
+        return True
+    except GithubException:
+        return False

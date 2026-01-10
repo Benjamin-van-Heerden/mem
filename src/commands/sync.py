@@ -392,11 +392,11 @@ def build_sync_plan(
 def print_sync_plan(plan: SyncPlan) -> None:
     """Print a human-readable preview of what sync would do."""
     typer.echo("\n" + "=" * 60)
-    typer.echo("SYNC PREVIEW (dry-run)")
+    typer.echo("🔍 SYNC PREVIEW (dry-run)")
     typer.echo("=" * 60)
 
     if not plan.has_changes:
-        typer.echo("\n✓ Everything is in sync. No changes needed.")
+        typer.echo("\n✅ Everything is in sync. No changes needed.")
         return
 
     if plan.outbound_creates:
@@ -451,10 +451,10 @@ def print_sync_plan(plan: SyncPlan) -> None:
             typer.echo("     Resolve by editing the local file, then run sync again.")
 
     typer.echo("\n" + "-" * 60)
-    typer.echo(f"Total actions: {plan.total_actions}")
+    typer.echo(f"📊 Total actions: {plan.total_actions}")
     if plan.conflicts:
-        typer.echo(f"Conflicts: {len(plan.conflicts)} (will be skipped)")
-    typer.echo("\nRun without --dry-run to apply these changes.")
+        typer.echo(f"⚠️ Conflicts: {len(plan.conflicts)} (will be skipped)")
+    typer.echo("\n💡 Run without --dry-run to apply these changes.")
 
 
 def execute_outbound_create(repo: Any, spec: dict[str, Any]) -> None:
@@ -800,7 +800,7 @@ def sync(
             print_sync_plan(plan)
         else:
             if not plan.has_changes:
-                typer.echo("\n✓ Everything is in sync. No changes needed.")
+                typer.echo("\n✅ Everything is in sync. No changes needed.")
             else:
                 actions_executed = execute_sync_plan(plan, repo)
 
@@ -820,9 +820,9 @@ def sync(
                 typer.echo("\n" + "=" * 60)
                 typer.echo("✅ Sync complete!")
                 typer.echo("=" * 60)
-                typer.echo(f"   Actions executed: {actions_executed}")
+                typer.echo(f"   📊 Actions executed: {actions_executed}")
                 if plan.conflicts:
-                    typer.echo(f"   Conflicts skipped: {len(plan.conflicts)}")
+                    typer.echo(f"   ⚠️ Conflicts skipped: {len(plan.conflicts)}")
 
         # 7. Run cleanup (unless --no-cleanup or --dry-run)
         if not no_cleanup and not dry_run:

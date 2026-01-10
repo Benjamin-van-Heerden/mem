@@ -33,5 +33,5 @@ Implementation errors and barriers encountered that have not been resolved yet. 
 {
 If there are next steps or logical progressions from where we were, mention/list them here.
 
-If we were working on a spec, mention the spec file here and where/how we could continue working on it. Mention which parts of the spec were completed and which parts need further work.
+If we were on an active spec, mention which parts of the spec were completed and which parts need further work.
 }
