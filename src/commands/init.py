@@ -11,6 +11,7 @@ import typer
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
+from src.utils.docs import check_docs_env_vars, ensure_docs_dirs
 from src.utils.github.api import ensure_label, ensure_status_labels
 from src.utils.github.client import get_authenticated_user, get_github_client
 from src.utils.github.exceptions import GitHubError
@@ -316,6 +317,29 @@ def init(
     todos_dir.mkdir(exist_ok=True)
     typer.echo("  ✅ Created: .mem/todos/")
 
+    # Create docs directories
+    ensure_docs_dirs()
+    typer.echo("  ✅ Created: .mem/docs/ (with summaries/ and data/)")
+
+    # Add .mem/docs/data/ to .gitignore if not already present
+    gitignore_path = ENV_SETTINGS.caller_dir / ".gitignore"
+    gitignore_entry = ".mem/docs/data/"
+    if gitignore_path.exists():
+        gitignore_content = gitignore_path.read_text()
+        if gitignore_entry not in gitignore_content:
+            with open(gitignore_path, "a") as f:
+                if not gitignore_content.endswith("\n"):
+                    f.write("\n")
+                f.write(
+                    f"\n# mem docs data (vector DB and hashes)\n{gitignore_entry}\n"
+                )
+            typer.echo("  ✅ Added .mem/docs/data/ to .gitignore")
+    else:
+        gitignore_path.write_text(
+            f"# mem docs data (vector DB and hashes)\n{gitignore_entry}\n"
+        )
+        typer.echo("  ✅ Created .gitignore with .mem/docs/data/")
+
     # Step 6: Create config and user mappings
     typer.echo("\n📄 Step 6/10: Creating configuration files...")
 
@@ -409,6 +433,13 @@ def init(
     typer.echo(f"  🌿 Git User: {git_name}")
     typer.echo("  🌿 Current Branch: dev")
     typer.echo(f"\n📁 Configuration: {ENV_SETTINGS.config_file_stripped}")
+
+    # Check for docs env vars
+    docs_env_ok, missing_vars = check_docs_env_vars()
+    if not docs_env_ok:
+        typer.echo(f"\n⚠️  Document indexing requires: {', '.join(missing_vars)}")
+        typer.echo("   Set these environment variables to use 'mem docs' commands.")
+
     typer.echo("\n💡 Next steps:")
     typer.echo("  1. Run 'mem sync' to pull GitHub issues")
     typer.echo("  2. Run 'mem spec list' to see available specs")

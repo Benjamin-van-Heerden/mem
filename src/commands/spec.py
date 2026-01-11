@@ -2,7 +2,9 @@
 Spec command - Manage specifications
 """
 
+import tomllib
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -11,6 +13,48 @@ from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
 from src.utils import logs, specs, tasks, worktrees
+
+
+def _create_worktree_symlinks(main_repo_path: Path, worktree_path: Path) -> list[str]:
+    """Create symlinks in worktree for paths specified in config.
+
+    Returns list of paths that were symlinked.
+    """
+    config_file = main_repo_path / ".mem" / "config.toml"
+    if not config_file.exists():
+        return []
+
+    try:
+        with open(config_file, "rb") as f:
+            config = tomllib.load(f)
+    except Exception:
+        return []
+
+    worktree_config = config.get("worktree", {})
+    symlink_paths = worktree_config.get("symlink_paths", [])
+
+    created = []
+    for rel_path in symlink_paths:
+        source = main_repo_path / rel_path
+        target = worktree_path / rel_path
+
+        if not source.exists():
+            continue
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        if target.exists() or target.is_symlink():
+            if target.is_symlink():
+                target.unlink()
+            else:
+                continue
+
+        target.symlink_to(source)
+        created.append(rel_path)
+
+    return created
+
+
 from src.utils.github.api import (
     close_issue_with_comment,
     close_pull_request,
@@ -342,6 +386,11 @@ def assign(
             worktree_repo = Repo(worktree_path)
             worktree_repo.git.push("--set-upstream", "origin", branch_name)
             typer.echo(f"✅ Branch '{branch_name}' pushed to origin")
+
+            # Create symlinks for shared paths
+            symlinked = _create_worktree_symlinks(main_repo_path, worktree_path)
+            if symlinked:
+                typer.echo(f"🔗 Created symlinks: {', '.join(symlinked)}")
         except Exception as e:
             typer.echo(f"❌ Error creating worktree: {e}", err=True)
             raise typer.Exit(code=1)

@@ -65,3 +65,24 @@ description = "Project overview and setup instructions"
 # [[files]]
 # path = "docs/architecture.md"
 # description = "System architecture documentation"
+
+# =============================================================================
+# WORKTREE CONFIGURATION
+# =============================================================================
+# Configure paths that should be symlinked into worktrees
+# This is useful for shared data that shouldn't be duplicated across worktrees
+# (e.g., vector databases, caches, large files)
+
+[worktree]
+# Paths relative to project root that will be symlinked into worktrees
+# When `mem spec assign` creates a worktree, these paths will be symlinked
+# from the main repo to the worktree instead of being copied
+#
+# Example:
+# symlink_paths = [
+#     ".mem/docs/data",    # Vector DB for document search
+#     "node_modules",      # Large dependency directory
+# ]
+symlink_paths = [
+    ".mem/docs/data",
+]
