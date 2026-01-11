@@ -235,7 +235,7 @@ def run_sync_quietly() -> SyncFailure | None:
     from src.commands.sync import sync
 
     try:
-        sync(dry_run=False)
+        sync(dry_run=False, no_git=False, no_cleanup=False)
         return None
     except typer.Exit as e:
         if e.exit_code != 0:
