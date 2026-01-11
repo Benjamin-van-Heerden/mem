@@ -535,7 +535,7 @@ def complete(
         repo.git.fetch("origin")
         try:
             repo.git.rebase("origin/dev")
-        except Exception as e:
+        except Exception as _:
             # Abort the failed rebase
             try:
                 repo.git.rebase("--abort")

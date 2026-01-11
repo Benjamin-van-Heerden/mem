@@ -30,6 +30,7 @@ from src.commands.cleanup import cleanup as cleanup_command
 from src.commands.init import init as init_command
 from src.commands.log import log as log_command
 from src.commands.merge import merge as merge_command
+from src.commands.migrate import migrate as migrate_command
 from src.commands.onboard import onboard as onboard_command
 from src.commands.spec import app as spec_app
 from src.commands.sync import sync as sync_command
@@ -49,6 +50,7 @@ app.command(name="merge", help="Merge pull requests for completed specs")(merge_
 app.command(name="cleanup", help="Remove stale branches from completed specs")(
     cleanup_command
 )
+app.command(name="migrate", hidden=True)(migrate_command)
 app.add_typer(spec_app, name="spec", help="Manage specifications")
 app.add_typer(task_app, name="task", help="Manage tasks")
 

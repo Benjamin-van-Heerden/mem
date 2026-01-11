@@ -3,5 +3,5 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Run main.py with uv, staying in the caller's directory
-uv run python "$SCRIPT_DIR/main.py" "$@"
+# Run main.py with uv using the project directory for dependencies
+uv run --project "$SCRIPT_DIR" python "$SCRIPT_DIR/main.py" "$@"
