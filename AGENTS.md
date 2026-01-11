@@ -89,3 +89,9 @@ Run `mem onboard` again. It always shows the current state.
 - Do not enter plan mode, `mem` is the only tool you need for planning
 - Do not use external task lists or task management tools. Use `mem task` instead
 - When working with tests. Stop after test runs to ask for instruction. DO NOT RUN TESTS IN A LOOP.
+
+----------------------------------------------------------------------
+🛑 IMPORTANT INFORMATION
+----------------------------------------------------------------------
+
+- Remember, we are using `mem` to develop `mem` itself. Should changes to the commands be made, e.g. new commands registered or existing commands modified, you will need to test it through `uv run python main.py ...` - where `uv run python main.py` is the equivalent of `mem` (mem is installed in ~/utils/mem). In general, while developing this project it will always be safer to substitute `mem` with `uv run python main.py` to avoid any unintended consequences.
