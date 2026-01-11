@@ -320,17 +320,15 @@ def assign(
         if not spec.get("branch"):
             specs.update_spec(spec_slug, branch=branch_name)
 
-        # Commit and push any uncommitted .mem changes before creating worktree
-        # This ensures the spec file, tasks, etc. are available in the worktree
+        # Commit and push ALL uncommitted changes before creating worktree
+        # This ensures the worktree starts from a clean, fully committed state
         repo = Repo(main_repo_path)
-        mem_dir = main_repo_path / ".mem"
-        if mem_dir.exists():
-            repo.git.add(str(mem_dir))
-            if repo.is_dirty(index=True):
-                typer.echo("📦 Committing .mem/ changes...")
-                repo.git.commit("-m", f"mem: prepare spec {spec_slug} for assignment")
-                typer.echo("🔄 Pushing to remote...")
-                repo.git.push("origin", repo.active_branch.name)
+        repo.git.add(A=True)
+        if repo.is_dirty(index=True):
+            typer.echo("📦 Committing all changes...")
+            repo.git.commit("-m", f"mem: prepare spec {spec_slug} for assignment")
+            typer.echo("🔄 Pushing to remote...")
+            repo.git.push("origin", repo.active_branch.name)
 
         try:
             worktree_path = worktrees.create_worktree(

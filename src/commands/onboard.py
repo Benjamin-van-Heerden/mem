@@ -216,14 +216,39 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
     return "\n".join(output)
 
 
-def run_sync_quietly():
-    """Run sync, fail gracefully."""
-    try:
-        from src.commands.sync import sync
+class SyncFailure:
+    """Represents a sync failure that needs user attention."""
 
+    def __init__(self, error_type: str, message: str):
+        self.error_type = error_type
+        self.message = message
+
+
+def run_sync_quietly() -> SyncFailure | None:
+    """Run sync, returning failure info if it fails.
+
+    Returns:
+        SyncFailure if sync failed, None if successful.
+    """
+    import typer
+
+    from src.commands.sync import sync
+
+    try:
         sync(dry_run=False)
-    except Exception:
-        pass
+        return None
+    except typer.Exit as e:
+        if e.exit_code != 0:
+            return SyncFailure(
+                error_type="sync_failed",
+                message="Sync failed. Check the error messages above.",
+            )
+        return None
+    except Exception as e:
+        return SyncFailure(
+            error_type="unexpected_error",
+            message=f"Unexpected error during sync: {e}",
+        )
 
 
 def format_work_log_entry(log: dict[str, Any]) -> str:
@@ -271,13 +296,13 @@ def onboard():
     if switched and switch_msg:
         print(f"⚠️  {switch_msg}", file=sys.stderr)
 
-    # 1. Run sync (optional, fail silently)
+    # 1. Run sync and capture any failures
     print("Syncing with GitHub...", file=sys.stderr)
-    try:
-        run_sync_quietly()
+    sync_failure = run_sync_quietly()
+    if sync_failure:
+        print(f"Sync failed: {sync_failure.message}", file=sys.stderr)
+    else:
         print("Sync complete.", file=sys.stderr)
-    except Exception as e:
-        print(f"Sync skipped: {e}", file=sys.stderr)
 
     print("", file=sys.stderr)  # Blank line before main output
 
@@ -586,5 +611,48 @@ def onboard():
         output.append("-" * 70)
         output.append("")
         output.append(important_infos)
+
+    # Agent halt instruction
+    output.append("")
+    output.append("-" * 70)
+    output.append("[AGENT INSTRUCTION]")
+    output.append("-" * 70)
+    output.append("Your next response must:")
+    output.append(
+        "1. Briefly summarize the current state (active spec, pending tasks, etc.)"
+    )
+    output.append("2. Ask the user how they would like to proceed")
+    output.append("Do NOT call any tools. Do NOT start working on tasks yet.")
+    output.append("Wait for explicit user instruction before taking any action.")
+
+    # CRITICAL: Show sync failure warning at the very end so it's the last thing seen
+    if sync_failure:
+        output.append("")
+        output.append("")
+        output.append("!" * 70)
+        output.append("!" * 70)
+        output.append("🚨🚨🚨 SYNC FAILED - FIX THIS BEFORE DOING ANYTHING ELSE 🚨🚨🚨")
+        output.append("!" * 70)
+        output.append("!" * 70)
+        output.append("")
+        output.append("The sync/rebase operation failed. This means your branch is")
+        output.append("OUT OF SYNC with origin/dev and needs manual intervention.")
+        output.append("")
+        output.append("DO NOT proceed with any work until this is resolved!")
+        output.append("")
+        output.append("To fix this:")
+        output.append("  1. git fetch origin")
+        output.append("  2. git rebase origin/dev")
+        output.append("  3. Resolve any conflicts that arise")
+        output.append("  4. git rebase --continue")
+        output.append("  5. git push --force-with-lease")
+        output.append("  6. Run 'mem onboard' again to verify")
+        output.append("")
+        output.append("If the rebase is too complex, you can also:")
+        output.append("  - git rebase --abort  (to undo the rebase attempt)")
+        output.append("  - Ask for help resolving the conflicts")
+        output.append("")
+        output.append("!" * 70)
+        output.append("!" * 70)
 
     print("\n".join(output))
