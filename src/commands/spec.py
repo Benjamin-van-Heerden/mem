@@ -380,8 +380,10 @@ def assign(
         typer.echo("─" * 60)
         typer.echo("")
         typer.echo("• The worktree is an isolated directory with its own branch")
-        typer.echo("• This main repo session cannot access the worktree's files")
-        typer.echo("• Continuing here would create tasks in the wrong location")
+        typer.echo(
+            "• Attempting implementation work from here risks cross branch pollution"
+        )
+        typer.echo("• Starting a new session ensures clean separation of concerns")
 
     except typer.Exit:
         raise
