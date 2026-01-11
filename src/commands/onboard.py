@@ -12,7 +12,7 @@ from typing import Any
 
 from env_settings import ENV_SETTINGS
 from src.commands.init import create_pre_merge_commit_hook
-from src.utils import logs, specs, tasks, todos, worktrees
+from src.utils import docs, logs, specs, tasks, todos, worktrees
 from src.utils.specs import ensure_on_dev_branch
 
 
@@ -408,6 +408,38 @@ def onboard():
                 output.append(content)
                 output.append("\n" + "=" * 40 + "\n")
         output.append("")
+
+    # Technical documentation section
+    try:
+        indexed_docs = docs.get_indexed_docs()
+        if indexed_docs:
+            output.append("-" * 70)
+            output.append("📖 TECHNICAL DOCUMENTATION")
+            output.append("-" * 70)
+            output.append("")
+
+            indexed = [d for d in indexed_docs if d["indexed"]]
+            unindexed = [d for d in indexed_docs if not d["indexed"]]
+
+            if indexed:
+                for doc_info in indexed:
+                    slug = doc_info["slug"]
+                    output.append(f"### {slug}")
+                    summary = docs.read_summary(slug)
+                    if summary:
+                        output.append(summary.strip())
+                    else:
+                        output.append("*(No summary available)*")
+                    output.append("")
+
+            if unindexed:
+                unindexed_names = ", ".join(d["slug"] for d in unindexed)
+                output.append(
+                    f"⚠️ Unindexed docs found: {unindexed_names}. Run `mem docs index` to index."
+                )
+                output.append("")
+    except Exception:
+        pass
 
     # Spec context
     output.append("-" * 70)

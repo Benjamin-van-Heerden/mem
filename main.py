@@ -27,6 +27,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Static
 
 from src.commands.cleanup import cleanup as cleanup_command
+from src.commands.docs import app as docs_app
 from src.commands.init import init as init_command
 from src.commands.log import log as log_command
 from src.commands.merge import merge as merge_command
@@ -53,6 +54,7 @@ app.command(name="cleanup", help="Remove stale branches from completed specs")(
 app.command(name="migrate", hidden=True)(migrate_command)
 app.add_typer(spec_app, name="spec", help="Manage specifications")
 app.add_typer(task_app, name="task", help="Manage tasks")
+app.add_typer(docs_app, name="docs", help="Manage technical documentation")
 
 
 # Simple CLI command for testing

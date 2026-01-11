@@ -1,9 +1,9 @@
 ---
 title: Add worktree symlink support
-status: todo
+status: completed
 created_at: '2026-01-11T12:42:11.623592'
-updated_at: '2026-01-11T12:42:11.623592'
-completed_at: null
+updated_at: '2026-01-11T14:24:00.045693'
+completed_at: '2026-01-11T14:24:00.045682'
 ---
 Modify src/commands/spec.py assign command:
 - After worktree creation, read worktree.symlink_paths from config
@@ -19,3 +19,7 @@ Update src/templates/config.toml:
   # Paths to symlink from main repo into worktrees
   # Useful for shared data like vector DBs, node_modules, .venv
   # symlink_paths = [".mem/docs/data"]
+
+## Completion Notes
+
+Added [worktree] section to config template with symlink_paths, implemented _create_worktree_symlinks function in spec.py that creates symlinks after worktree creation
