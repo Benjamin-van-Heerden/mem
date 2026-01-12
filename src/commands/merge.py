@@ -1,8 +1,9 @@
 """
 Merge command for mem.
 
-Queries GitHub for PRs ready to merge (with [Complete]: prefix),
-allows selection, and performs merges via GitHub API.
+Provides subcommands for:
+- Merging PRs ready to merge (with [Complete]: prefix)
+- Merging between main branches (dev -> test -> main) with back-merging
 """
 
 import subprocess
@@ -20,6 +21,8 @@ from src.utils.github.api import (
 )
 from src.utils.github.client import get_github_client
 from src.utils.github.repo import get_repo_from_git
+
+app = typer.Typer()
 
 
 def extract_spec_slug_from_branch(branch_name: str) -> str | None:
@@ -98,7 +101,9 @@ def prune_remote_refs() -> None:
     )
 
 
+@app.callback(invoke_without_command=True)
 def merge(
+    ctx: typer.Context,
     all_ready: Annotated[
         bool,
         typer.Option("--all", "-a", help="Merge all ready PRs without prompting"),
@@ -136,6 +141,9 @@ def merge(
     Uses rebase merge strategy for clean linear history.
     After merging, runs 'mem sync' to update local state.
     """
+    if ctx.invoked_subcommand is not None:
+        return
+
     try:
         # Pre-flight checks
         is_clean, message = check_working_directory_clean()
@@ -324,8 +332,465 @@ def merge(
 
             run_sync(dry_run=False, no_git=False)
 
+        # Print next step hint
+        if success_count > 0:
+            typer.echo("\n💡 Next step: mem merge into test")
+
     except typer.Exit:
         raise
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+def _get_current_branch() -> str:
+    """Get the current git branch name."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _switch_branch(branch: str) -> tuple[bool, str]:
+    """Switch to a branch. Returns (success, error_message)."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "checkout", branch],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+    return True, ""
+
+
+def _pull_branch(branch: str) -> tuple[bool, str]:
+    """Pull a specific branch from origin. Returns (success, error_message)."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "pull", "--ff-only", "origin", branch],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+    return True, ""
+
+
+def _merge_branch(source: str, ff_only: bool = False) -> tuple[bool, str]:
+    """Merge source branch into current. Returns (success, error_message)."""
+    cwd = ENV_SETTINGS.caller_dir
+    cmd = ["git", "merge", source]
+    if ff_only:
+        cmd.append("--ff-only")
+    else:
+        cmd.extend(["-m", f"Merge {source}"])
+
+    result = subprocess.run(
+        cmd,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+    return True, ""
+
+
+def _push_branch(branch: str) -> tuple[bool, str]:
+    """Push a branch to origin. Returns (success, error_message)."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "push", "origin", branch],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+    return True, ""
+
+
+def _fetch_origin() -> tuple[bool, str]:
+    """Fetch from origin. Returns (success, error_message)."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+    return True, ""
+
+
+def _print_error_state(
+    current_branch: str, original_branch: str, steps_done: list[str]
+):
+    """Print error state for manual recovery."""
+    typer.echo("\n" + "=" * 60, err=True)
+    typer.echo("🚨 MERGE FAILED - MANUAL INTERVENTION REQUIRED", err=True)
+    typer.echo("=" * 60, err=True)
+    typer.echo(f"\nCurrent branch: {current_branch}", err=True)
+    typer.echo(f"Original branch: {original_branch}", err=True)
+    if steps_done:
+        typer.echo("\nCompleted steps:", err=True)
+        for step in steps_done:
+            typer.echo(f"  ✅ {step}", err=True)
+    typer.echo("\nTo recover:", err=True)
+    typer.echo(f"  git checkout {original_branch}", err=True)
+    typer.echo("=" * 60, err=True)
+
+
+def _merge_into_test(dry_run: bool = False) -> bool:
+    """
+    Merge dev into test with back-merge.
+
+    Flow:
+    1. Check working directory is clean
+    2. Fetch latest from remote
+    3. Switch to test, pull latest
+    4. Merge dev into test
+    5. Push test
+    6. Switch to dev
+    7. Merge test into dev (ff-only back-merge)
+    8. Push dev
+
+    Returns True on success, False on failure.
+    """
+    original_branch = _get_current_branch()
+    steps_done: list[str] = []
+
+    if dry_run:
+        typer.echo("🔍 Dry run: mem merge into test")
+        typer.echo("\nWould perform the following steps:")
+        typer.echo("  1. Fetch latest from origin")
+        typer.echo("  2. Switch to test branch and pull")
+        typer.echo("  3. Merge dev into test")
+        typer.echo("  4. Push test to origin")
+        typer.echo("  5. Switch to dev branch")
+        typer.echo("  6. Merge test into dev (fast-forward)")
+        typer.echo("  7. Push dev to origin")
+        typer.echo("\n💡 Run without --dry-run to execute.")
+        return True
+
+    try:
+        # 1. Check working directory is clean
+        is_clean, message = check_working_directory_clean()
+        if not is_clean:
+            typer.echo(f"❌ Error: {message}", err=True)
+            return False
+
+        # 2. Fetch latest
+        typer.echo("🔄 Fetching latest from origin...")
+        success, error = _fetch_origin()
+        if not success:
+            typer.echo(f"❌ Failed to fetch: {error}", err=True)
+            return False
+        steps_done.append("Fetched from origin")
+
+        # 3. Switch to test and pull
+        typer.echo("🌿 Switching to test branch...")
+        success, error = _switch_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to switch to test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Switched to test")
+
+        typer.echo("📥 Pulling latest test...")
+        success, error = _pull_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to pull test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pulled test")
+
+        # 4. Merge dev into test
+        typer.echo("🔀 Merging dev into test...")
+        success, error = _merge_branch("dev")
+        if not success:
+            typer.echo(f"❌ Failed to merge dev into test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Merged dev into test")
+
+        # 5. Push test
+        typer.echo("📤 Pushing test to origin...")
+        success, error = _push_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to push test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pushed test")
+
+        # 6. Switch to dev
+        typer.echo("🌿 Switching to dev branch...")
+        success, error = _switch_branch("dev")
+        if not success:
+            typer.echo(f"❌ Failed to switch to dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Switched to dev")
+
+        # 7. Back-merge test into dev (ff-only)
+        typer.echo("🔀 Back-merging test into dev (fast-forward)...")
+        success, error = _merge_branch("test", ff_only=True)
+        if not success:
+            typer.echo(f"❌ Failed to back-merge test into dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Back-merged test into dev")
+
+        # 8. Push dev
+        typer.echo("📤 Pushing dev to origin...")
+        success, error = _push_branch("dev")
+        if not success:
+            typer.echo(f"❌ Failed to push dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pushed dev")
+
+        typer.echo("\n✅ Successfully merged dev into test!")
+        typer.echo("   Both branches are now at the same commit.")
+        typer.echo("\n💡 Next step: mem merge into main")
+        return True
+
+    except Exception as e:
+        typer.echo(f"❌ Unexpected error: {e}", err=True)
+        _print_error_state(_get_current_branch(), original_branch, steps_done)
+        return False
+
+
+def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
+    """
+    Merge test into main with back-merges.
+
+    By default runs in dry-run mode. Use --force to execute.
+
+    Flow:
+    1. Check working directory is clean
+    2. Fetch latest from remote
+    3. Switch to test, pull latest
+    4. Switch to main, pull latest
+    5. Merge test into main
+    6. Push main
+    7. Back-merge main into test (ff-only)
+    8. Push test
+    9. Back-merge test into dev (ff-only)
+    10. Push dev
+    11. Switch back to dev
+
+    Returns True on success, False on failure.
+    """
+    original_branch = _get_current_branch()
+    steps_done: list[str] = []
+
+    # Default to dry-run unless --force is specified
+    if not force:
+        typer.echo("🔍 Dry run: mem merge into main")
+        typer.echo("\nWould perform the following steps:")
+        typer.echo("  1. Fetch latest from origin")
+        typer.echo("  2. Switch to test branch and pull")
+        typer.echo("  3. Switch to main branch and pull")
+        typer.echo("  4. Merge test into main")
+        typer.echo("  5. Push main to origin")
+        typer.echo("  6. Back-merge main into test (fast-forward)")
+        typer.echo("  7. Push test to origin")
+        typer.echo("  8. Back-merge test into dev (fast-forward)")
+        typer.echo("  9. Push dev to origin")
+        typer.echo(" 10. Switch back to dev branch")
+        typer.echo("\n⚠️  This is a dry run. To execute, run:")
+        typer.echo("    mem merge into main --force")
+        return True
+
+    try:
+        # 1. Check working directory is clean
+        is_clean, message = check_working_directory_clean()
+        if not is_clean:
+            typer.echo(f"❌ Error: {message}", err=True)
+            return False
+
+        # 2. Fetch latest
+        typer.echo("🔄 Fetching latest from origin...")
+        success, error = _fetch_origin()
+        if not success:
+            typer.echo(f"❌ Failed to fetch: {error}", err=True)
+            return False
+        steps_done.append("Fetched from origin")
+
+        # 3. Switch to test and pull
+        typer.echo("🌿 Switching to test branch...")
+        success, error = _switch_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to switch to test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Switched to test")
+
+        typer.echo("📥 Pulling latest test...")
+        success, error = _pull_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to pull test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pulled test")
+
+        # 4. Switch to main and pull
+        typer.echo("🌿 Switching to main branch...")
+        success, error = _switch_branch("main")
+        if not success:
+            typer.echo(f"❌ Failed to switch to main: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Switched to main")
+
+        typer.echo("📥 Pulling latest main...")
+        success, error = _pull_branch("main")
+        if not success:
+            typer.echo(f"❌ Failed to pull main: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pulled main")
+
+        # 5. Merge test into main
+        typer.echo("🔀 Merging test into main...")
+        success, error = _merge_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to merge test into main: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Merged test into main")
+
+        # 6. Push main
+        typer.echo("📤 Pushing main to origin...")
+        success, error = _push_branch("main")
+        if not success:
+            typer.echo(f"❌ Failed to push main: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pushed main")
+
+        # 7. Switch to test and back-merge main
+        typer.echo("🌿 Switching to test branch...")
+        success, error = _switch_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to switch to test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+
+        typer.echo("🔀 Back-merging main into test (fast-forward)...")
+        success, error = _merge_branch("main", ff_only=True)
+        if not success:
+            typer.echo(f"❌ Failed to back-merge main into test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Back-merged main into test")
+
+        # 8. Push test
+        typer.echo("📤 Pushing test to origin...")
+        success, error = _push_branch("test")
+        if not success:
+            typer.echo(f"❌ Failed to push test: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pushed test")
+
+        # 9. Switch to dev and back-merge test
+        typer.echo("🌿 Switching to dev branch...")
+        success, error = _switch_branch("dev")
+        if not success:
+            typer.echo(f"❌ Failed to switch to dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+
+        typer.echo("🔀 Back-merging test into dev (fast-forward)...")
+        success, error = _merge_branch("test", ff_only=True)
+        if not success:
+            typer.echo(f"❌ Failed to back-merge test into dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Back-merged test into dev")
+
+        # 10. Push dev
+        typer.echo("📤 Pushing dev to origin...")
+        success, error = _push_branch("dev")
+        if not success:
+            typer.echo(f"❌ Failed to push dev: {error}", err=True)
+            _print_error_state(_get_current_branch(), original_branch, steps_done)
+            return False
+        steps_done.append("Pushed dev")
+
+        typer.echo("\n✅ Successfully merged test into main!")
+        typer.echo("   All branches (dev, test, main) are now at the same commit.")
+        return True
+
+    except Exception as e:
+        typer.echo(f"❌ Unexpected error: {e}", err=True)
+        _print_error_state(_get_current_branch(), original_branch, steps_done)
+        return False
+
+
+@app.command("into")
+def into(
+    target: Annotated[
+        str,
+        typer.Argument(help="Target branch to merge into (test or main)"),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run", "-n", help="Show what would happen without executing"
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Execute the merge (required for 'main')"),
+    ] = False,
+):
+    """
+    Merge between main branches with automatic back-merging.
+
+    This command merges changes forward through the branch hierarchy
+    (dev -> test -> main) and then back-merges to keep all branches
+    at the same commit, eliminating GitHub's "X commits behind" warnings.
+
+    Usage:
+        mem merge into test     Merge dev into test (from dev branch)
+        mem merge into main     Merge test into main (dry-run by default)
+        mem merge into main --force   Actually execute the merge to main
+
+    The command must be run from the dev branch.
+    """
+    # Validate target
+    target = target.lower()
+    if target not in ("test", "main"):
+        typer.echo(
+            f"❌ Error: Invalid target '{target}'. Must be 'test' or 'main'.", err=True
+        )
+        raise typer.Exit(code=1)
+
+    # Check we're on dev branch
+    current = _get_current_branch()
+    if current != "dev":
+        typer.echo(
+            f"❌ Error: Must be on 'dev' branch to merge. Currently on '{current}'.",
+            err=True,
+        )
+        typer.echo("\n💡 Run: git checkout dev", err=True)
+        raise typer.Exit(code=1)
+
+    if target == "test":
+        success = _merge_into_test(dry_run=dry_run)
+    else:  # main
+        success = _merge_into_main(dry_run=dry_run, force=force)
+
+    if not success:
         raise typer.Exit(code=1)

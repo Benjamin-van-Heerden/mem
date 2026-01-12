@@ -1,8 +1,9 @@
 ---
 title: Add usage hints and confirmations
-status: todo
+status: completed
 created_at: '2026-01-12T11:14:03.514645'
-updated_at: '2026-01-12T11:19:41.873886'
+updated_at: '2026-01-12T12:00:01.325160'
+completed_at: '2026-01-12T12:00:01.325152'
 ---
 Add progressive hints between merge commands:
 
@@ -36,3 +37,7 @@ Print hint with [AGENT INSTRUCTION] section:
 - This is the ONLY place --force is mentioned
 
 The [AGENT INSTRUCTION] pattern is used elsewhere in mem (e.g., onboard command) to guide AI agents to pause and confirm with the user before taking action.
+
+## Completion Notes
+
+Added progressive hints after merge commands and fixed test_merge.py to use CliRunner

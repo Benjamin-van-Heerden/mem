@@ -30,7 +30,7 @@ from src.commands.cleanup import cleanup as cleanup_command
 from src.commands.docs import app as docs_app
 from src.commands.init import init as init_command
 from src.commands.log import log as log_command
-from src.commands.merge import merge as merge_command
+from src.commands.merge import app as merge_app
 from src.commands.migrate import migrate as migrate_command
 from src.commands.onboard import onboard as onboard_command
 from src.commands.spec import app as spec_app
@@ -47,7 +47,7 @@ app.command(name="init", help="Initialize mem in current project")(init_command)
 app.command(name="sync", help="Synchronize with GitHub")(sync_command)
 app.command(name="onboard", help="Build context for AI agent")(onboard_command)
 app.command(name="log", help="Create work session log")(log_command)
-app.command(name="merge", help="Merge pull requests for completed specs")(merge_command)
+app.add_typer(merge_app, name="merge", help="Merge operations")
 app.command(name="cleanup", help="Remove stale branches from completed specs")(
     cleanup_command
 )

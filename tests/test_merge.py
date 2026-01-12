@@ -11,19 +11,31 @@ The merge command:
 
 import os
 import time
+import uuid
 
 import pytest
 import typer
 from git import Repo
+from typer.testing import CliRunner
 
-from src.commands.merge import merge
+from src.commands.merge import app as merge_app
 from src.commands.spec import assign, complete, new
 from src.commands.sync import sync
 from src.utils import specs, worktrees
+from tests.conftest import get_worker_id
+
+runner = CliRunner()
+
+
+def unique_slug(base: str, request) -> str:
+    """Generate a unique spec slug using worker ID and UUID."""
+    worker_id = get_worker_id(request)
+    short_uuid = uuid.uuid4().hex[:6]
+    return f"{base}_{worker_id}_{short_uuid}"
 
 
 @pytest.fixture
-def initialized_mem(setup_test_env, monkeypatch):
+def initialized_mem(request, setup_test_env, monkeypatch):
     """Initialize mem directory structure and return the repo path."""
     repo_path = setup_test_env
     monkeypatch.chdir(repo_path)
@@ -39,14 +51,17 @@ def initialized_mem(setup_test_env, monkeypatch):
     return repo_path
 
 
-def test_merge_no_merge_ready_specs(initialized_mem, capsys):
+def test_merge_no_merge_ready_specs(request, initialized_mem):
     """Test that merge command handles no merge_ready specs gracefully."""
     repo_path = initialized_mem
     repo = Repo(repo_path)
+    # setup_test_env already creates and checks out the worker-specific dev branch
 
     # Create a spec but don't complete it
+    spec_slug = unique_slug("not_ready", request)
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title=f"Not Ready {os.getpid()}")
+        new(title=spec_title)
     except typer.Exit:
         pass
 
@@ -55,37 +70,24 @@ def test_merge_no_merge_ready_specs(initialized_mem, capsys):
     repo.git.commit("-m", "Add spec")
 
     # Run merge - should exit cleanly
-    try:
-        merge()
-    except typer.Exit as e:
-        assert e.exit_code == 0
-
-    captured = capsys.readouterr()
-    assert "No PRs ready to merge" in captured.out
+    result = runner.invoke(merge_app)
+    assert result.exit_code == 0
+    assert "No PRs ready to merge" in result.output
 
 
-def test_merge_lists_ready_prs(initialized_mem, github_client, capsys):
+def test_merge_lists_ready_prs(request, initialized_mem, github_client):
     """Test that merge command lists PRs that are ready to merge."""
     repo_path = initialized_mem
     repo = Repo(repo_path)
+    # setup_test_env already creates and checks out the worker-specific dev branch
 
-    # Ensure dev branch exists and push to remote
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-    try:
-        repo.git.push("origin", "dev", set_upstream=True)
-    except Exception:
-        pass
-
-    # Create a spec
-    spec_title = f"Merge Test {os.getpid()}"
+    # Create a spec with unique slug
+    spec_slug = unique_slug("merge_test", request)
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"merge_test_{os.getpid()}"
 
     # Sync to create GitHub issue
     try:
@@ -104,6 +106,13 @@ def test_merge_lists_ready_prs(initialized_mem, github_client, capsys):
     assert worktree_info is not None, "Worktree should have been created by assign"
     os.chdir(worktree_info.path)
 
+    # Make a change so there's something to PR
+    worktree_repo = Repo(worktree_info.path)
+    test_file = worktree_info.path / "test_change.txt"
+    test_file.write_text("Test change for merge")
+    worktree_repo.git.add("test_change.txt")
+    worktree_repo.git.commit("-m", "Add test change")
+
     try:
         complete(spec_slug=spec_slug, message="Ready for merge test", no_log=True)
     except typer.Exit:
@@ -116,14 +125,10 @@ def test_merge_lists_ready_prs(initialized_mem, github_client, capsys):
     time.sleep(3)
 
     # Run merge with dry-run
-    try:
-        merge(dry_run=True)
-    except typer.Exit:
-        pass
+    result = runner.invoke(merge_app, ["--dry-run"])
 
-    captured = capsys.readouterr()
     # Should show the spec in some category (ready, conflicts, or already merged)
-    assert spec_slug in captured.out or "Checking PR status" in captured.out
+    assert spec_slug in result.output or "Checking PR status" in result.output
 
 
 def test_merge_moves_spec_to_completed(initialized_mem, github_client):
@@ -182,10 +187,7 @@ def test_merge_moves_spec_to_completed(initialized_mem, github_client):
     # Spec may not be visible from dev, that's expected
 
     # Try to merge with --all flag
-    try:
-        merge(all_ready=True)
-    except typer.Exit:
-        pass
+    runner.invoke(merge_app, ["--all"])
 
     # Check if spec was moved to completed
     time.sleep(2)
@@ -194,27 +196,18 @@ def test_merge_moves_spec_to_completed(initialized_mem, github_client):
     # (depending on whether the merge succeeded)
 
 
-def test_merge_with_no_merge_ready_exits_cleanly(initialized_mem, capsys):
+def test_merge_with_no_merge_ready_exits_cleanly(initialized_mem):
     """Test that merge with no merge-ready specs exits cleanly."""
     # Run merge when there are no merge_ready specs
-    try:
-        merge()
-    except typer.Exit as e:
-        # Should exit with 0 when no specs are ready
-        assert e.exit_code == 0
-
-    captured = capsys.readouterr()
-    assert "No PRs ready to merge" in captured.out
+    result = runner.invoke(merge_app)
+    # Should exit with 0 when no specs are ready
+    assert result.exit_code == 0
+    assert "No PRs ready to merge" in result.output
 
 
-def test_merge_dry_run_shows_message(initialized_mem, capsys):
+def test_merge_dry_run_shows_message(initialized_mem):
     """Test that dry-run shows appropriate message when no specs ready."""
     # Run with dry-run when no specs are ready
-    try:
-        merge(dry_run=True)
-    except typer.Exit:
-        pass
-
-    captured = capsys.readouterr()
+    result = runner.invoke(merge_app, ["--dry-run"])
     # Should show "No PRs" message since there are none ready
-    assert "No PRs ready to merge" in captured.out
+    assert "No PRs ready to merge" in result.output
