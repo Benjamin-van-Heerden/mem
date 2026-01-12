@@ -1,13 +1,13 @@
 ---
 title: Core documents auto-included in onboard
 status: todo
-assigned_to: null
+assigned_to: Benjamin-van-Heerden
 issue_id: 40
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/40
-branch: null
+branch: dev-benjamin_van_heerden-core_documents_auto_included_in_onboard
 pr_url: null
 created_at: '2026-01-12T10:03:05.317359'
-updated_at: '2026-01-12T10:05:24.518417'
+updated_at: '2026-01-12T10:05:32.139214'
 completed_at: null
 last_synced_at: '2026-01-12T10:05:24.517668'
 local_content_hash: b63edb0de3ca619a2846a2dedcad802ddf2916ea9c747a65e6bd3004674939d6
