@@ -13,6 +13,16 @@ from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
 from src.utils import logs, specs, tasks, worktrees
+from src.utils.github.api import (
+    close_issue_with_comment,
+    close_pull_request,
+    create_pull_request,
+    sync_status_labels,
+    update_github_issue,
+)
+from src.utils.github.client import get_authenticated_user, get_github_client
+from src.utils.github.repo import get_repo_from_git
+from src.utils.markdown import slugify
 
 
 def _create_worktree_symlinks(main_repo_path: Path, worktree_path: Path) -> list[str]:
@@ -54,17 +64,6 @@ def _create_worktree_symlinks(main_repo_path: Path, worktree_path: Path) -> list
 
     return created
 
-
-from src.utils.github.api import (
-    close_issue_with_comment,
-    close_pull_request,
-    create_pull_request,
-    sync_status_labels,
-    update_github_issue,
-)
-from src.utils.github.client import get_authenticated_user, get_github_client
-from src.utils.github.repo import get_repo_from_git
-from src.utils.markdown import slugify
 
 app = typer.Typer()
 
