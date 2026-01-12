@@ -12,6 +12,7 @@ import typer
 
 from env_settings import ENV_SETTINGS
 from src.commands.sync import git_fetch_and_pull
+from src.utils import worktrees
 from src.utils.github.api import (
     delete_branch,
     list_merge_ready_prs,
@@ -19,6 +20,23 @@ from src.utils.github.api import (
 )
 from src.utils.github.client import get_github_client
 from src.utils.github.repo import get_repo_from_git
+
+
+def extract_spec_slug_from_branch(branch_name: str) -> str | None:
+    """
+    Extract spec slug from branch name.
+
+    Branch format: dev-{username}-{spec_slug}
+    Returns spec_slug or None if invalid format.
+    """
+    if not branch_name.startswith("dev-"):
+        return None
+
+    parts = branch_name.split("-", 2)
+    if len(parts) < 3:
+        return None
+
+    return parts[2]
 
 
 def check_working_directory_clean() -> tuple[bool, str]:
@@ -125,26 +143,26 @@ def merge(
             typer.echo(f"Error: {message}", err=True)
             raise typer.Exit(code=1)
 
-        typer.echo("Fetching latest changes...")
+        typer.echo("🔄 Fetching latest changes...")
         success, message = git_fetch_and_pull()
         if not success:
-            typer.echo(f"Error: {message}", err=True)
+            typer.echo(f"❌ Error: {message}", err=True)
             raise typer.Exit(code=1)
-        typer.echo("Local branch is up to date.\n")
+        typer.echo("✅ Local branch is up to date.\n")
 
         # Get GitHub client and repo
         client = get_github_client()
         repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
         gh_repo = client.get_repo(f"{repo_owner}/{repo_name}")
 
-        typer.echo("Querying GitHub for merge-ready PRs...\n")
+        typer.echo("🐙 Querying GitHub for merge-ready PRs...\n")
 
         # Query GitHub for PRs with [Complete]: in title
         prs = list_merge_ready_prs(gh_repo)
 
         if not prs:
-            typer.echo("No PRs ready to merge.")
-            typer.echo("\nPRs must have '[Complete]:' in the title to appear here.")
+            typer.echo("📭 No PRs ready to merge.")
+            typer.echo("\n💡 PRs must have '[Complete]:' in the title to appear here.")
             typer.echo("Use 'mem spec complete <slug> \"message\"' to create such PRs.")
             raise typer.Exit(code=0)
 
@@ -163,7 +181,7 @@ def merge(
 
         # Display PRs
         if ready_to_merge:
-            typer.echo("Ready to merge:")
+            typer.echo("✅ Ready to merge:")
             for i, pr in enumerate(ready_to_merge, 1):
                 issue_info = (
                     f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
@@ -182,7 +200,7 @@ def merge(
             typer.echo()
 
         if checks_failing:
-            typer.echo("Checks failing (use --force to merge anyway):")
+            typer.echo("⚠️ Checks failing (use --force to merge anyway):")
             for pr in checks_failing:
                 issue_info = (
                     f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
@@ -191,7 +209,7 @@ def merge(
             typer.echo()
 
         if has_conflicts:
-            typer.echo("Has conflicts (resolve on GitHub first):")
+            typer.echo("❌ Has conflicts (resolve on GitHub first):")
             for pr in has_conflicts:
                 issue_info = (
                     f" (issue #{pr['issue_number']})" if pr["issue_number"] else ""
@@ -201,23 +219,23 @@ def merge(
 
         # Include failing checks if --force
         if force and checks_failing:
-            typer.echo("--force: Including PRs with failing checks")
+            typer.echo("⚠️ --force: Including PRs with failing checks")
             ready_to_merge.extend(checks_failing)
 
         if not ready_to_merge:
-            typer.echo("No PRs ready to merge.")
+            typer.echo("📭 No PRs ready to merge.")
             raise typer.Exit(code=0)
 
         # Dry run - just show what would happen
         if dry_run:
-            typer.echo(f"Dry run: Would merge {len(ready_to_merge)} PR(s)")
+            typer.echo(f"🔍 Dry run: Would merge {len(ready_to_merge)} PR(s)")
             raise typer.Exit(code=0)
 
         # Select PRs to merge
         if all_ready or len(ready_to_merge) == 1:
             selected = ready_to_merge
             if len(ready_to_merge) == 1:
-                typer.echo(f"Merging PR #{ready_to_merge[0]['number']}...")
+                typer.echo(f"🔀 Merging PR #{ready_to_merge[0]['number']}...")
         else:
             typer.echo(
                 "Select PRs to merge (comma-separated numbers, 'all', or 'q' to quit):"
@@ -243,54 +261,65 @@ def merge(
                     raise typer.Exit(code=1)
 
         if not selected:
-            typer.echo("No PRs selected.")
+            typer.echo("📭 No PRs selected.")
             raise typer.Exit(code=0)
 
         # Merge selected PRs
-        typer.echo(f"\nMerging {len(selected)} PR(s)...\n")
+        typer.echo(f"\n🔀 Merging {len(selected)} PR(s)...\n")
 
         success_count = 0
         for pr_info in selected:
-            typer.echo(f"Merging #{pr_info['number']}: {pr_info['title']}...")
+            typer.echo(f"🔀 Merging #{pr_info['number']}: {pr_info['title']}...")
 
             # Get full PR object for merge
             pr = gh_repo.get_pull(pr_info["number"])
             result = merge_pull_request(pr, merge_method="rebase")
 
             if result["success"]:
-                typer.echo(f"  Merged (SHA: {result['sha'][:7]})")
+                typer.echo(f"  ✅ Merged (SHA: {result['sha'][:7]})")
                 success_count += 1
 
                 # Delete remote branch
                 if delete_branches:
                     branch = pr_info["head_branch"]
                     if delete_branch(gh_repo, branch):
-                        typer.echo(f"  Deleted remote branch: {branch}")
+                        typer.echo(f"  🗑️ Deleted remote branch: {branch}")
                     else:
                         typer.echo(
-                            f"  Warning: Could not delete remote branch: {branch}"
+                            f"  ⚠️ Warning: Could not delete remote branch: {branch}"
                         )
+
+                    # Remove worktree first (must happen before branch deletion)
+                    spec_slug = extract_spec_slug_from_branch(branch)
+                    if spec_slug:
+                        try:
+                            if worktrees.remove_worktree(
+                                ENV_SETTINGS.caller_dir, spec_slug, force=True
+                            ):
+                                typer.echo(f"  📂 Removed worktree: {spec_slug}")
+                        except Exception as e:
+                            typer.echo(f"  ⚠️ Warning: Could not remove worktree: {e}")
 
                     # Delete local branch
                     if delete_local_branch(branch):
-                        typer.echo(f"  Deleted local branch: {branch}")
+                        typer.echo(f"  🗑️ Deleted local branch: {branch}")
                     else:
                         typer.echo(
-                            f"  Warning: Could not delete local branch: {branch}"
+                            f"  ⚠️ Warning: Could not delete local branch: {branch}"
                         )
             else:
-                typer.echo(f"  Failed: {result['message']}", err=True)
+                typer.echo(f"  ❌ Failed: {result['message']}", err=True)
 
-        typer.echo(f"\nMerged {success_count}/{len(selected)} PR(s).")
+        typer.echo(f"\n✅ Merged {success_count}/{len(selected)} PR(s).")
 
         # Prune stale remote tracking refs
         if delete_branches and success_count > 0:
             prune_remote_refs()
-            typer.echo("Pruned stale remote tracking refs.")
+            typer.echo("🧹 Pruned stale remote tracking refs.")
 
         # Run sync to update local state
         if not no_sync and success_count > 0:
-            typer.echo("\nRunning sync to update local state...")
+            typer.echo("\n🔄 Running sync to update local state...")
             from src.commands.sync import sync as run_sync
 
             run_sync(dry_run=False, no_git=False)

@@ -132,7 +132,7 @@ def run_cleanup(dry_run: bool = False, silent: bool = False) -> tuple[int, int]:
                 location.append("remote")
             if not silent:
                 typer.echo(
-                    f"Would delete: {branch} ({', '.join(location)}) (spec {status})"
+                    f"🔍 Would delete: {branch} ({', '.join(location)}) (spec {status})"
                 )
             deleted_count += 1
         else:
@@ -142,19 +142,19 @@ def run_cleanup(dry_run: bool = False, silent: bool = False) -> tuple[int, int]:
             if is_local:
                 if delete_local_branch(branch):
                     if not silent:
-                        typer.echo(f"Deleted local: {branch} (spec {status})")
+                        typer.echo(f"🗑️ Deleted local: {branch} (spec {status})")
                     deleted_any = True
                 elif not silent:
-                    typer.echo(f"Failed to delete local: {branch}")
+                    typer.echo(f"❌ Failed to delete local: {branch}")
 
             # Delete remote branch
             if is_remote and gh_repo:
                 if delete_branch(gh_repo, branch):
                     if not silent:
-                        typer.echo(f"Deleted remote: {branch} (spec {status})")
+                        typer.echo(f"🗑️ Deleted remote: {branch} (spec {status})")
                     deleted_any = True
                 elif not silent:
-                    typer.echo(f"Failed to delete remote: {branch}")
+                    typer.echo(f"❌ Failed to delete remote: {branch}")
 
             if deleted_any:
                 deleted_count += 1
@@ -163,7 +163,7 @@ def run_cleanup(dry_run: bool = False, silent: bool = False) -> tuple[int, int]:
     if not dry_run and deleted_count > 0:
         prune_remote_refs()
         if not silent:
-            typer.echo("\nPruned stale remote tracking refs.")
+            typer.echo("\n🧹 Pruned stale remote tracking refs.")
 
     return deleted_count, skipped_count
 
@@ -182,7 +182,7 @@ def cleanup(
     Scans branches matching 'dev-*' pattern, extracts the spec slug,
     and deletes the branch if the spec is in completed/ or abandoned/ status.
     """
-    typer.echo("Scanning for stale branches...\n")
+    typer.echo("🔍 Scanning for stale branches...\n")
 
     deleted_count, skipped_count = run_cleanup(dry_run=dry_run, silent=False)
 
@@ -190,7 +190,7 @@ def cleanup(
         return
 
     typer.echo(
-        f"\n{'Would delete' if dry_run else 'Deleted'}: {deleted_count} branch(es)"
+        f"\n{'🔍 Would delete' if dry_run else '🗑️ Deleted'}: {deleted_count} branch(es)"
     )
     if skipped_count > 0:
-        typer.echo(f"Skipped: {skipped_count} branch(es) (spec still active)")
+        typer.echo(f"⏭️ Skipped: {skipped_count} branch(es) (spec still active)")

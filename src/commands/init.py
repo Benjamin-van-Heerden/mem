@@ -11,6 +11,7 @@ import typer
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
+from src.utils.docs import check_docs_env_vars, ensure_docs_dirs
 from src.utils.github.api import ensure_label, ensure_status_labels
 from src.utils.github.client import get_authenticated_user, get_github_client
 from src.utils.github.exceptions import GitHubError
@@ -85,7 +86,7 @@ def configure_merge_settings(project_root: Path):
             check=True,
             capture_output=True,
         )
-        typer.echo("✓ Configured merge.ff=false (ensures merge hooks trigger)")
+        typer.echo("✅ Configured merge.ff=false (ensures merge hooks trigger)")
     except subprocess.CalledProcessError as e:
         typer.echo(f"⚠️  Warning: Could not set merge.ff config: {e}", err=True)
 
@@ -155,7 +156,7 @@ esac
     hook_file.write_text(hook_content)
     hook_file.chmod(0o755)
     if not quiet:
-        typer.echo("✓ Created pre-merge-commit hook for branch rules")
+        typer.echo("✅ Created pre-merge-commit hook for branch rules")
 
 
 def create_agents_files(project_root: Path):
@@ -167,16 +168,16 @@ def create_agents_files(project_root: Path):
         template_path = _get_agents_template_path()
         if template_path.exists():
             shutil.copy(template_path, agents_file)
-            typer.echo("✓ Created AGENTS.md")
+            typer.echo("✅ Created AGENTS.md")
         else:
             typer.echo("⚠️  Warning: AGENTS.md template not found", err=True)
             return
 
     if not claude_file.exists():
         claude_file.symlink_to("AGENTS.md")
-        typer.echo("✓ Created CLAUDE.md symlink -> AGENTS.md")
+        typer.echo("✅ Created CLAUDE.md symlink -> AGENTS.md")
     elif claude_file.is_symlink():
-        typer.echo("✓ CLAUDE.md symlink already exists")
+        typer.echo("✅ CLAUDE.md symlink already exists")
     else:
         typer.echo("⚠️  Warning: CLAUDE.md exists but is not a symlink", err=True)
 
@@ -239,50 +240,50 @@ def init(
     typer.echo("🚀 Initializing mem with GitHub integration...\n")
 
     # Step 0: Check prerequisites
-    typer.echo("Checking prerequisites...")
+    typer.echo("🔍 Checking prerequisites...")
     errors = check_prerequisites()
     if errors:
         typer.echo("\n❌ Prerequisites not met:\n", err=True)
         for error in errors:
             typer.echo(f"• {error}\n", err=True)
         raise typer.Exit(code=1)
-    typer.echo("✓ All prerequisites met\n")
+    typer.echo("✅ All prerequisites met\n")
 
     # Step 1: Check for GitHub token
-    typer.echo("Step 1/10: Validating GitHub authentication...")
+    typer.echo("🐙 Step 1/10: Validating GitHub authentication...")
     try:
         github_client = get_github_client()
-        typer.echo("✓ GitHub authentication successful")
+        typer.echo("✅ GitHub authentication successful")
     except GitHubError as e:
         typer.echo(f"❌ {e}", err=True)
         raise typer.Exit(code=1)
 
     # Step 2: Get authenticated GitHub user
-    typer.echo("\nStep 2/10: Discovering GitHub user...")
+    typer.echo("\n🐙 Step 2/10: Discovering GitHub user...")
     try:
         github_user = get_authenticated_user(github_client)
         github_username = github_user["username"]
-        typer.echo(f"✓ Authenticated as GitHub user: {github_username}")
+        typer.echo(f"✅ Authenticated as GitHub user: {github_username}")
     except GitHubError as e:
         typer.echo(f"❌ {e}", err=True)
         raise typer.Exit(code=1)
 
     # Step 3: Discover repository from git remote
-    typer.echo("\nStep 3/10: Discovering GitHub repository from git remote...")
+    typer.echo("\n🐙 Step 3/10: Discovering GitHub repository from git remote...")
     try:
         repo_owner, repo_name = get_repo_from_git(ENV_SETTINGS.caller_dir)
-        typer.echo(f"✓ Repository: {repo_owner}/{repo_name}")
+        typer.echo(f"✅ Repository: {repo_owner}/{repo_name}")
     except GitHubError as e:
         typer.echo(f"❌ {e}", err=True)
         raise typer.Exit(code=1)
 
     # Step 4: Get local git user configuration
-    typer.echo("\nStep 4/10: Reading local git configuration...")
+    typer.echo("\n🌿 Step 4/10: Reading local git configuration...")
     try:
         git_user = get_git_user_info(ENV_SETTINGS.caller_dir)
         git_name = git_user["name"]
         git_email = git_user["email"]
-        typer.echo(f"✓ Git user: {git_name} <{git_email}>")
+        typer.echo(f"✅ Git user: {git_name} <{git_email}>")
     except GitHubError as e:
         typer.echo(f"❌ {e}", err=True)
         raise typer.Exit(code=1)
@@ -301,23 +302,46 @@ def init(
                 raise typer.Exit(code=0)
 
     # Step 5: Create directory structure
-    typer.echo("\nStep 5/10: Creating .mem directory structure...")
+    typer.echo("\n📂 Step 5/10: Creating .mem directory structure...")
     ENV_SETTINGS.mem_dir.mkdir(exist_ok=True)
-    typer.echo(f"  ✓ Created: {ENV_SETTINGS.mem_dir_stripped}")
+    typer.echo(f"  ✅ Created: {ENV_SETTINGS.mem_dir_stripped}")
 
     ENV_SETTINGS.specs_dir.mkdir(exist_ok=True)
-    typer.echo(f"  ✓ Created: {ENV_SETTINGS.specs_dir_stripped}")
+    typer.echo(f"  ✅ Created: {ENV_SETTINGS.specs_dir_stripped}")
 
     ENV_SETTINGS.logs_dir.mkdir(exist_ok=True)
-    typer.echo(f"  ✓ Created: {ENV_SETTINGS.logs_dir_stripped}")
+    typer.echo(f"  ✅ Created: {ENV_SETTINGS.logs_dir_stripped}")
 
     # Create todos directory
     todos_dir = ENV_SETTINGS.mem_dir / "todos"
     todos_dir.mkdir(exist_ok=True)
-    typer.echo("  ✓ Created: .mem/todos/")
+    typer.echo("  ✅ Created: .mem/todos/")
+
+    # Create docs directories
+    ensure_docs_dirs()
+    typer.echo("  ✅ Created: .mem/docs/ (with core/, summaries/, and data/)")
+
+    # Add .mem/docs/data/ to .gitignore if not already present
+    gitignore_path = ENV_SETTINGS.caller_dir / ".gitignore"
+    gitignore_entry = ".mem/docs/data/"
+    if gitignore_path.exists():
+        gitignore_content = gitignore_path.read_text()
+        if gitignore_entry not in gitignore_content:
+            with open(gitignore_path, "a") as f:
+                if not gitignore_content.endswith("\n"):
+                    f.write("\n")
+                f.write(
+                    f"\n# mem docs data (vector DB and hashes)\n{gitignore_entry}\n"
+                )
+            typer.echo("  ✅ Added .mem/docs/data/ to .gitignore")
+    else:
+        gitignore_path.write_text(
+            f"# mem docs data (vector DB and hashes)\n{gitignore_entry}\n"
+        )
+        typer.echo("  ✅ Created .gitignore with .mem/docs/data/")
 
     # Step 6: Create config and user mappings
-    typer.echo("\nStep 6/10: Creating configuration files...")
+    typer.echo("\n📄 Step 6/10: Creating configuration files...")
 
     if not ENV_SETTINGS.config_file.exists() or force:
         create_config_with_discovery(repo_name)
@@ -329,20 +353,20 @@ def init(
     if not mappings_file.exists() or force:
         create_user_mappings(github_username, git_name, git_email)
     else:
-        typer.echo("✓ User mappings file already exists")
+        typer.echo("✅ User mappings file already exists")
 
     # Create AGENTS.md and CLAUDE.md symlink
-    typer.echo("\nCreating agent configuration files...")
+    typer.echo("\n📄 Creating agent configuration files...")
     create_agents_files(ENV_SETTINGS.caller_dir)
 
     # Step 7: Ensure branches exist and switch to dev
-    typer.echo("\nStep 7/10: Setting up git branches...")
+    typer.echo("\n🌿 Step 7/10: Setting up git branches...")
     try:
         ensure_branches_exist(ENV_SETTINGS.caller_dir, ["main", "test", "dev"])
-        typer.echo("✓ Ensured branches exist: main, test, dev")
+        typer.echo("✅ Ensured branches exist: main, test, dev")
 
         switch_to_branch(ENV_SETTINGS.caller_dir, "dev")
-        typer.echo("✓ Switched to 'dev' branch")
+        typer.echo("✅ Switched to 'dev' branch")
     except GitHubError as e:
         typer.echo(f"⚠️  Warning: {e}", err=True)
         typer.echo("  (You can manually create branches later)")
@@ -354,12 +378,12 @@ def init(
     configure_merge_settings(ENV_SETTINGS.caller_dir)
 
     # Step 8: Ensure global config and create GitHub issue template
-    typer.echo("\nStep 8/10: Setting up global config and GitHub issue template...")
+    typer.echo("\n📄 Step 8/10: Setting up global config and GitHub issue template...")
 
     # Ensure ~/.config/mem/ exists with default templates
     try:
         ensure_global_config_exists()
-        typer.echo(f"✓ Ensured global config exists: {ENV_SETTINGS.global_config_dir}")
+        typer.echo(f"✅ Ensured global config exists: {ENV_SETTINGS.global_config_dir}")
     except Exception as e:
         typer.echo(f"⚠️  Warning: Could not create global config: {e}", err=True)
 
@@ -372,12 +396,12 @@ def init(
     repo = None
     try:
         template_file.write_text(template_content)
-        typer.echo("✓ Created issue template: .github/ISSUE_TEMPLATE/mem-spec.md")
+        typer.echo("✅ Created issue template: .github/ISSUE_TEMPLATE/mem-spec.md")
     except Exception as e:
         typer.echo(f"⚠️  Warning: Could not create issue template: {e}", err=True)
 
     # Step 9: Create GitHub label
-    typer.echo("\nStep 9/10: Creating 'mem-spec' label on GitHub...")
+    typer.echo("\n🐙 Step 9/10: Creating 'mem-spec' label on GitHub...")
     try:
         repo = github_client.get_repo(f"{repo_owner}/{repo_name}")
         ensure_label(
@@ -386,30 +410,37 @@ def init(
             color="0E8A16",
             description="Specifications managed by mem CLI",
         )
-        typer.echo("✓ Ensured 'mem-spec' label exists on GitHub")
+        typer.echo("✅ Ensured 'mem-spec' label exists on GitHub")
     except Exception as e:
         typer.echo(f"⚠️  Warning: Could not create GitHub label: {e}", err=True)
 
     # Step 10: Create status labels for sync
-    typer.echo("\nStep 10/10: Creating status labels on GitHub...")
+    typer.echo("\n🐙 Step 10/10: Creating status labels on GitHub...")
     try:
         assert repo is not None
         ensure_status_labels(repo)
-        typer.echo("✓ Created mem-status:* labels for sync")
+        typer.echo("✅ Created mem-status:* labels for sync")
     except Exception as e:
         typer.echo(f"⚠️  Warning: Could not create status labels: {e}", err=True)
 
     # Success!
     typer.echo("\n" + "=" * 60)
-    typer.echo("✨ mem initialized successfully!")
+    typer.echo("✅ mem initialized successfully!")
     typer.echo("=" * 60)
     typer.echo("\n📊 Summary:")
-    typer.echo(f"  Repository: {repo_owner}/{repo_name}")
-    typer.echo(f"  GitHub User: {github_username}")
-    typer.echo(f"  Git User: {git_name}")
-    typer.echo("  Current Branch: dev")
+    typer.echo(f"  🐙 Repository: {repo_owner}/{repo_name}")
+    typer.echo(f"  👤 GitHub User: {github_username}")
+    typer.echo(f"  🌿 Git User: {git_name}")
+    typer.echo("  🌿 Current Branch: dev")
     typer.echo(f"\n📁 Configuration: {ENV_SETTINGS.config_file_stripped}")
-    typer.echo("\n🎯 Next steps:")
+
+    # Check for docs env vars
+    docs_env_ok, missing_vars = check_docs_env_vars()
+    if not docs_env_ok:
+        typer.echo(f"\n⚠️  Document indexing requires: {', '.join(missing_vars)}")
+        typer.echo("   Set these environment variables to use 'mem docs' commands.")
+
+    typer.echo("\n💡 Next steps:")
     typer.echo("  1. Run 'mem sync' to pull GitHub issues")
     typer.echo("  2. Run 'mem spec list' to see available specs")
     typer.echo("  3. Run 'mem spec activate <slug>' to start working on a spec")

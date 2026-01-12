@@ -12,7 +12,7 @@ from typing import Any
 
 from env_settings import ENV_SETTINGS
 from src.commands.init import create_pre_merge_commit_hook
-from src.utils import logs, specs, tasks, todos
+from src.utils import docs, logs, specs, tasks, todos, worktrees
 from src.utils.specs import ensure_on_dev_branch
 
 
@@ -152,19 +152,13 @@ def format_spec_detail(spec: dict[str, Any]) -> str:
         output.append("\n### Details:\n")
         output.append(body)
 
-    # List tasks with subtasks
+    # List tasks
     task_list = tasks.list_tasks(spec["slug"])
     if task_list:
         output.append("\n### Tasks:")
         for task in task_list:
             status_icon = "[x]" if task["status"] == "completed" else "[ ]"
             output.append(f"  {status_icon} {task['title']}")
-
-            # Show subtasks (embedded in frontmatter)
-            subtask_list = task.get("subtasks", [])
-            for subtask in subtask_list:
-                sub_icon = "[x]" if subtask["status"] == "completed" else "[ ]"
-                output.append(f"      {sub_icon} {subtask['title']}")
 
     return "\n".join(output)
 
@@ -205,19 +199,13 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
             steps.append(f"Continue working on: {pending[0]['title']}")
         elif task_list:
             steps.append(
-                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "detailed commit message"'
+                f'All tasks completed! Run: mem spec complete {active_spec["slug"]} "commit message"'
             )
         else:
-            steps.append(
-                f'Add tasks to spec: mem task new "title" "detailed description with implementation notes if necessary" --spec {active_spec["slug"]}'
-            )
+            steps.append('Add tasks to spec: mem task new "title" "description"')
     else:
-        if branch_name in ("dev", "main", "master"):
-            steps.append("Activate a spec to start working: mem spec activate <slug>")
-            steps.append('Or create a new spec: mem spec new "feature name"')
-        else:
-            steps.append(f"You're on branch '{branch_name}' with no associated spec.")
-            steps.append("Consider creating a spec for this work or switching to dev.")
+        steps.append('Create a new spec: mem spec new "feature name"')
+        steps.append("Or assign an existing spec: mem spec assign <slug>")
 
     steps.append("Create a work log for this session: mem log")
 
@@ -228,33 +216,67 @@ def format_next_steps(active_spec: dict | None, branch_name: str) -> str:
     return "\n".join(output)
 
 
-def run_sync_quietly():
-    """Run sync, fail gracefully."""
-    try:
-        from src.commands.sync import sync
+class SyncFailure:
+    """Represents a sync failure that needs user attention."""
 
-        sync(dry_run=False)
-    except Exception:
-        pass
+    def __init__(self, error_type: str, message: str):
+        self.error_type = error_type
+        self.message = message
+
+
+def run_sync_quietly() -> SyncFailure | None:
+    """Run sync, returning failure info if it fails.
+
+    Returns:
+        SyncFailure if sync failed, None if successful.
+    """
+    import typer
+
+    from src.commands.sync import sync
+
+    try:
+        sync(dry_run=False, no_git=False, no_cleanup=False)
+        return None
+    except typer.Exit as e:
+        if e.exit_code != 0:
+            return SyncFailure(
+                error_type="sync_failed",
+                message="Sync failed. Check the error messages above.",
+            )
+        return None
+    except Exception as e:
+        return SyncFailure(
+            error_type="unexpected_error",
+            message=f"Unexpected error during sync: {e}",
+        )
 
 
 def format_work_log_entry(log: dict[str, Any]) -> str:
-    """Format a work log entry for display."""
+    """Format a work log entry for display with visual separation."""
     output = []
     date = log.get("date", "Unknown date")
     username = log.get("username", "")
     spec_slug = log.get("spec_slug", "")
 
-    header = f"**{date}**"
+    # Top border
+    output.append("┌" + "─" * 68 + "┐")
+
+    # Header line
+    header = f"  {date}"
     if username:
         header += f" ({username})"
     if spec_slug:
         header += f" - spec: {spec_slug}"
     output.append(header)
 
+    output.append("├" + "─" * 68 + "┤")
+
     body = log.get("body", "").strip()
     if body:
         output.append(body)
+
+    # Bottom border
+    output.append("└" + "─" * 68 + "┘")
 
     return "\n".join(output)
 
@@ -274,13 +296,13 @@ def onboard():
     if switched and switch_msg:
         print(f"⚠️  {switch_msg}", file=sys.stderr)
 
-    # 1. Run sync (optional, fail silently)
+    # 1. Run sync and capture any failures
     print("Syncing with GitHub...", file=sys.stderr)
-    try:
-        run_sync_quietly()
+    sync_failure = run_sync_quietly()
+    if sync_failure:
+        print(f"Sync failed: {sync_failure.message}", file=sys.stderr)
+    else:
         print("Sync complete.", file=sys.stderr)
-    except Exception as e:
-        print(f"Sync skipped: {e}", file=sys.stderr)
 
     print("", file=sys.stderr)  # Blank line before main output
 
@@ -295,7 +317,7 @@ def onboard():
 
     # Header with mem explanation
     output.append("=" * 70)
-    output.append("PROJECT CONTEXT (generated by mem)")
+    output.append("📋 PROJECT CONTEXT (generated by mem)")
     output.append("=" * 70)
     output.append("")
     output.append("## About mem")
@@ -313,19 +335,21 @@ def onboard():
         "- **Specs**: High-level feature specifications (linked to GitHub issues)"
     )
     output.append("- **Tasks**: Concrete work items within a spec")
-    output.append("- **Subtasks**: Granular breakdown embedded in task frontmatter")
     output.append("- **Work Logs**: Session records of what was done and what's next")
     output.append("")
     output.append("**Key commands:**")
-    output.append("- `mem spec activate <slug>` - Switch to a spec's feature branch")
+    output.append('- `mem spec new "title"` - Create a new spec')
     output.append(
-        '- `mem task new "title" "detailed description with implementation notes if necessary"` - Create a task for active spec'
+        "- `mem spec assign <slug>` - Assign spec to yourself and create worktree"
+    )
+    output.append(
+        '- `mem task new "title" "description"` - Create a task for active spec'
     )
     output.append('- `mem task complete "title"` - Mark task done')
     output.append(
-        '- `mem spec complete <slug> "detailed commit message"` - Create PR, mark spec merge_ready'
+        '- `mem spec complete <slug> "commit message"` - Create PR, mark spec merge_ready'
     )
-    output.append("- `mem merge` - Merge completed PRs and clean up branches")
+    output.append("- `mem merge` - Merge completed PRs and clean up worktrees")
     output.append("- `mem log` - Create/update work log for the session")
     output.append("- `mem sync` - Bidirectional sync with GitHub issues")
     output.append("")
@@ -337,7 +361,7 @@ def onboard():
 
     # Project info
     output.append("-" * 70)
-    output.append("PROJECT INFO")
+    output.append("📁 PROJECT INFO")
     output.append("-" * 70)
     project = config.get("project", {})
     output.append(f"**Project:** {project.get('name', 'Unknown')}")
@@ -356,7 +380,7 @@ def onboard():
     generic_templates = load_generic_templates(config)
     if generic_templates:
         output.append("-" * 70)
-        output.append("CODING GUIDELINES")
+        output.append("📝 CODING GUIDELINES")
         output.append("-" * 70)
         for name, content in generic_templates.items():
             output.append(f"\n## {name}\n")
@@ -368,7 +392,7 @@ def onboard():
     files_config = config.get("files", [])
     if files_config:
         output.append("-" * 70)
-        output.append("IMPORTANT FILES")
+        output.append("📄 IMPORTANT FILES")
         output.append("-" * 70)
         for file_entry in files_config:
             path = file_entry.get("path")
@@ -385,10 +409,62 @@ def onboard():
                 output.append("\n" + "=" * 40 + "\n")
         output.append("")
 
+    # Core documentation section (always included in full)
+    try:
+        core_doc_files = docs.list_core_doc_files()
+        if core_doc_files:
+            output.append("-" * 70)
+            output.append("📚 CORE DOCUMENTATION")
+            output.append("-" * 70)
+            output.append("")
+
+            for file_path in core_doc_files:
+                slug = docs.get_core_doc_slug(file_path)
+                content = docs.read_core_doc(slug)
+                if content:
+                    output.append(f"### {slug}")
+                    output.append("")
+                    output.append(content.strip())
+                    output.append("")
+    except Exception:
+        pass
+
+    # Technical documentation section
+    try:
+        indexed_docs = docs.get_indexed_docs()
+        if indexed_docs:
+            output.append("-" * 70)
+            output.append("📖 TECHNICAL DOCUMENTATION")
+            output.append("-" * 70)
+            output.append("")
+
+            indexed = [d for d in indexed_docs if d["indexed"]]
+            unindexed = [d for d in indexed_docs if not d["indexed"]]
+
+            if indexed:
+                for doc_info in indexed:
+                    slug = doc_info["slug"]
+                    output.append(f"### {slug}")
+                    summary = docs.read_summary(slug)
+                    if summary:
+                        output.append(summary.strip())
+                    else:
+                        output.append("*(No summary available)*")
+                    output.append("")
+
+            if unindexed:
+                unindexed_names = ", ".join(d["slug"] for d in unindexed)
+                output.append(
+                    f"⚠️ Unindexed docs found: {unindexed_names}. Run `mem docs index` to index."
+                )
+                output.append("")
+    except Exception:
+        pass
+
     # Spec context
     output.append("-" * 70)
     if active_spec:
-        output.append(f"ACTIVE SPEC: {active_spec['title']}")
+        output.append(f"📋 ACTIVE SPEC: {active_spec['title']}")
         output.append("-" * 70)
         output.append("")
         output.append(
@@ -410,50 +486,72 @@ def onboard():
 
         output.append(format_spec_detail(active_spec))
     else:
-        output.append("AVAILABLE SPECS")
+        output.append("📋 AVAILABLE SPECS")
         output.append("-" * 70)
         output.append("")
-        output.append("No spec is currently active. You are on the dev branch.")
-        output.append(
-            "Activate a spec with `mem spec activate <slug>` to start working on it."
-        )
+        output.append("No spec is currently active. You are in the main repo.")
         output.append("")
+
+        # Show active worktrees
+        main_repo_path = ENV_SETTINGS.caller_dir
+        all_worktrees = worktrees.list_worktrees(main_repo_path)
+        spec_worktrees = [wt for wt in all_worktrees if not wt.is_main]
+        if spec_worktrees:
+            output.append("### 📂 Active worktrees:")
+            output.append("Each worktree is an isolated workspace for a spec.")
+            for wt in spec_worktrees:
+                slug = wt.path.name
+                output.append(f"  - {slug}: {wt.path}")
+            output.append("")
+            output.append(
+                "To work on a spec, open a terminal in its worktree directory."
+            )
+            output.append("")
+
         todo_specs = specs.list_specs(status="todo")
         merge_ready_specs = specs.list_specs(status="merge_ready")
 
         if merge_ready_specs:
-            output.append("### Specs ready to merge:")
+            output.append("### ✅ Specs ready to merge:")
             for spec in merge_ready_specs:
                 output.append(f"  - {spec['slug']}: {spec['title']}")
                 if spec.get("pr_url"):
-                    output.append(f"    PR: {spec['pr_url']}")
+                    output.append(f"    🔗 PR: {spec['pr_url']}")
             output.append("")
-            output.append("Run `mem merge` to merge these PRs.")
+            output.append("💡 Run `mem merge` to merge these PRs.")
             output.append("")
 
         if todo_specs:
-            output.append("### Specs to work on:")
+            output.append("### 📝 Specs to work on:")
             for spec in todo_specs:
                 output.append(format_spec_summary(spec))
         else:
             if not merge_ready_specs:
                 output.append(
-                    'No specs available. Create one with: mem spec new "title"'
+                    '💡 No specs available. Create one with: mem spec new "title"'
                 )
                 output.append("")
 
                 # Show recently completed specs for context
                 completed_specs = specs.list_specs(status="completed")
                 if completed_specs:
-                    output.append("### Recently completed specs:")
+                    output.append("### ✅ Recently completed specs:")
                     output.append("These were the last completed specs for context:")
+                    output.append("")
                     for spec in completed_specs[:2]:
-                        output.append(f"  - {spec['slug']}: {spec['title']}")
+                        output.append(f"**{spec['slug']}**: {spec['title']}")
+                        body = spec.get("body", "").strip()
+                        if body:
+                            # Show truncated body (first 500 chars)
+                            if len(body) > 500:
+                                body = body[:500] + "..."
+                            output.append(body)
+                        output.append("")
     output.append("")
 
     # Work Logs section - show recent logs prominently
     output.append("-" * 70)
-    output.append("RECENT WORK LOGS")
+    output.append("📝 RECENT WORK LOGS")
     output.append("-" * 70)
     output.append("")
     output.append(
@@ -466,11 +564,28 @@ def onboard():
 
     try:
         if active_spec:
-            recent_logs = logs.list_logs(limit=3, spec_slug=active_spec["slug"])
+            # Show ALL logs for the active spec (no limit)
+            recent_logs = logs.list_logs(limit=100, spec_slug=active_spec["slug"])
         else:
             recent_logs = logs.list_logs(limit=3)
+            # Ensure diversity: if all 3 logs are from the same spec,
+            # show only 2 from that spec and find 1 from a different spec
+            if len(recent_logs) == 3:
+                spec_slugs = [log.get("spec_slug") for log in recent_logs]
+                if spec_slugs[0] and spec_slugs[0] == spec_slugs[1] == spec_slugs[2]:
+                    # All 3 from same spec - find a log from a different spec
+                    all_logs = logs.list_logs(limit=10)
+                    different_spec_log = None
+                    for log in all_logs:
+                        if log.get("spec_slug") != spec_slugs[0]:
+                            different_spec_log = log
+                            break
+                    if different_spec_log:
+                        # Keep 2 from the dominant spec, add 1 from different spec
+                        recent_logs = recent_logs[:2] + [different_spec_log]
         if recent_logs:
-            for log in recent_logs:
+            # Reverse to chronological order (oldest first, newest last)
+            for log in reversed(recent_logs):
                 output.append(format_work_log_entry(log))
                 output.append("")
         else:
@@ -490,7 +605,7 @@ def onboard():
         open_todos = todos.list_todos(status="open")
         if open_todos:
             output.append("-" * 70)
-            output.append("OPEN TODOS")
+            output.append("📌 OPEN TODOS")
             output.append("-" * 70)
             output.append("")
             output.append("Standalone reminders not tied to any spec:")
@@ -505,7 +620,7 @@ def onboard():
     # Agent workflow hints
     if active_spec:
         output.append("-" * 70)
-        output.append("AGENT WORKFLOW HINTS")
+        output.append("💡 AGENT WORKFLOW HINTS")
         output.append("-" * 70)
         output.append("")
         output.append("Working with tasks:")
@@ -516,17 +631,6 @@ def onboard():
             '  - Complete task: mem task complete "title" "notes about what was done"'
         )
         output.append("  - List tasks: mem task list")
-        output.append("")
-        output.append("For complex tasks, break them into subtasks:")
-        output.append(
-            '  - Add subtask: mem subtask new "subtask title" --task "parent task title"'
-        )
-        output.append(
-            '  - Complete subtask: mem subtask complete "subtask title" --task "parent task title"'
-        )
-        output.append(
-            "  - All subtasks must be completed before completing the parent task"
-        )
         output.append("")
         output.append("Important workflow rules:")
         output.append(
@@ -543,11 +647,54 @@ def onboard():
 
     # Next steps
     output.append("-" * 70)
-    output.append("SUGGESTED NEXT STEPS")
+    output.append("👉 SUGGESTED NEXT STEPS")
     output.append("-" * 70)
     output.append("")
     output.append(format_next_steps(active_spec, branch_name))
     output.append("")
     output.append("Remember to create a work log at the end of your session: mem log")
+
+    # Agent halt instruction
+    output.append("")
+    output.append("-" * 70)
+    output.append("[AGENT INSTRUCTION]")
+    output.append("-" * 70)
+    output.append("Your next response must:")
+    output.append(
+        "1. Briefly summarize the current state (active spec, pending tasks, etc.)"
+    )
+    output.append("2. Ask the user how they would like to proceed")
+    output.append("Do NOT call any tools. Do NOT start working on tasks yet.")
+    output.append("Wait for explicit user instruction before taking any action.")
+
+    # CRITICAL: Show sync failure warning at the very end so it's the last thing seen
+    if sync_failure:
+        output.append("")
+        output.append("")
+        output.append("!" * 70)
+        output.append("!" * 70)
+        output.append("🚨🚨🚨 SYNC FAILED - FIX THIS BEFORE DOING ANYTHING ELSE 🚨🚨🚨")
+        output.append("!" * 70)
+        output.append("!" * 70)
+        output.append("")
+        output.append("The sync/rebase operation failed. This means your branch is")
+        output.append("OUT OF SYNC with origin/dev and needs manual intervention.")
+        output.append("")
+        output.append("DO NOT proceed with any work until this is resolved!")
+        output.append("")
+        output.append("To fix this:")
+        output.append("  1. git fetch origin")
+        output.append("  2. git rebase origin/dev")
+        output.append("  3. Resolve any conflicts that arise")
+        output.append("  4. git rebase --continue")
+        output.append("  5. git push --force-with-lease")
+        output.append("  6. Run 'mem onboard' again to verify")
+        output.append("")
+        output.append("If the rebase is too complex, you can also:")
+        output.append("  - git rebase --abort  (to undo the rebase attempt)")
+        output.append("  - Ask for help resolving the conflicts")
+        output.append("")
+        output.append("!" * 70)
+        output.append("!" * 70)
 
     print("\n".join(output))

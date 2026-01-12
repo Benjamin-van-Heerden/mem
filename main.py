@@ -19,9 +19,7 @@ Usage:
     mem task list --spec <slug>                       # List all tasks
     mem task update <task> --spec <slug>              # Update task
     mem task complete <task> --spec <slug>            # Mark task complete
-    mem subtask new "subtask" --task <task> --spec <slug>  # Create subtask
-    mem subtask list --task <task> --spec <slug>      # List subtasks for task
-    mem subtask complete <sub> --task <task> --spec <slug> # Mark subtask complete
+
 """
 
 import typer
@@ -29,12 +27,13 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Static
 
 from src.commands.cleanup import cleanup as cleanup_command
+from src.commands.docs import app as docs_app
 from src.commands.init import init as init_command
 from src.commands.log import log as log_command
 from src.commands.merge import merge as merge_command
+from src.commands.migrate import migrate as migrate_command
 from src.commands.onboard import onboard as onboard_command
 from src.commands.spec import app as spec_app
-from src.commands.subtask import app as subtask_app
 from src.commands.sync import sync as sync_command
 from src.commands.task import app as task_app
 
@@ -52,9 +51,10 @@ app.command(name="merge", help="Merge pull requests for completed specs")(merge_
 app.command(name="cleanup", help="Remove stale branches from completed specs")(
     cleanup_command
 )
+app.command(name="migrate", hidden=True)(migrate_command)
 app.add_typer(spec_app, name="spec", help="Manage specifications")
 app.add_typer(task_app, name="task", help="Manage tasks")
-app.add_typer(subtask_app, name="subtask", help="Manage subtasks")
+app.add_typer(docs_app, name="docs", help="Manage technical documentation")
 
 
 # Simple CLI command for testing

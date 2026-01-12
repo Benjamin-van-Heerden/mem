@@ -99,17 +99,12 @@ def test_move_spec_with_tasks(initialized_mem):
     tasks.create_task(spec_slug, "Task One", "Description of task one")
     tasks.create_task(spec_slug, "Task Two", "Description of task two")
 
-    # Add subtask using new embedded API
-    tasks.add_subtask(spec_slug, "01_task_one.md", "Subtask A")
-
     # Verify tasks exist
     task_list = tasks.list_tasks(spec_slug)
     assert len(task_list) == 2
 
-    # Subtasks are now embedded in frontmatter
     task_one = tasks.get_task(spec_slug, "01_task_one.md")
     assert task_one is not None
-    assert len(task_one.get("subtasks", [])) == 1
 
     # Move to completed
     specs.move_spec_to_completed(spec_slug)
@@ -120,7 +115,6 @@ def test_move_spec_with_tasks(initialized_mem):
 
     task_one = tasks.get_task(spec_slug, "01_task_one.md")
     assert task_one is not None
-    assert len(task_one.get("subtasks", [])) == 1
 
 
 def test_move_nonexistent_spec_fails(initialized_mem):

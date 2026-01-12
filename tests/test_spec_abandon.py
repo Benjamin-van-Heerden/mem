@@ -8,8 +8,9 @@ import pytest
 import typer
 from git import Repo
 
-from src.commands.spec import abandon, activate, new
-from src.utils import specs
+from src.commands.spec import abandon, assign, new
+from src.commands.sync import sync
+from src.utils import specs, worktrees
 
 
 @pytest.fixture
@@ -64,13 +65,13 @@ def test_abandon_spec_moves_to_abandoned(initialized_mem):
     assert any(s["slug"] == spec_slug for s in abandoned_specs)
 
 
-def test_abandon_active_spec_switches_branch(initialized_mem, github_client):
-    """Test that abandoning an active spec switches back to dev branch."""
+def test_abandon_assigned_spec(initialized_mem, github_client):
+    """Test that abandoning an assigned spec with worktree works."""
     repo_path = initialized_mem
 
     # Create a spec
     try:
-        new(title="Active Abandon Test")
+        new(title="Assigned Abandon Test")
     except typer.Exit:
         pass
 
@@ -80,26 +81,30 @@ def test_abandon_active_spec_switches_branch(initialized_mem, github_client):
         repo.create_head("dev")
     repo.git.checkout("dev")
 
-    # Activate the spec (no assignment required in new model)
+    # Sync to GitHub (required for assign)
     try:
-        activate(spec_slug="active_abandon_test")
+        sync(dry_run=False)
     except typer.Exit:
         pass
 
-    # Verify we're on the feature branch
-    assert repo.active_branch.name != "dev"
+    # Assign the spec (creates worktree)
+    try:
+        assign(spec_slug="assigned_abandon_test")
+    except typer.Exit:
+        pass
+
+    # Verify worktree was created
+    wt = worktrees.get_worktree_for_spec(repo_path, "assigned_abandon_test")
+    assert wt is not None
 
     # Abandon the spec
     try:
-        abandon(spec_slug="active_abandon_test", reason="Changed direction")
+        abandon(spec_slug="assigned_abandon_test", reason="Changed direction")
     except typer.Exit:
         pass
 
-    # Verify we're back on dev
-    assert repo.active_branch.name == "dev"
-
     # Verify spec is abandoned
-    spec = specs.get_spec("active_abandon_test")
+    spec = specs.get_spec("assigned_abandon_test")
     assert spec is not None
     assert spec["status"] == "abandoned"
 
@@ -108,7 +113,6 @@ def test_abandon_spec_with_github_issue(initialized_mem, github_client):
     """Test that abandoning a spec with a linked GitHub issue closes the issue."""
     repo_path = initialized_mem
 
-    from src.commands.sync import sync
     from src.utils.github.repo import get_repo_from_git
 
     # Create a spec
