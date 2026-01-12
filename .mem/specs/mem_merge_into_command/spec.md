@@ -1,13 +1,13 @@
 ---
 title: mem merge into command
-status: todo
+status: merge_ready
 assigned_to: Benjamin-van-Heerden
 issue_id: 43
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/43
 branch: dev-benjamin_van_heerden-mem_merge_into_command
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/44
 created_at: '2026-01-12T11:09:06.582678'
-updated_at: '2026-01-12T11:21:52.041862'
+updated_at: '2026-01-12T15:48:30.347772'
 completed_at: null
 last_synced_at: '2026-01-12T11:21:43.147352'
 local_content_hash: 7b9de1cdd778c41633a234e5b33d18133cf1c339835a1a32044f89390ecf97af
