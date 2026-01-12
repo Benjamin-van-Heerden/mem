@@ -1,14 +1,14 @@
 ---
 title: Core documents auto-included in onboard
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 40
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/40
 branch: dev-benjamin_van_heerden-core_documents_auto_included_in_onboard
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/42
 created_at: '2026-01-12T10:03:05.317359'
-updated_at: '2026-01-12T10:18:20.588852'
-completed_at: null
+updated_at: '2026-01-12T10:19:33.210488'
+completed_at: '2026-01-12T10:19:33.209014'
 last_synced_at: '2026-01-12T10:05:24.517668'
 local_content_hash: b63edb0de3ca619a2846a2dedcad802ddf2916ea9c747a65e6bd3004674939d6
 remote_content_hash: b63edb0de3ca619a2846a2dedcad802ddf2916ea9c747a65e6bd3004674939d6
