@@ -35,13 +35,6 @@ A command-line utility for managing project context, specifications, tasks, and 
 # Example: ["python", "react"] loads python.md and react.md
 generic_templates = ["python", "general"]
 
-# Important information to display at the bottom of onboard output
-# Use this for project-specific notes, reminders, or context that should
-# always be visible to AI agents (e.g., deployment notes, key project details, etc.)
-important_infos = """
-- Remember, we are using `mem` to develop `mem` itself. Should changes to the commands be made, e.g. new commands registered or existing commands modified, you will need to test it through `uv run python main.py ...` - where `uv run python main.py` is the equivalent of `mem` (mem is installed in ~/utils/mem). In general, while developing this project it will always be safer to substitute `mem` with `uv run python main.py` to avoid any unintended consequences.
-"""
-
 # =============================================================================
 # IMPORTANT FILES
 # =============================================================================
