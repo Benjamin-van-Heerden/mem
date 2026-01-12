@@ -7,23 +7,20 @@ import uuid
 
 import pytest
 import typer
-from git import Repo
 
 from src.commands.spec import abandon, assign, new
 from src.commands.sync import sync
 from src.utils import specs, worktrees
-from tests.conftest import get_worker_id
 
 
-def unique_slug(base: str, request) -> str:
-    """Generate a unique spec slug using worker ID and UUID."""
-    worker_id = get_worker_id(request)
+def unique_slug(base: str) -> str:
+    """Generate a unique spec slug using UUID."""
     short_uuid = uuid.uuid4().hex[:6]
-    return f"{base}_{worker_id}_{short_uuid}"
+    return f"{base}_{short_uuid}"
 
 
 @pytest.fixture
-def initialized_mem(request, setup_test_env, monkeypatch):
+def initialized_mem(setup_test_env, monkeypatch):
     """Initialize mem directory structure and return the repo path."""
     repo_path = setup_test_env
     monkeypatch.chdir(repo_path)
@@ -39,10 +36,10 @@ def initialized_mem(request, setup_test_env, monkeypatch):
     return repo_path
 
 
-def test_abandon_spec_moves_to_abandoned(request, initialized_mem):
+def test_abandon_spec_moves_to_abandoned(initialized_mem):
     """Test that abandoning a spec moves it to the abandoned directory."""
     # Create a spec with unique slug
-    spec_slug = unique_slug("abandon_test", request)
+    spec_slug = unique_slug("abandon_test")
     spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
@@ -74,13 +71,12 @@ def test_abandon_spec_moves_to_abandoned(request, initialized_mem):
     assert any(s["slug"] == spec_slug for s in abandoned_specs)
 
 
-def test_abandon_assigned_spec(request, initialized_mem, github_client):
+def test_abandon_assigned_spec(initialized_mem, github_client):
     """Test that abandoning an assigned spec with worktree works."""
     repo_path = initialized_mem
-    # setup_test_env already creates and checks out the worker-specific dev branch
 
     # Create a spec with unique slug
-    spec_slug = unique_slug("assigned_abandon", request)
+    spec_slug = unique_slug("assigned_abandon")
     spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
@@ -115,14 +111,14 @@ def test_abandon_assigned_spec(request, initialized_mem, github_client):
     assert spec["status"] == "abandoned"
 
 
-def test_abandon_spec_with_github_issue(request, initialized_mem, github_client):
+def test_abandon_spec_with_github_issue(initialized_mem, github_client):
     """Test that abandoning a spec with a linked GitHub issue closes the issue."""
     repo_path = initialized_mem
 
     from src.utils.github.repo import get_repo_from_git
 
     # Create a spec with unique slug
-    spec_slug = unique_slug("github_abandon", request)
+    spec_slug = unique_slug("github_abandon")
     spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)

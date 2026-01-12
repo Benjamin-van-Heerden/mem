@@ -22,20 +22,18 @@ from src.commands.merge import app as merge_app
 from src.commands.spec import assign, complete, new
 from src.commands.sync import sync
 from src.utils import specs, worktrees
-from tests.conftest import get_worker_id
 
 runner = CliRunner()
 
 
-def unique_slug(base: str, request) -> str:
-    """Generate a unique spec slug using worker ID and UUID."""
-    worker_id = get_worker_id(request)
+def unique_slug(base: str) -> str:
+    """Generate a unique spec slug using UUID."""
     short_uuid = uuid.uuid4().hex[:6]
-    return f"{base}_{worker_id}_{short_uuid}"
+    return f"{base}_{short_uuid}"
 
 
 @pytest.fixture
-def initialized_mem(request, setup_test_env, monkeypatch):
+def initialized_mem(setup_test_env, monkeypatch):
     """Initialize mem directory structure and return the repo path."""
     repo_path = setup_test_env
     monkeypatch.chdir(repo_path)
@@ -51,14 +49,13 @@ def initialized_mem(request, setup_test_env, monkeypatch):
     return repo_path
 
 
-def test_merge_no_merge_ready_specs(request, initialized_mem):
+def test_merge_no_merge_ready_specs(initialized_mem):
     """Test that merge command handles no merge_ready specs gracefully."""
     repo_path = initialized_mem
     repo = Repo(repo_path)
-    # setup_test_env already creates and checks out the worker-specific dev branch
 
     # Create a spec but don't complete it
-    spec_slug = unique_slug("not_ready", request)
+    spec_slug = unique_slug("not_ready")
     spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
@@ -75,14 +72,13 @@ def test_merge_no_merge_ready_specs(request, initialized_mem):
     assert "No PRs ready to merge" in result.output
 
 
-def test_merge_lists_ready_prs(request, initialized_mem, github_client):
+def test_merge_lists_ready_prs(initialized_mem, github_client):
     """Test that merge command lists PRs that are ready to merge."""
     repo_path = initialized_mem
-    repo = Repo(repo_path)
-    # setup_test_env already creates and checks out the worker-specific dev branch
+    _repo = Repo(repo_path)
 
     # Create a spec with unique slug
-    spec_slug = unique_slug("merge_test", request)
+    spec_slug = unique_slug("merge_test")
     spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
@@ -146,13 +142,12 @@ def test_merge_moves_spec_to_completed(initialized_mem, github_client):
         pass
 
     # Create a spec
-    spec_title = f"Merge Complete Test {os.getpid()}"
+    spec_slug = unique_slug("merge_complete_test")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"merge_complete_test_{os.getpid()}"
 
     # Sync to create GitHub issue
     try:

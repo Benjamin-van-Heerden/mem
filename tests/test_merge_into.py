@@ -10,16 +10,12 @@ The merge into command:
 """
 
 import uuid
-from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 import typer
 from git import Repo
 
-from src.commands import merge as merge_module
 from src.commands.merge import into
-from tests.conftest import get_worker_branch_suffix
 
 
 def unique_filename(prefix: str) -> str:
@@ -27,25 +23,10 @@ def unique_filename(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:8]}.txt"
 
 
-@dataclass
-class RepoTestInfo:
-    """Information about a test repository with worker-isolated branches."""
-
-    path: Path
-    branch_names: dict
-
-    def __truediv__(self, other):
-        """Allow path operations like repo_info / 'filename'."""
-        return self.path / other
-
-
 @pytest.fixture
-def repo_with_branches(request, setup_test_env, monkeypatch):
+def repo_with_branches(setup_test_env, monkeypatch):
     """
     Set up a repo with dev, test, and main branches all pushed to origin.
-
-    Uses worker-specific branch names for xdist compatibility.
-    Patches the merge module to use these branch names.
 
     Returns the repo path with working directory set to it.
     """
@@ -53,77 +34,29 @@ def repo_with_branches(request, setup_test_env, monkeypatch):
     monkeypatch.chdir(repo_path)
     repo = Repo(repo_path)
 
-    # Get worker-specific suffix for branch isolation
-    suffix = get_worker_branch_suffix(request)
-    branch_names = {
-        "dev": f"dev{suffix}",
-        "test": f"test{suffix}",
-        "main": f"main{suffix}",
-    }
-
-    # Create branches from current HEAD
     current_head = repo.head.commit.hexsha
 
-    for branch_name in branch_names.values():
+    # Create test and main branches from current HEAD
+    for branch_name in ["test", "main"]:
         if branch_name in [h.name for h in repo.heads]:
             repo.delete_head(branch_name, force=True)
         repo.create_head(branch_name, current_head)
 
     # Push all branches to origin
-    for branch_name in branch_names.values():
+    for branch_name in ["dev", "test", "main"]:
         repo.heads[branch_name].checkout()
         try:
             repo.git.push("origin", branch_name, set_upstream=True, force=True)
         except Exception:
             pass
 
-    # Checkout the dev branch
-    repo.heads[branch_names["dev"]].checkout()
+    # Checkout dev branch
+    repo.heads["dev"].checkout()
 
-    # Patch the merge module functions to use our branch names
-    original_get_current_branch = merge_module._get_current_branch
-    original_switch_branch = merge_module._switch_branch
-    original_pull_branch = merge_module._pull_branch
-    original_merge_branch = merge_module._merge_branch
-    original_push_branch = merge_module._push_branch
-
-    def map_branch(name: str) -> str:
-        """Map logical branch name to worker-specific name."""
-        return branch_names.get(name, name)
-
-    def patched_get_current_branch() -> str:
-        actual = original_get_current_branch()
-        # Reverse map: return "dev" if we're on "dev-gw0"
-        for logical, actual_name in branch_names.items():
-            if actual == actual_name:
-                return logical
-        return actual
-
-    def patched_switch_branch(branch: str):
-        return original_switch_branch(map_branch(branch))
-
-    def patched_pull_branch(branch: str):
-        return original_pull_branch(map_branch(branch))
-
-    def patched_merge_branch(source: str, ff_only: bool = False):
-        return original_merge_branch(map_branch(source), ff_only)
-
-    def patched_push_branch(branch: str):
-        return original_push_branch(map_branch(branch))
-
-    monkeypatch.setattr(merge_module, "_get_current_branch", patched_get_current_branch)
-    monkeypatch.setattr(merge_module, "_switch_branch", patched_switch_branch)
-    monkeypatch.setattr(merge_module, "_pull_branch", patched_pull_branch)
-    monkeypatch.setattr(merge_module, "_merge_branch", patched_merge_branch)
-    monkeypatch.setattr(merge_module, "_push_branch", patched_push_branch)
-
-    # Return a RepoTestInfo object
-    info = RepoTestInfo(path=repo_path, branch_names=branch_names)
-
-    yield info
+    yield repo_path
 
     # Cleanup: delete remote branches (best effort)
-    for branch_name in branch_names.values():
+    for branch_name in ["test", "main"]:
         try:
             repo.git.push("origin", "--delete", branch_name)
         except Exception:
@@ -144,8 +77,8 @@ class TestMergeIntoValidation:
 
     def test_into_rejects_when_not_on_dev(self, repo_with_branches, capsys):
         """Test that command fails when not on dev branch."""
-        repo = Repo(repo_with_branches.path)
-        repo.git.checkout(repo_with_branches.branch_names["test"])
+        repo = Repo(repo_with_branches)
+        repo.git.checkout("test")
 
         with pytest.raises(typer.Exit) as exc_info:
             into(target="test")
@@ -156,7 +89,6 @@ class TestMergeIntoValidation:
 
     def test_into_accepts_test_target(self, repo_with_branches, capsys):
         """Test that 'test' is a valid target."""
-        # With dry-run, should succeed
         into(target="test", dry_run=True)
 
         captured = capsys.readouterr()
@@ -186,12 +118,8 @@ class TestMergeIntoTest:
 
     def test_into_test_executes_merge(self, repo_with_branches, capsys):
         """Test that merge into test actually merges."""
-        repo_path = repo_with_branches.path
-        branch_names = repo_with_branches.branch_names
+        repo_path = repo_with_branches
         repo = Repo(repo_path)
-
-        # Pull latest first (shared test repo may have been modified)
-        repo.git.pull("origin", branch_names["dev"], rebase="true")
 
         # Create a commit on dev that doesn't exist on test
         filename = unique_filename("dev_change")
@@ -199,7 +127,7 @@ class TestMergeIntoTest:
         test_file.write_text("change from dev")
         repo.git.add(filename)
         repo.git.commit("-m", f"Add {filename}")
-        repo.git.push("origin", branch_names["dev"])
+        repo.git.push("origin", "dev")
 
         # Run the merge
         into(target="test")
@@ -207,20 +135,16 @@ class TestMergeIntoTest:
         captured = capsys.readouterr()
         assert "Successfully merged dev into test" in captured.out
 
-        # Verify we're back on dev (actual branch name)
-        assert repo.active_branch.name == branch_names["dev"]
+        # Verify we're back on dev
+        assert repo.active_branch.name == "dev"
 
-        # Verify the file exists (back-merge brought test's state to dev)
+        # Verify the file exists
         assert test_file.exists()
 
     def test_into_test_branches_at_same_commit(self, repo_with_branches):
         """Test that after merge, dev and test are at the same commit."""
-        repo_path = repo_with_branches.path
-        branch_names = repo_with_branches.branch_names
+        repo_path = repo_with_branches
         repo = Repo(repo_path)
-
-        # Pull latest first (shared test repo may have been modified)
-        repo.git.pull("origin", branch_names["dev"], rebase="true")
 
         # Create a commit on dev
         filename = unique_filename("sync_test")
@@ -228,14 +152,14 @@ class TestMergeIntoTest:
         test_file.write_text("sync test")
         repo.git.add(filename)
         repo.git.commit("-m", f"Add {filename}")
-        repo.git.push("origin", branch_names["dev"])
+        repo.git.push("origin", "dev")
 
         # Run the merge
         into(target="test")
 
-        # Get commit SHAs using actual branch names
-        dev_sha = repo.heads[branch_names["dev"]].commit.hexsha
-        test_sha = repo.heads[branch_names["test"]].commit.hexsha
+        # Get commit SHAs
+        dev_sha = repo.heads["dev"].commit.hexsha
+        test_sha = repo.heads["test"].commit.hexsha
 
         assert dev_sha == test_sha, "dev and test should be at the same commit"
 
@@ -262,12 +186,8 @@ class TestMergeIntoMain:
 
     def test_into_main_with_force_executes(self, repo_with_branches, capsys):
         """Test that --force actually executes the merge."""
-        repo_path = repo_with_branches.path
-        branch_names = repo_with_branches.branch_names
+        repo_path = repo_with_branches
         repo = Repo(repo_path)
-
-        # Pull latest first (shared test repo may have been modified)
-        repo.git.pull("origin", branch_names["dev"], rebase="true")
 
         # First merge dev into test so test has something to merge
         filename = unique_filename("main_test")
@@ -275,7 +195,7 @@ class TestMergeIntoMain:
         test_file.write_text("for main")
         repo.git.add(filename)
         repo.git.commit("-m", f"Add {filename}")
-        repo.git.push("origin", branch_names["dev"])
+        repo.git.push("origin", "dev")
 
         # Merge to test first
         into(target="test")
@@ -286,17 +206,13 @@ class TestMergeIntoMain:
         captured = capsys.readouterr()
         assert "Successfully merged test into main" in captured.out
 
-        # Verify we're back on dev (actual branch name)
-        assert repo.active_branch.name == branch_names["dev"]
+        # Verify we're back on dev
+        assert repo.active_branch.name == "dev"
 
     def test_into_main_all_branches_at_same_commit(self, repo_with_branches):
         """Test that after merge to main, all branches are at same commit."""
-        repo_path = repo_with_branches.path
-        branch_names = repo_with_branches.branch_names
+        repo_path = repo_with_branches
         repo = Repo(repo_path)
-
-        # Pull latest first (shared test repo may have been modified)
-        repo.git.pull("origin", branch_names["dev"], rebase="true")
 
         # Create a commit and propagate through
         filename = unique_filename("all_sync")
@@ -304,7 +220,7 @@ class TestMergeIntoMain:
         test_file.write_text("all sync")
         repo.git.add(filename)
         repo.git.commit("-m", f"Add {filename}")
-        repo.git.push("origin", branch_names["dev"])
+        repo.git.push("origin", "dev")
 
         # Merge to test
         into(target="test")
@@ -312,10 +228,10 @@ class TestMergeIntoMain:
         # Merge to main with force
         into(target="main", force=True)
 
-        # Get commit SHAs using actual branch names
-        dev_sha = repo.heads[branch_names["dev"]].commit.hexsha
-        test_sha = repo.heads[branch_names["test"]].commit.hexsha
-        main_sha = repo.heads[branch_names["main"]].commit.hexsha
+        # Get commit SHAs
+        dev_sha = repo.heads["dev"].commit.hexsha
+        test_sha = repo.heads["test"].commit.hexsha
+        main_sha = repo.heads["main"].commit.hexsha
 
         assert dev_sha == test_sha == main_sha, (
             "All branches should be at the same commit"
@@ -327,7 +243,7 @@ class TestMergeIntoErrorHandling:
 
     def test_into_fails_with_uncommitted_changes(self, repo_with_branches, capsys):
         """Test that merge fails if there are uncommitted changes."""
-        repo_path = repo_with_branches.path
+        repo_path = repo_with_branches
 
         # Create uncommitted change
         test_file = repo_path / "uncommitted.txt"

@@ -33,9 +33,7 @@ permissive-ignores = true
 [dependency-groups]
 dev = [
     "filelock>=3.18.0",
-    "pytest-xdist>=3.8.0",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-addopts = "-n auto --dist=loadscope"
