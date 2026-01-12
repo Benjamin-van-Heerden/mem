@@ -46,6 +46,11 @@ def _get_data_dir() -> Path:
     return _get_docs_dir() / "data"
 
 
+def _get_core_docs_dir() -> Path:
+    """Get the core docs directory path."""
+    return _get_docs_dir() / "core"
+
+
 def _get_chroma_dir() -> Path:
     """Get the ChromaDB storage directory."""
     return _get_data_dir() / "chroma"
@@ -62,6 +67,7 @@ def ensure_docs_dirs() -> None:
     _get_summaries_dir().mkdir(parents=True, exist_ok=True)
     _get_data_dir().mkdir(parents=True, exist_ok=True)
     _get_chroma_dir().mkdir(parents=True, exist_ok=True)
+    _get_core_docs_dir().mkdir(parents=True, exist_ok=True)
 
 
 def get_doc_slug(file_path: Path) -> str:
@@ -93,7 +99,7 @@ def save_doc_hashes(hashes: dict[str, str]) -> None:
 
 
 def list_doc_files() -> list[Path]:
-    """List all markdown files in docs directory (excluding summaries/ and data/)."""
+    """List all markdown files in docs directory (excluding core/, summaries/, and data/)."""
     docs_dir = _get_docs_dir()
     if not docs_dir.exists():
         return []
@@ -104,6 +110,38 @@ def list_doc_files() -> list[Path]:
             doc_files.append(file_path)
 
     return sorted(doc_files, key=lambda p: p.name)
+
+
+def list_core_doc_files() -> list[Path]:
+    """List all markdown files in the core docs directory."""
+    core_dir = _get_core_docs_dir()
+    if not core_dir.exists():
+        return []
+
+    doc_files = []
+    for file_path in core_dir.iterdir():
+        if file_path.is_file() and file_path.suffix == ".md":
+            doc_files.append(file_path)
+
+    return sorted(doc_files, key=lambda p: p.name)
+
+
+def get_core_doc_slug(file_path: Path) -> str:
+    """Extract slug from core document file path (filename without .md extension)."""
+    return file_path.stem
+
+
+def get_core_doc_path(slug: str) -> Path:
+    """Get path to a core document file by slug."""
+    return _get_core_docs_dir() / f"{slug}.md"
+
+
+def read_core_doc(slug: str) -> str | None:
+    """Read core document content by slug. Returns None if not found."""
+    doc_path = get_core_doc_path(slug)
+    if not doc_path.exists():
+        return None
+    return doc_path.read_text()
 
 
 def get_doc_path(slug: str) -> Path:

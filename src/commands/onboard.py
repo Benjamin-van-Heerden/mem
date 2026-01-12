@@ -409,6 +409,26 @@ def onboard():
                 output.append("\n" + "=" * 40 + "\n")
         output.append("")
 
+    # Core documentation section (always included in full)
+    try:
+        core_doc_files = docs.list_core_doc_files()
+        if core_doc_files:
+            output.append("-" * 70)
+            output.append("📚 CORE DOCUMENTATION")
+            output.append("-" * 70)
+            output.append("")
+
+            for file_path in core_doc_files:
+                slug = docs.get_core_doc_slug(file_path)
+                content = docs.read_core_doc(slug)
+                if content:
+                    output.append(f"### {slug}")
+                    output.append("")
+                    output.append(content.strip())
+                    output.append("")
+    except Exception:
+        pass
+
     # Technical documentation section
     try:
         indexed_docs = docs.get_indexed_docs()
