@@ -1,8 +1,9 @@
 ---
 title: Implement merge into subcommand
-status: todo
+status: completed
 created_at: '2026-01-12T11:09:57.054049'
-updated_at: '2026-01-12T11:19:31.089429'
+updated_at: '2026-01-12T11:29:50.437882'
+completed_at: '2026-01-12T11:29:50.437875'
 ---
 Add the 'into' subcommand to merge.py that accepts 'test' or 'main' as target. Implement the full flow: validate current branch, fetch, switch to target, merge, push, back-merge (ff-only), push, switch back. Include clear error messages with recovery recommendations.
 
@@ -39,3 +40,7 @@ Additional details for implementation:
   13. Print success
 
 Use GitPython repo.git.* methods for all git operations.
+
+## Completion Notes
+
+Added into subcommand with full merge flow for test and main targets, including helper functions for git operations, error handling with recovery info, and dry-run support
