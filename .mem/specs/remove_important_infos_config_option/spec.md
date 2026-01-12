@@ -1,13 +1,13 @@
 ---
 title: Remove important_infos config option
-status: todo
+status: merge_ready
 assigned_to: Benjamin-van-Heerden
 issue_id: 39
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/39
 branch: dev-benjamin_van_heerden-remove_important_infos_config_option
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/41
 created_at: '2026-01-12T09:57:25.820188'
-updated_at: '2026-01-12T10:00:10.161635'
+updated_at: '2026-01-12T10:09:52.281466'
 completed_at: null
 last_synced_at: '2026-01-12T09:58:56.554756'
 local_content_hash: a028611a9b6135a2c824c1af7c38e1b341f5b8559b58b238d4ef05b67346b58c
