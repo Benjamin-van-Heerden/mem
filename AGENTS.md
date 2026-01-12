@@ -16,12 +16,8 @@ This gives you everything you need: project info, coding guidelines, active spec
 
 ### 1. Work on a Spec
 
-Specs are feature specifications linked to GitHub issues. The active spec is determined by your current git branch.
-
-```bash
-mem spec activate <slug>    # Switch to spec's feature branch
-mem spec show               # View current spec and its tasks
-```
+Specs are feature specifications linked to GitHub issues. The active spec is determined by your current git branch *and* git worktree.
+To do implementation work on a spec, we must be in the appropriate worktree directory. If there is no active spec, the assumption is that we are doing planning work, creating new specs, tasks etc.
 
 ### 2. Complete Tasks as You Go
 
@@ -33,13 +29,13 @@ mem task complete "task title"
 
 ### 3. Create a Work Log Before Completing
 
-Before completing a spec, create a work log documenting what was done:
+At the end of a session and as a requirement before completing a spec, create a work log documenting what was done:
 
 ```bash
 mem log
 ```
 
-### 4. Complete the Spec
+### 4. Completing a Spec
 
 This creates a PR and marks the spec as merge-ready:
 
@@ -89,4 +85,13 @@ Run `mem onboard` again. It always shows the current state.
 
 ## Notes:
 
-- No need to `cd` your shell is already in the project directory
+- There is ALMOST NEVER a need to `cd` into the project directory, YOUR SHELL IS ALREADY LOCATED AT THE ROOT OF THE PROJECT DIRECTORY.  
+- Do not enter plan mode, `mem` is the only tool you need for planning
+- Do not use external task lists or task management tools. Use `mem task` instead
+- When working with tests. Stop after test runs to ask for instruction. DO NOT RUN TESTS IN A LOOP.
+
+----------------------------------------------------------------------
+🛑 IMPORTANT INFORMATION
+----------------------------------------------------------------------
+
+- Remember, we are using `mem` to develop `mem` itself. Should changes to the commands be made, e.g. new commands registered or existing commands modified, you will need to test it through `uv run python main.py ...` - where `uv run python main.py` is the equivalent of `mem` (mem is installed in ~/utils/mem). In general, while developing this project it will always be safer to substitute `mem` with `uv run python main.py` to avoid any unintended consequences.

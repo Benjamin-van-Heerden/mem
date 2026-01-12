@@ -36,9 +36,45 @@ from src.utils.sync_utils import (
 app = typer.Typer(help="Synchronize with GitHub")
 
 
+def get_current_git_branch() -> str | None:
+    """Get the current git branch name."""
+    cwd = ENV_SETTINGS.caller_dir
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def is_feature_branch(branch_name: str | None) -> bool:
+    """Check if branch is a feature branch (starts with 'dev-')."""
+    return branch_name is not None and branch_name.startswith("dev-")
+
+
+def has_uncommitted_changes() -> bool:
+    """Check if there are any uncommitted changes in the working tree."""
+    cwd = ENV_SETTINGS.caller_dir
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    return bool(result.stdout.strip())
+
+
 def git_fetch_and_pull() -> tuple[bool, str]:
     """
-    Fetch and pull from remote.
+    Fetch from remote and update local branch.
+
+    For feature branches (dev-*): rebases onto origin/dev
+    For other branches: pulls with fast-forward only
 
     Returns:
         (success, message) tuple
@@ -56,22 +92,61 @@ def git_fetch_and_pull() -> tuple[bool, str]:
     except subprocess.CalledProcessError as e:
         return False, f"git fetch failed: {e.stderr}"
 
-    try:
-        result = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            if "not possible to fast-forward" in result.stderr.lower():
-                return (
-                    False,
-                    "Cannot fast-forward. Please resolve conflicts manually and try again.",
+    current_branch = get_current_git_branch()
+
+    if is_feature_branch(current_branch):
+        # Feature branch: rebase onto origin/dev
+        # First check for uncommitted changes
+        if has_uncommitted_changes():
+            return False, "UNCOMMITTED_CHANGES"
+
+        try:
+            result = subprocess.run(
+                ["git", "rebase", "origin/dev"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                # Abort the failed rebase to restore clean state
+                subprocess.run(
+                    ["git", "rebase", "--abort"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
                 )
-            return False, f"git pull failed: {result.stderr}"
-    except subprocess.CalledProcessError as e:
-        return False, f"git pull failed: {e.stderr}"
+                return False, "REBASE_FAILED"
+        except subprocess.CalledProcessError:
+            # Try to abort if something went wrong
+            subprocess.run(
+                ["git", "rebase", "--abort"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+            )
+            return False, "REBASE_FAILED"
+    else:
+        # Non-feature branch: pull with fast-forward
+        try:
+            result = subprocess.run(
+                ["git", "pull", "--ff-only"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                stderr_lower = result.stderr.lower()
+                if "not possible to fast-forward" in stderr_lower:
+                    return (
+                        False,
+                        "Cannot fast-forward. Please resolve conflicts manually and try again.",
+                    )
+                # New branches with no upstream are OK - nothing to pull
+                if "no tracking information" in stderr_lower:
+                    return True, "OK (no upstream to pull from)"
+                return False, f"git pull failed: {result.stderr}"
+        except subprocess.CalledProcessError as e:
+            return False, f"git pull failed: {e.stderr}"
 
     return True, "OK"
 
@@ -388,11 +463,11 @@ def build_sync_plan(
 def print_sync_plan(plan: SyncPlan) -> None:
     """Print a human-readable preview of what sync would do."""
     typer.echo("\n" + "=" * 60)
-    typer.echo("SYNC PREVIEW (dry-run)")
+    typer.echo("🔍 SYNC PREVIEW (dry-run)")
     typer.echo("=" * 60)
 
     if not plan.has_changes:
-        typer.echo("\n✓ Everything is in sync. No changes needed.")
+        typer.echo("\n✅ Everything is in sync. No changes needed.")
         return
 
     if plan.outbound_creates:
@@ -447,10 +522,10 @@ def print_sync_plan(plan: SyncPlan) -> None:
             typer.echo("     Resolve by editing the local file, then run sync again.")
 
     typer.echo("\n" + "-" * 60)
-    typer.echo(f"Total actions: {plan.total_actions}")
+    typer.echo(f"📊 Total actions: {plan.total_actions}")
     if plan.conflicts:
-        typer.echo(f"Conflicts: {len(plan.conflicts)} (will be skipped)")
-    typer.echo("\nRun without --dry-run to apply these changes.")
+        typer.echo(f"⚠️ Conflicts: {len(plan.conflicts)} (will be skipped)")
+    typer.echo("\n💡 Run without --dry-run to apply these changes.")
 
 
 def execute_outbound_create(repo: Any, spec: dict[str, Any]) -> None:
@@ -766,12 +841,52 @@ def sync(
     typer.echo("🔄 Synchronizing with GitHub...")
 
     try:
-        # 1. Git pull (unless --no-git or --dry-run)
+        # 1. Git pull/rebase (unless --no-git or --dry-run)
         if not no_git and not dry_run:
-            typer.echo("   Pulling latest changes...")
+            current_branch = get_current_git_branch()
+            if is_feature_branch(current_branch):
+                typer.echo("   Rebasing onto origin/dev...")
+            else:
+                typer.echo("   Pulling latest changes...")
             success, message = git_fetch_and_pull()
             if not success:
-                typer.echo(f"\n❌ {message}", err=True)
+                if message == "UNCOMMITTED_CHANGES":
+                    typer.echo("\n" + "=" * 60, err=True)
+                    typer.echo(
+                        "🚨 UNCOMMITTED CHANGES - COMMIT OR STASH FIRST 🚨", err=True
+                    )
+                    typer.echo("=" * 60, err=True)
+                    typer.echo("\nCannot rebase with uncommitted changes.", err=True)
+                    typer.echo("\nTo proceed, either:", err=True)
+                    typer.echo(
+                        "  1. Commit your changes: git add . && git commit -m 'WIP'",
+                        err=True,
+                    )
+                    typer.echo("  2. Stash your changes: git stash", err=True)
+                    typer.echo("\nThen run 'mem sync' again.", err=True)
+                    typer.echo("\n" + "=" * 60, err=True)
+                elif message == "REBASE_FAILED":
+                    typer.echo("\n" + "=" * 60, err=True)
+                    typer.echo(
+                        "🚨 REBASE FAILED - MANUAL INTERVENTION REQUIRED 🚨", err=True
+                    )
+                    typer.echo("=" * 60, err=True)
+                    typer.echo(
+                        "\nCould not automatically rebase onto origin/dev.", err=True
+                    )
+                    typer.echo(
+                        "The rebase has been aborted to preserve your working state.",
+                        err=True,
+                    )
+                    typer.echo("\nTo resolve this manually:", err=True)
+                    typer.echo("  1. git fetch origin", err=True)
+                    typer.echo("  2. git rebase origin/dev", err=True)
+                    typer.echo("  3. Resolve any conflicts", err=True)
+                    typer.echo("  4. git rebase --continue", err=True)
+                    typer.echo("  5. Run 'mem sync' again", err=True)
+                    typer.echo("\n" + "=" * 60, err=True)
+                else:
+                    typer.echo(f"\n❌ {message}", err=True)
                 raise typer.Exit(code=1)
 
         # 2. Setup GitHub client and repo
@@ -796,7 +911,7 @@ def sync(
             print_sync_plan(plan)
         else:
             if not plan.has_changes:
-                typer.echo("\n✓ Everything is in sync. No changes needed.")
+                typer.echo("\n✅ Everything is in sync. No changes needed.")
             else:
                 actions_executed = execute_sync_plan(plan, repo)
 
@@ -816,9 +931,9 @@ def sync(
                 typer.echo("\n" + "=" * 60)
                 typer.echo("✅ Sync complete!")
                 typer.echo("=" * 60)
-                typer.echo(f"   Actions executed: {actions_executed}")
+                typer.echo(f"   📊 Actions executed: {actions_executed}")
                 if plan.conflicts:
-                    typer.echo(f"   Conflicts skipped: {len(plan.conflicts)}")
+                    typer.echo(f"   ⚠️ Conflicts skipped: {len(plan.conflicts)}")
 
         # 7. Run cleanup (unless --no-cleanup or --dry-run)
         if not no_cleanup and not dry_run:

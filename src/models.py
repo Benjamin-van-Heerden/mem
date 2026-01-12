@@ -5,7 +5,7 @@ These models define the structure of YAML frontmatter in markdown files.
 Templates contain only the body content; frontmatter is generated from these models.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -18,13 +18,6 @@ TaskStatus = Literal["todo", "completed"]
 
 
 # --- Frontmatter models ---
-
-
-class SubtaskItem(BaseModel):
-    """A subtask embedded in a task's frontmatter."""
-
-    title: str
-    status: TaskStatus = "todo"
 
 
 class SpecFrontmatter(BaseModel):
@@ -57,30 +50,6 @@ class SpecFrontmatter(BaseModel):
 
 class TaskFrontmatter(BaseModel):
     """Frontmatter for task markdown files."""
-
-    title: str
-    status: TaskStatus = "todo"
-    subtasks: list[SubtaskItem] = []
-
-    # Timestamps
-    created_at: str  # ISO format datetime string
-    updated_at: str  # ISO format datetime string
-    completed_at: str | None = None
-
-    def to_dict(self) -> dict:
-        """Convert to dict for YAML serialization."""
-        data = self.model_dump()
-        # Convert subtasks to list of dicts
-        data["subtasks"] = [s.model_dump() for s in self.subtasks]
-        return data
-
-
-class SubtaskFrontmatter(BaseModel):
-    """Frontmatter for subtask markdown files.
-
-    Identical structure to TaskFrontmatter but kept separate
-    for clarity and potential future divergence.
-    """
 
     title: str
     status: TaskStatus = "todo"
@@ -138,19 +107,6 @@ def create_task_frontmatter(title: str, status: TaskStatus = "todo") -> TaskFron
     """Create TaskFrontmatter with current timestamps."""
     now = datetime.now().isoformat()
     return TaskFrontmatter(
-        title=title,
-        status=status,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def create_subtask_frontmatter(
-    title: str, status: TaskStatus = "todo"
-) -> SubtaskFrontmatter:
-    """Create SubtaskFrontmatter with current timestamps."""
-    now = datetime.now().isoformat()
-    return SubtaskFrontmatter(
         title=title,
         status=status,
         created_at=now,
