@@ -11,6 +11,7 @@ With the worktree-based workflow, complete:
 
 import os
 import time
+import uuid
 
 import pytest
 import typer
@@ -21,6 +22,12 @@ from src.commands.sync import sync
 from src.commands.task import complete as task_complete
 from src.commands.task import new as task_new
 from src.utils import specs, worktrees
+
+
+def unique_slug(base: str) -> str:
+    """Generate a unique spec slug using UUID."""
+    short_uuid = uuid.uuid4().hex[:6]
+    return f"{base}_{short_uuid}"
 
 
 @pytest.fixture
@@ -45,21 +52,14 @@ def test_spec_complete_updates_status(initialized_mem, github_client):
     Test that spec complete updates status to merge_ready.
     """
     repo_path = initialized_mem
-    repo = Repo(repo_path)
 
-    # Ensure dev branch exists
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
-    # Create a spec
-    spec_title = f"Complete Test {os.getpid()}"
+    # Create a spec with unique slug
+    spec_slug = unique_slug("complete_test")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"complete_test_{os.getpid()}"
 
     # Sync to GitHub (required for assign)
     try:
@@ -95,21 +95,14 @@ def test_spec_complete_with_tasks(initialized_mem, github_client):
     Test completing a spec that has tasks (all completed).
     """
     repo_path = initialized_mem
-    repo = Repo(repo_path)
 
-    # Ensure dev branch exists
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
-    # Create a spec
-    spec_title = f"Complete With Tasks {os.getpid()}"
+    # Create a spec with unique slug
+    spec_slug = unique_slug("complete_with_tasks")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"complete_with_tasks_{os.getpid()}"
 
     # Sync and assign
     try:
@@ -155,21 +148,14 @@ def test_spec_complete_fails_with_incomplete_tasks(initialized_mem, github_clien
     Test that completing a spec with incomplete tasks fails.
     """
     repo_path = initialized_mem
-    repo = Repo(repo_path)
 
-    # Ensure dev branch exists
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
-    # Create a spec
-    spec_title = f"Incomplete Tasks Test {os.getpid()}"
+    # Create a spec with unique slug
+    spec_slug = unique_slug("incomplete_tasks")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"incomplete_tasks_test_{os.getpid()}"
 
     # Sync and assign
     try:
@@ -210,21 +196,14 @@ def test_spec_complete_fails_when_spec_not_active(initialized_mem, github_client
     Test that completing a spec fails if the spec is not active.
     """
     repo_path = initialized_mem
-    repo = Repo(repo_path)
-
-    # Ensure dev branch exists
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
 
     # Create a spec but don't assign it
-    spec_title = f"Not Active Test {os.getpid()}"
+    spec_slug = unique_slug("not_active")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"not_active_test_{os.getpid()}"
 
     # Try to complete without assigning - should fail
     with pytest.raises(typer.Exit) as excinfo:
@@ -245,25 +224,13 @@ def test_spec_complete_creates_pr_with_github_issue(initialized_mem, github_clie
     repo_path = initialized_mem
     repo = Repo(repo_path)
 
-    # Ensure dev branch exists and push it to remote
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
-    # Push dev branch to remote so PR can target it
-    try:
-        repo.git.push("origin", "dev", set_upstream=True)
-    except Exception:
-        pass  # May already exist
-
-    # Create a spec
-    spec_title = f"PR Test {os.getpid()}"
+    # Create a spec with unique slug
+    spec_slug = unique_slug("pr_test")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = f"pr_test_{os.getpid()}"
 
     # Sync to create GitHub issue
     try:
@@ -286,6 +253,13 @@ def test_spec_complete_creates_pr_with_github_issue(initialized_mem, github_clie
     worktree_info = worktrees.get_worktree_for_spec(repo_path, spec_slug)
     assert worktree_info is not None
     os.chdir(worktree_info.path)
+
+    # Make a change so there's something to PR
+    worktree_repo = Repo(worktree_info.path)
+    test_file = worktree_info.path / "test_change.txt"
+    test_file.write_text("Test change for PR")
+    worktree_repo.git.add("test_change.txt")
+    worktree_repo.git.commit("-m", "Add test change")
 
     # Complete the spec
     try:

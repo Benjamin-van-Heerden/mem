@@ -71,14 +71,14 @@ def index():
                 typer.echo(f"    ❌ Failed to index: {e}")
                 continue
 
-            typer.echo(f"    🤖 Generating summary...")
+            typer.echo("    🤖 Generating summary...")
             try:
                 summary = summarize_document(content, slug)
                 if summary:
                     docs.write_summary(slug, summary)
-                    typer.echo(f"    ✅ Summary generated")
+                    typer.echo("    ✅ Summary generated")
                 else:
-                    typer.echo(f"    ⚠️  Could not generate summary")
+                    typer.echo("    ⚠️  Could not generate summary")
             except Exception as e:
                 typer.echo(f"    ⚠️  Summary generation failed: {e}")
 
@@ -86,7 +86,7 @@ def index():
 
     docs.save_doc_hashes(hashes)
 
-    typer.echo(f"\n✅ Indexing complete.")
+    typer.echo("\n✅ Indexing complete.")
     typer.echo(
         f"   New: {len(new_slugs)}, Updated: {len(changed_slugs)}, Removed: {len(deleted_slugs)}"
     )
