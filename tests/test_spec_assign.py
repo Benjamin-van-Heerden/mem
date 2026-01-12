@@ -7,6 +7,8 @@ With the worktree-based workflow:
 - No activate/deactivate commands
 """
 
+import uuid
+
 import pytest
 import typer
 from git import Repo
@@ -14,6 +16,12 @@ from git import Repo
 from src.commands.spec import assign, new
 from src.commands.sync import sync
 from src.utils import specs, worktrees
+
+
+def unique_slug(base: str) -> str:
+    """Generate a unique spec slug using UUID."""
+    short_uuid = uuid.uuid4().hex[:6]
+    return f"{base}_{short_uuid}"
 
 
 @pytest.fixture
@@ -25,6 +33,8 @@ def initialized_mem(setup_test_env, monkeypatch):
     # Create .mem directory structure
     (repo_path / ".mem").mkdir(exist_ok=True)
     (repo_path / ".mem" / "specs").mkdir(exist_ok=True)
+    (repo_path / ".mem" / "specs" / "completed").mkdir(exist_ok=True)
+    (repo_path / ".mem" / "specs" / "abandoned").mkdir(exist_ok=True)
     (repo_path / ".mem" / "todos").mkdir(exist_ok=True)
     (repo_path / ".mem" / "logs").mkdir(exist_ok=True)
 
@@ -41,21 +51,15 @@ def test_assign_creates_worktree_and_branch(initialized_mem, github_client):
     5. Verify branch created
     """
     repo_path = initialized_mem
-
-    # Ensure dev branch exists
     repo = Repo(repo_path)
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
 
-    # Create a new spec
-    spec_title = "Worktree Test Spec"
+    # Create a new spec with unique slug
+    spec_slug = unique_slug("worktree_test")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
         new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = "worktree_test_spec"
 
     # Sync to create GitHub issue (required for assign)
     try:
@@ -89,14 +93,11 @@ def test_assign_already_assigned_shows_worktree_path(
     """
     repo_path = initialized_mem
 
-    repo = Repo(repo_path)
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
-    # Create and sync spec
+    # Create and sync spec with unique slug
+    spec_slug = unique_slug("double_assign")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title="Double Assign Test")
+        new(title=spec_title)
     except typer.Exit:
         pass
 
@@ -107,13 +108,13 @@ def test_assign_already_assigned_shows_worktree_path(
 
     # First assign
     try:
-        assign(spec_slug="double_assign_test")
+        assign(spec_slug=spec_slug)
     except typer.Exit:
         pass
 
     # Second assign should show existing worktree
     try:
-        assign(spec_slug="double_assign_test")
+        assign(spec_slug=spec_slug)
     except typer.Exit:
         pass
 
@@ -137,17 +138,14 @@ def test_worktree_detection(initialized_mem, github_client):
     """
     repo_path = initialized_mem
 
-    repo = Repo(repo_path)
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
     # Main repo is not a worktree
     assert not worktrees.is_worktree(repo_path)
 
-    # Create spec and assign
+    # Create spec and assign with unique slug
+    spec_slug = unique_slug("detection")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title="Detection Test")
+        new(title=spec_title)
     except typer.Exit:
         pass
 
@@ -157,12 +155,12 @@ def test_worktree_detection(initialized_mem, github_client):
         pass
 
     try:
-        assign(spec_slug="detection_test")
+        assign(spec_slug=spec_slug)
     except typer.Exit:
         pass
 
     # Worktree should be detected
-    wt_path = worktrees.get_worktree_path(repo_path, "detection_test")
+    wt_path = worktrees.get_worktree_path(repo_path, spec_slug)
     assert worktrees.is_worktree(wt_path)
 
     # Main repo path can be resolved from worktree
@@ -177,20 +175,20 @@ def test_list_worktrees(initialized_mem, github_client):
     """
     repo_path = initialized_mem
 
-    repo = Repo(repo_path)
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
-
     # Initially just the main repo
     wts = worktrees.list_worktrees(repo_path)
     assert len(wts) == 1
     assert wts[0].is_main
 
-    # Create two specs and assign them
-    for title in ["List Test One", "List Test Two"]:
+    # Create two specs with unique slugs and assign them
+    spec_slugs = [
+        unique_slug("list_test_one"),
+        unique_slug("list_test_two"),
+    ]
+    for spec_slug in spec_slugs:
+        spec_title = spec_slug.replace("_", " ").title()
         try:
-            new(title=title)
+            new(title=spec_title)
         except typer.Exit:
             pass
 
@@ -199,9 +197,9 @@ def test_list_worktrees(initialized_mem, github_client):
     except typer.Exit:
         pass
 
-    for slug in ["list_test_one", "list_test_two"]:
+    for spec_slug in spec_slugs:
         try:
-            assign(spec_slug=slug)
+            assign(spec_slug=spec_slug)
         except typer.Exit:
             pass
 

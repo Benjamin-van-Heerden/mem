@@ -3,14 +3,20 @@ Tests for the spec abandon command.
 """
 
 import time
+import uuid
 
 import pytest
 import typer
-from git import Repo
 
 from src.commands.spec import abandon, assign, new
 from src.commands.sync import sync
 from src.utils import specs, worktrees
+
+
+def unique_slug(base: str) -> str:
+    """Generate a unique spec slug using UUID."""
+    short_uuid = uuid.uuid4().hex[:6]
+    return f"{base}_{short_uuid}"
 
 
 @pytest.fixture
@@ -32,13 +38,13 @@ def initialized_mem(setup_test_env, monkeypatch):
 
 def test_abandon_spec_moves_to_abandoned(initialized_mem):
     """Test that abandoning a spec moves it to the abandoned directory."""
-    # Create a spec
+    # Create a spec with unique slug
+    spec_slug = unique_slug("abandon_test")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title="Abandon Test Spec")
+        new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = "abandon_test_spec"
 
     # Verify it exists in root
     spec = specs.get_spec(spec_slug)
@@ -69,17 +75,13 @@ def test_abandon_assigned_spec(initialized_mem, github_client):
     """Test that abandoning an assigned spec with worktree works."""
     repo_path = initialized_mem
 
-    # Create a spec
+    # Create a spec with unique slug
+    spec_slug = unique_slug("assigned_abandon")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title="Assigned Abandon Test")
+        new(title=spec_title)
     except typer.Exit:
         pass
-
-    # Ensure dev branch exists
-    repo = Repo(repo_path)
-    if "dev" not in [h.name for h in repo.heads]:
-        repo.create_head("dev")
-    repo.git.checkout("dev")
 
     # Sync to GitHub (required for assign)
     try:
@@ -89,22 +91,22 @@ def test_abandon_assigned_spec(initialized_mem, github_client):
 
     # Assign the spec (creates worktree)
     try:
-        assign(spec_slug="assigned_abandon_test")
+        assign(spec_slug=spec_slug)
     except typer.Exit:
         pass
 
     # Verify worktree was created
-    wt = worktrees.get_worktree_for_spec(repo_path, "assigned_abandon_test")
+    wt = worktrees.get_worktree_for_spec(repo_path, spec_slug)
     assert wt is not None
 
     # Abandon the spec
     try:
-        abandon(spec_slug="assigned_abandon_test", reason="Changed direction")
+        abandon(spec_slug=spec_slug, reason="Changed direction")
     except typer.Exit:
         pass
 
     # Verify spec is abandoned
-    spec = specs.get_spec("assigned_abandon_test")
+    spec = specs.get_spec(spec_slug)
     assert spec is not None
     assert spec["status"] == "abandoned"
 
@@ -115,13 +117,13 @@ def test_abandon_spec_with_github_issue(initialized_mem, github_client):
 
     from src.utils.github.repo import get_repo_from_git
 
-    # Create a spec
+    # Create a spec with unique slug
+    spec_slug = unique_slug("github_abandon")
+    spec_title = spec_slug.replace("_", " ").title()
     try:
-        new(title="GitHub Abandon Test")
+        new(title=spec_title)
     except typer.Exit:
         pass
-
-    spec_slug = "github_abandon_test"
 
     # Sync to create GitHub issue
     try:
