@@ -97,33 +97,48 @@ def list_docs():
     """
     List all documents with their index status.
 
-    Shows each document in .mem/docs/ and whether it has been indexed
-    and has a summary.
+    Shows core documents (always included in onboard) and indexed documents
+    (require indexing, summaries shown in onboard).
     """
+    core_doc_files = docs.list_core_doc_files()
     indexed_docs = docs.get_indexed_docs()
 
-    if not indexed_docs:
+    if not core_doc_files and not indexed_docs:
         typer.echo("No documents found in .mem/docs/")
-        typer.echo("\n💡 Add markdown files to .mem/docs/ and run 'mem docs index'")
+        typer.echo("\n💡 Add markdown files to:")
+        typer.echo("   - .mem/docs/core/ for core docs (auto-included in full)")
+        typer.echo("   - .mem/docs/ for indexed docs (run 'mem docs index')")
         return
 
-    typer.echo("\n📚 DOCUMENTS:\n")
-    typer.echo(f"{'Slug':<30} {'Indexed':<10} {'Summary':<10}")
-    typer.echo("=" * 50)
+    if core_doc_files:
+        typer.echo("\n📚 CORE DOCUMENTS (auto-included in onboard):\n")
+        typer.echo(f"{'Slug':<30} {'Type':<10}")
+        typer.echo("=" * 40)
 
-    for doc in indexed_docs:
-        slug = doc["slug"]
-        indexed = "✅" if doc["indexed"] else "❌"
-        has_summary = "✅" if doc["has_summary"] else "❌"
-        typer.echo(f"{slug:<30} {indexed:<10} {has_summary:<10}")
+        for file_path in core_doc_files:
+            slug = docs.get_core_doc_slug(file_path)
+            typer.echo(f"{slug:<30} {'core':<10}")
 
-    typer.echo(f"\n📊 Total: {len(indexed_docs)} document(s)")
+        typer.echo(f"\n📊 Total: {len(core_doc_files)} core document(s)")
 
-    unindexed = [d for d in indexed_docs if not d["indexed"]]
-    if unindexed:
-        typer.echo(
-            f"\n⚠️  {len(unindexed)} document(s) need indexing. Run 'mem docs index'"
-        )
+    if indexed_docs:
+        typer.echo("\n📖 INDEXED DOCUMENTS (summaries in onboard):\n")
+        typer.echo(f"{'Slug':<30} {'Indexed':<10} {'Summary':<10}")
+        typer.echo("=" * 50)
+
+        for doc in indexed_docs:
+            slug = doc["slug"]
+            indexed = "✅" if doc["indexed"] else "❌"
+            has_summary = "✅" if doc["has_summary"] else "❌"
+            typer.echo(f"{slug:<30} {indexed:<10} {has_summary:<10}")
+
+        typer.echo(f"\n📊 Total: {len(indexed_docs)} indexed document(s)")
+
+        unindexed = [d for d in indexed_docs if not d["indexed"]]
+        if unindexed:
+            typer.echo(
+                f"\n⚠️  {len(unindexed)} document(s) need indexing. Run 'mem docs index'"
+            )
 
 
 @app.command()

@@ -319,7 +319,7 @@ def init(
 
     # Create docs directories
     ensure_docs_dirs()
-    typer.echo("  ✅ Created: .mem/docs/ (with summaries/ and data/)")
+    typer.echo("  ✅ Created: .mem/docs/ (with core/, summaries/, and data/)")
 
     # Add .mem/docs/data/ to .gitignore if not already present
     gitignore_path = ENV_SETTINGS.caller_dir / ".gitignore"
