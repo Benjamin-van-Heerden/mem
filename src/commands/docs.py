@@ -8,7 +8,6 @@ import typer
 from typing_extensions import Annotated
 
 from src.utils import docs
-from src.utils.ai.doc_summarizer import summarize_document
 
 app = typer.Typer(help="Manage technical documentation")
 
@@ -73,6 +72,8 @@ def index():
 
             typer.echo("    🤖 Generating summary...")
             try:
+                from src.utils.ai.doc_summarizer import summarize_document
+
                 summary = summarize_document(content, slug)
                 if summary:
                     docs.write_summary(slug, summary)

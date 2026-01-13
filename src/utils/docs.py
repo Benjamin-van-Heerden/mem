@@ -10,13 +10,13 @@ import json
 import os
 import tomllib
 from pathlib import Path
-
-import chromadb
-from agno.knowledge.chunking.markdown import MarkdownChunking
-from agno.knowledge.document import Document
-from chromadb.utils.embedding_functions import VoyageAIEmbeddingFunction
+from typing import TYPE_CHECKING
 
 from env_settings import ENV_SETTINGS
+
+if TYPE_CHECKING:
+    import chromadb
+    from agno.knowledge.document import Document
 
 
 def _read_config() -> dict:
@@ -220,8 +220,10 @@ def _get_collection_name() -> str:
     return f"{safe_name}_docs"
 
 
-def _get_embedding_function() -> VoyageAIEmbeddingFunction:
+def _get_embedding_function():
     """Create VoyageAI embedding function."""
+    from chromadb.utils.embedding_functions import VoyageAIEmbeddingFunction
+
     api_key = os.getenv("VOYAGE_AI_API_KEY")
     if not api_key:
         raise ValueError("VOYAGE_AI_API_KEY environment variable is required")
@@ -231,13 +233,15 @@ def _get_embedding_function() -> VoyageAIEmbeddingFunction:
     )
 
 
-def get_chroma_client() -> chromadb.ClientAPI:
+def get_chroma_client() -> "chromadb.ClientAPI":
     """Get ChromaDB persistent client."""
+    import chromadb
+
     ensure_docs_dirs()
     return chromadb.PersistentClient(path=str(_get_chroma_dir()))
 
 
-def get_collection() -> chromadb.Collection:
+def get_collection() -> "chromadb.Collection":
     """Get or create the docs ChromaDB collection."""
     client = get_chroma_client()
     embedding_fn = _get_embedding_function()
@@ -247,11 +251,14 @@ def get_collection() -> chromadb.Collection:
     )
 
 
-def chunk_document(slug: str, content: str) -> list[Document]:
+def chunk_document(slug: str, content: str) -> list["Document"]:
     """Chunk a document using MarkdownChunking.
 
     Returns list of Document objects with metadata.
     """
+    from agno.knowledge.chunking.markdown import MarkdownChunking
+    from agno.knowledge.document import Document
+
     doc = Document(
         content=content,
         id=slug,
