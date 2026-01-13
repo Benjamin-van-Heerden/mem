@@ -41,6 +41,12 @@ def log():
             typer.echo(
                 "  git add -A && git commit -m '<describe what was done>' && git push"
             )
+        else:
+            typer.echo("")
+            typer.echo("💡 Don't forget to commit and push your changes:")
+            typer.echo(
+                "  git add -A && git commit -m '<describe what was done>' && git push"
+            )
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

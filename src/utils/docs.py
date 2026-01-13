@@ -231,7 +231,7 @@ def _get_embedding_function() -> VoyageAIEmbeddingFunction:
     )
 
 
-def get_chroma_client() -> chromadb.PersistentClient:
+def get_chroma_client() -> chromadb.ClientAPI:
     """Get ChromaDB persistent client."""
     ensure_docs_dirs()
     return chromadb.PersistentClient(path=str(_get_chroma_dir()))
@@ -243,7 +243,7 @@ def get_collection() -> chromadb.Collection:
     embedding_fn = _get_embedding_function()
     return client.get_or_create_collection(
         name=_get_collection_name(),
-        embedding_function=embedding_fn,
+        embedding_function=embedding_fn,  # type: ignore
     )
 
 
@@ -348,7 +348,7 @@ def search_docs(
     results = collection.query(
         query_texts=[query],
         n_results=n_results,
-        where=where_filter,
+        where=where_filter,  # type: ignore
         include=["documents", "metadatas", "distances"],
     )
 
