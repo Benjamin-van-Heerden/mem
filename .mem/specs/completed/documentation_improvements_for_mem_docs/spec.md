@@ -1,14 +1,14 @@
 ---
 title: Documentation improvements for mem docs
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 47
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/47
 branch: dev-benjamin_van_heerden-documentation_improvements_for_mem_docs
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/48
 created_at: '2026-01-13T18:06:57.195381'
-updated_at: '2026-01-13T18:18:41.166156'
-completed_at: null
+updated_at: '2026-01-13T18:19:38.456102'
+completed_at: '2026-01-13T18:19:38.454311'
 last_synced_at: '2026-01-13T18:08:21.366833'
 local_content_hash: 0f18187d35b62e5815de7eb631cc1432c891bc688deaf0c44806f30e0dacdda1
 remote_content_hash: 0f18187d35b62e5815de7eb631cc1432c891bc688deaf0c44806f30e0dacdda1
