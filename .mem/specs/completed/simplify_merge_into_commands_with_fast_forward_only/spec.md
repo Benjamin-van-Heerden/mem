@@ -1,14 +1,14 @@
 ---
 title: Simplify merge into commands with fast-forward only
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 45
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/45
 branch: dev-benjamin_van_heerden-simplify_merge_into_commands_with_fast_forward_only
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/46
 created_at: '2026-01-13T13:51:00.593412'
-updated_at: '2026-01-13T14:16:25.969244'
-completed_at: null
+updated_at: '2026-01-13T14:17:33.395615'
+completed_at: '2026-01-13T14:17:33.393948'
 last_synced_at: '2026-01-13T13:55:25.916833'
 local_content_hash: 4afbe224a8d9a5c8f7cfa66c2cf91abbeba5be629d88d24afc960c6740fb2583
 remote_content_hash: 4afbe224a8d9a5c8f7cfa66c2cf91abbeba5be629d88d24afc960c6740fb2583
