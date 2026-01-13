@@ -57,11 +57,19 @@ def index():
     if to_index:
         typer.echo(f"\n📚 Indexing {len(to_index)} document(s)...")
         for slug in to_index:
-            action = "new" if slug in new_slugs else "changed"
+            is_changed = slug in changed_slugs
+            action = "changed" if is_changed else "new"
             typer.echo(f"  - {slug} ({action})")
 
             doc_path = docs.get_doc_path(slug)
             content = doc_path.read_text()
+
+            if is_changed:
+                try:
+                    docs.delete_doc_from_index(slug)
+                    typer.echo("    🗑️  Cleared old index data")
+                except Exception as e:
+                    typer.echo(f"    ⚠️  Warning: Could not clear old index: {e}")
 
             try:
                 chunk_count = docs.index_document(slug, content)
@@ -70,7 +78,10 @@ def index():
                 typer.echo(f"    ❌ Failed to index: {e}")
                 continue
 
-            typer.echo("    🤖 Generating summary...")
+            if is_changed:
+                typer.echo("    🤖 Regenerating summary...")
+            else:
+                typer.echo("    🤖 Generating summary...")
             try:
                 from src.utils.ai.doc_summarizer import summarize_document
 

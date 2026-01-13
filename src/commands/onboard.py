@@ -353,6 +353,16 @@ def onboard():
     output.append("- `mem log` - Create/update work log for the session")
     output.append("- `mem sync` - Bidirectional sync with GitHub issues")
     output.append("")
+    output.append("**Document search:**")
+    output.append(
+        '- `mem docs search "query"` - Semantic search across indexed documentation'
+    )
+    output.append(
+        '- `mem docs search "query" -d <slug>` - Search within a specific document'
+    )
+    output.append("- `mem docs list` - List all documents and their index status")
+    output.append("- `mem docs index` - Index new or changed documents")
+    output.append("")
     output.append("**Branch merge rules:**")
     output.append("- anything → dev (feature branches merge here)")
     output.append("- dev or hotfix/* → test")
