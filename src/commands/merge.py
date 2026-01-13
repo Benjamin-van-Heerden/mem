@@ -383,17 +383,11 @@ def _pull_branch(branch: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _merge_branch(source: str, ff_only: bool = False) -> tuple[bool, str]:
-    """Merge source branch into current. Returns (success, error_message)."""
+def _merge_branch(source: str) -> tuple[bool, str]:
+    """Merge source branch into current with ff-only. Returns (success, error_message)."""
     cwd = ENV_SETTINGS.caller_dir
-    cmd = ["git", "merge", source]
-    if ff_only:
-        cmd.append("--ff-only")
-    else:
-        cmd.extend(["-m", f"Merge {source}"])
-
     result = subprocess.run(
-        cmd,
+        ["git", "merge", "--ff-only", source],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -451,17 +445,15 @@ def _print_error_state(
 
 def _merge_into_test(dry_run: bool = False) -> bool:
     """
-    Merge dev into test with back-merge.
+    Merge dev into test with fast-forward only.
 
     Flow:
     1. Check working directory is clean
     2. Fetch latest from remote
     3. Switch to test, pull latest
-    4. Merge dev into test
+    4. Merge dev into test (ff-only)
     5. Push test
-    6. Switch to dev
-    7. Merge test into dev (ff-only back-merge)
-    8. Push dev
+    6. Switch back to dev
 
     Returns True on success, False on failure.
     """
@@ -473,11 +465,9 @@ def _merge_into_test(dry_run: bool = False) -> bool:
         typer.echo("\nWould perform the following steps:")
         typer.echo("  1. Fetch latest from origin")
         typer.echo("  2. Switch to test branch and pull")
-        typer.echo("  3. Merge dev into test")
+        typer.echo("  3. Merge dev into test (fast-forward only)")
         typer.echo("  4. Push test to origin")
-        typer.echo("  5. Switch to dev branch")
-        typer.echo("  6. Merge test into dev (fast-forward)")
-        typer.echo("  7. Push dev to origin")
+        typer.echo("  5. Switch back to dev branch")
         typer.echo("\n💡 Run without --dry-run to execute.")
         return True
 
@@ -513,8 +503,8 @@ def _merge_into_test(dry_run: bool = False) -> bool:
             return False
         steps_done.append("Pulled test")
 
-        # 4. Merge dev into test
-        typer.echo("🔀 Merging dev into test...")
+        # 4. Merge dev into test (ff-only)
+        typer.echo("🔀 Merging dev into test (fast-forward only)...")
         success, error = _merge_branch("dev")
         if not success:
             typer.echo(f"❌ Failed to merge dev into test: {error}", err=True)
@@ -531,8 +521,8 @@ def _merge_into_test(dry_run: bool = False) -> bool:
             return False
         steps_done.append("Pushed test")
 
-        # 6. Switch to dev
-        typer.echo("🌿 Switching to dev branch...")
+        # 6. Switch back to dev
+        typer.echo("🌿 Switching back to dev branch...")
         success, error = _switch_branch("dev")
         if not success:
             typer.echo(f"❌ Failed to switch to dev: {error}", err=True)
@@ -540,26 +530,8 @@ def _merge_into_test(dry_run: bool = False) -> bool:
             return False
         steps_done.append("Switched to dev")
 
-        # 7. Back-merge test into dev (ff-only)
-        typer.echo("🔀 Back-merging test into dev (fast-forward)...")
-        success, error = _merge_branch("test", ff_only=True)
-        if not success:
-            typer.echo(f"❌ Failed to back-merge test into dev: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Back-merged test into dev")
-
-        # 8. Push dev
-        typer.echo("📤 Pushing dev to origin...")
-        success, error = _push_branch("dev")
-        if not success:
-            typer.echo(f"❌ Failed to push dev: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Pushed dev")
-
         typer.echo("\n✅ Successfully merged dev into test!")
-        typer.echo("   Both branches are now at the same commit.")
+        typer.echo("   test is now at the same commit as dev.")
         typer.echo("\n💡 Next step: mem merge into main")
         return True
 
@@ -571,22 +543,17 @@ def _merge_into_test(dry_run: bool = False) -> bool:
 
 def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
     """
-    Merge test into main with back-merges.
+    Merge test into main with fast-forward only.
 
     By default runs in dry-run mode. Use --force to execute.
 
     Flow:
     1. Check working directory is clean
     2. Fetch latest from remote
-    3. Switch to test, pull latest
-    4. Switch to main, pull latest
-    5. Merge test into main
-    6. Push main
-    7. Back-merge main into test (ff-only)
-    8. Push test
-    9. Back-merge test into dev (ff-only)
-    10. Push dev
-    11. Switch back to dev
+    3. Switch to main, pull latest
+    4. Merge test into main (ff-only)
+    5. Push main
+    6. Switch back to dev
 
     Returns True on success, False on failure.
     """
@@ -598,15 +565,10 @@ def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
         typer.echo("🔍 Dry run: mem merge into main")
         typer.echo("\nWould perform the following steps:")
         typer.echo("  1. Fetch latest from origin")
-        typer.echo("  2. Switch to test branch and pull")
-        typer.echo("  3. Switch to main branch and pull")
-        typer.echo("  4. Merge test into main")
-        typer.echo("  5. Push main to origin")
-        typer.echo("  6. Back-merge main into test (fast-forward)")
-        typer.echo("  7. Push test to origin")
-        typer.echo("  8. Back-merge test into dev (fast-forward)")
-        typer.echo("  9. Push dev to origin")
-        typer.echo(" 10. Switch back to dev branch")
+        typer.echo("  2. Switch to main branch and pull")
+        typer.echo("  3. Merge test into main (fast-forward only)")
+        typer.echo("  4. Push main to origin")
+        typer.echo("  5. Switch back to dev branch")
         typer.echo("\n⚠️  This is a dry run. To execute, run:")
         typer.echo("    mem merge into main --force")
         return True
@@ -626,24 +588,7 @@ def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
             return False
         steps_done.append("Fetched from origin")
 
-        # 3. Switch to test and pull
-        typer.echo("🌿 Switching to test branch...")
-        success, error = _switch_branch("test")
-        if not success:
-            typer.echo(f"❌ Failed to switch to test: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Switched to test")
-
-        typer.echo("📥 Pulling latest test...")
-        success, error = _pull_branch("test")
-        if not success:
-            typer.echo(f"❌ Failed to pull test: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Pulled test")
-
-        # 4. Switch to main and pull
+        # 3. Switch to main and pull
         typer.echo("🌿 Switching to main branch...")
         success, error = _switch_branch("main")
         if not success:
@@ -660,8 +605,8 @@ def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
             return False
         steps_done.append("Pulled main")
 
-        # 5. Merge test into main
-        typer.echo("🔀 Merging test into main...")
+        # 4. Merge test into main (ff-only)
+        typer.echo("🔀 Merging test into main (fast-forward only)...")
         success, error = _merge_branch("test")
         if not success:
             typer.echo(f"❌ Failed to merge test into main: {error}", err=True)
@@ -669,7 +614,7 @@ def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
             return False
         steps_done.append("Merged test into main")
 
-        # 6. Push main
+        # 5. Push main
         typer.echo("📤 Pushing main to origin...")
         success, error = _push_branch("main")
         if not success:
@@ -678,58 +623,17 @@ def _merge_into_main(dry_run: bool = False, force: bool = False) -> bool:
             return False
         steps_done.append("Pushed main")
 
-        # 7. Switch to test and back-merge main
-        typer.echo("🌿 Switching to test branch...")
-        success, error = _switch_branch("test")
-        if not success:
-            typer.echo(f"❌ Failed to switch to test: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-
-        typer.echo("🔀 Back-merging main into test (fast-forward)...")
-        success, error = _merge_branch("main", ff_only=True)
-        if not success:
-            typer.echo(f"❌ Failed to back-merge main into test: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Back-merged main into test")
-
-        # 8. Push test
-        typer.echo("📤 Pushing test to origin...")
-        success, error = _push_branch("test")
-        if not success:
-            typer.echo(f"❌ Failed to push test: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Pushed test")
-
-        # 9. Switch to dev and back-merge test
-        typer.echo("🌿 Switching to dev branch...")
+        # 6. Switch back to dev
+        typer.echo("🌿 Switching back to dev branch...")
         success, error = _switch_branch("dev")
         if not success:
             typer.echo(f"❌ Failed to switch to dev: {error}", err=True)
             _print_error_state(_get_current_branch(), original_branch, steps_done)
             return False
-
-        typer.echo("🔀 Back-merging test into dev (fast-forward)...")
-        success, error = _merge_branch("test", ff_only=True)
-        if not success:
-            typer.echo(f"❌ Failed to back-merge test into dev: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Back-merged test into dev")
-
-        # 10. Push dev
-        typer.echo("📤 Pushing dev to origin...")
-        success, error = _push_branch("dev")
-        if not success:
-            typer.echo(f"❌ Failed to push dev: {error}", err=True)
-            _print_error_state(_get_current_branch(), original_branch, steps_done)
-            return False
-        steps_done.append("Pushed dev")
+        steps_done.append("Switched to dev")
 
         typer.echo("\n✅ Successfully merged test into main!")
-        typer.echo("   All branches (dev, test, main) are now at the same commit.")
+        typer.echo("   main is now at the same commit as test.")
         return True
 
     except Exception as e:
@@ -756,11 +660,12 @@ def into(
     ] = False,
 ):
     """
-    Merge between main branches with automatic back-merging.
+    Merge between main branches using fast-forward only.
 
     This command merges changes forward through the branch hierarchy
-    (dev -> test -> main) and then back-merges to keep all branches
-    at the same commit, eliminating GitHub's "X commits behind" warnings.
+    (dev -> test -> main) using fast-forward only merges. This keeps
+    branches at the same commit SHA, eliminating GitHub's "X commits
+    behind" warnings.
 
     Usage:
         mem merge into test     Merge dev into test (from dev branch)

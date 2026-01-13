@@ -2,8 +2,8 @@
 Tests for the merge into subcommand.
 
 The merge into command:
-1. Merges dev -> test with back-merge
-2. Merges test -> main with cascade back-merges
+1. Merges dev -> test with fast-forward only
+2. Merges test -> main with fast-forward only
 3. Requires being on dev branch
 4. Validates target branch (test or main)
 5. main target is dry-run by default, requires --force
@@ -176,13 +176,14 @@ class TestMergeIntoMain:
         assert "--force" in captured.out
 
     def test_into_main_dry_run_shows_all_steps(self, repo_with_branches, capsys):
-        """Test that dry-run shows all the steps including back-merges."""
+        """Test that dry-run shows all the steps."""
         into(target="main")
 
         captured = capsys.readouterr()
         assert "Merge test into main" in captured.out
-        assert "Back-merge main into test" in captured.out
-        assert "Back-merge test into dev" in captured.out
+        assert "fast-forward" in captured.out.lower()
+        assert "Push main to origin" in captured.out
+        assert "Switch back to dev" in captured.out
 
     def test_into_main_with_force_executes(self, repo_with_branches, capsys):
         """Test that --force actually executes the merge."""
@@ -209,8 +210,8 @@ class TestMergeIntoMain:
         # Verify we're back on dev
         assert repo.active_branch.name == "dev"
 
-    def test_into_main_all_branches_at_same_commit(self, repo_with_branches):
-        """Test that after merge to main, all branches are at same commit."""
+    def test_into_main_test_and_main_at_same_commit(self, repo_with_branches):
+        """Test that after merge to main, test and main are at same commit."""
         repo_path = repo_with_branches
         repo = Repo(repo_path)
 
@@ -229,13 +230,10 @@ class TestMergeIntoMain:
         into(target="main", force=True)
 
         # Get commit SHAs
-        dev_sha = repo.heads["dev"].commit.hexsha
         test_sha = repo.heads["test"].commit.hexsha
         main_sha = repo.heads["main"].commit.hexsha
 
-        assert dev_sha == test_sha == main_sha, (
-            "All branches should be at the same commit"
-        )
+        assert test_sha == main_sha, "test and main should be at the same commit"
 
 
 class TestMergeIntoErrorHandling:
