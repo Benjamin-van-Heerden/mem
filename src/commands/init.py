@@ -76,17 +76,17 @@ def _get_agents_template_path() -> Path:
 def configure_merge_settings(project_root: Path):
     """Configure git merge settings.
 
-    Sets merge.ff to false to prevent fast-forward merges,
-    ensuring pre-merge-commit hook always triggers.
+    Sets merge.ff to only to require fast-forward merges.
+    This keeps branches at the same commit SHA after merging.
     """
     try:
         subprocess.run(
-            ["git", "config", "merge.ff", "false"],
+            ["git", "config", "merge.ff", "only"],
             cwd=project_root,
             check=True,
             capture_output=True,
         )
-        typer.echo("✅ Configured merge.ff=false (ensures merge hooks trigger)")
+        typer.echo("✅ Configured merge.ff=only (fast-forward only merges)")
     except subprocess.CalledProcessError as e:
         typer.echo(f"⚠️  Warning: Could not set merge.ff config: {e}", err=True)
 
