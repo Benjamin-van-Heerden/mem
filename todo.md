@@ -1,5 +1,0 @@
-- add mem docs search descriptions in onboard command, more usage hints that these features are available.
-- don't generate summary if one already exists `mem docs index`
-- NB add .mem/docs/data to gitignore on init
-- mem task complete should be two step, if the complete command is just called, it should have instruction for the agent to first summarize what was done and ask if it is acceptable, then add a hint so that it should be `mem task complete... --accept` to actually complete the task, this way there is a more clear feedback loop and the agent doesn't mark tasks as complete when they aren't actually complete.
-- `mem spec list -s` should abide by datetime ordering, and display the date of completion human readable
