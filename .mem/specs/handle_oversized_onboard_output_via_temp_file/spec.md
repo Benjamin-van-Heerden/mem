@@ -1,13 +1,13 @@
 ---
 title: Handle oversized onboard output via temp file
-status: todo
+status: merge_ready
 assigned_to: Benjamin-van-Heerden
 issue_id: 51
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/51
 branch: dev-benjamin_van_heerden-handle_oversized_onboard_output_via_temp_file
-pr_url: null
+pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/52
 created_at: '2026-01-14T14:11:16.815267'
-updated_at: '2026-01-14T14:21:22.144398'
+updated_at: '2026-01-14T15:12:07.389536'
 completed_at: null
 last_synced_at: '2026-01-14T14:21:16.356144'
 local_content_hash: 6a86b8561a5f49ffb77365164168520188072f177ea0a384a6bbfbb18069a566
