@@ -102,7 +102,7 @@ def new(
         )
         typer.echo(f'  Rename task: mem task rename "{title}" "new title"')
         typer.echo(
-            f'  Amend after completion: mem task amend "{title}" "additional requirements"'
+            f'  Amend task (add additional information): mem task amend "{title}" "additional requirements/information" --> this will also mark the task as [todo] had it been completed previously'
         )
 
     except ValueError as e:
