@@ -345,7 +345,7 @@ def onboard():
     output.append(
         '- `mem task new "title" "description"` - Create a task for active spec'
     )
-    output.append('- `mem task complete "title"` - Mark task done')
+    output.append('- `mem task complete "title" "notes"` - Mark task done')
     output.append(
         '- `mem spec complete <slug> "commit message"` - Create PR, mark spec merge_ready'
     )
