@@ -218,15 +218,75 @@ def complete(
         Optional[str],
         typer.Option("--spec", help="Spec slug (uses active spec if not provided)"),
     ] = None,
+    accept: Annotated[
+        bool,
+        typer.Option(
+            "--accept",
+            help="Actually mark the task as complete (requires user confirmation first)",
+        ),
+    ] = False,
 ):
     """
     Mark a task as complete with notes.
 
-    Appends completion notes to the task body and marks it as completed.
+    Without --accept: Outputs instructions for the agent to get user confirmation.
+    With --accept: Actually marks the task as completed.
+
+    Workflow:
+    1. Agent runs: mem task complete "title" "notes"
+    2. Agent summarizes work and asks user for confirmation
+    3. If user approves, agent runs: mem task complete "title" "notes" --accept
     """
     try:
         resolved_slug = _resolve_spec_slug(spec_slug)
         task_filename = _find_task_by_title(resolved_slug, title)
+
+        if not accept:
+            task = tasks.get_task(resolved_slug, task_filename)
+            task_title = task["title"] if task else title
+            task_body = task.get("body", "").strip() if task else ""
+
+            typer.echo("")
+            typer.echo(
+                "----------------------------------------------------------------------"
+            )
+            typer.echo("[AGENT INSTRUCTION] Task completion requires user confirmation")
+            typer.echo(
+                "----------------------------------------------------------------------"
+            )
+            typer.echo("")
+            typer.echo(f"Task: {task_title}")
+            if task_body:
+                typer.echo("")
+                typer.echo("Task description (what was expected):")
+                for line in task_body.split("\n"):
+                    typer.echo(f"  {line}")
+            typer.echo("")
+            typer.echo(f"Your completion notes: {notes}")
+            typer.echo("")
+            typer.echo("Before marking this task as complete, you MUST:")
+            typer.echo("")
+            typer.echo("1. Summarize the work you did for this task")
+            typer.echo('2. Ask the user: "Is this task complete and acceptable?"')
+            typer.echo("3. Wait for the user's response")
+            typer.echo("")
+            typer.echo("If the user confirms the work is acceptable:")
+            typer.echo(f'  Run: mem task complete "{task_title}" "{notes}" --accept')
+            typer.echo("")
+            typer.echo("If the user says the work is NOT acceptable:")
+            typer.echo("  Iterate on the work based on their feedback")
+            typer.echo("  Do NOT run the command with --accept until they approve")
+            typer.echo("")
+            typer.echo(
+                "----------------------------------------------------------------------"
+            )
+            typer.echo(
+                "Do NOT call any tools. Summarize your work and ask for confirmation."
+            )
+            typer.echo(
+                "----------------------------------------------------------------------"
+            )
+            return
 
         tasks.complete_task_with_notes(resolved_slug, task_filename, notes)
         typer.echo(f"✅ Task completed: {title}")
@@ -239,10 +299,13 @@ def complete(
         if not pending and task_list:
             typer.echo("🎉 All spec tasks are complete!")
             typer.echo(
-                f'  Spec ready for completion via: mem spec complete {resolved_slug} "detailed commit message"'
+                f'  Spec ready for completion via: `mem spec complete {resolved_slug} "detailed commit message"`'
             )
+            typer.echo("  Remember to create a work log first: `mem log`")
         elif pending:
-            typer.echo(f"  📋 Remaining tasks: {len(pending)}")
+            typer.echo(f"📋 Remaining tasks ({len(pending)}):")
+            for t in pending:
+                typer.echo(f"  - [ ] {t['title']}")
 
         typer.echo("")
         typer.echo("[AGENT INSTRUCTION]")

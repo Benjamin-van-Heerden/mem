@@ -126,6 +126,17 @@ def new(
         raise typer.Exit(code=1)
 
 
+def _format_completed_date(iso_date: str | None) -> str:
+    """Format a completed_at date for display."""
+    if not iso_date:
+        return "N/A"
+    try:
+        dt = datetime.fromisoformat(iso_date)
+        return dt.strftime("%b %d, %Y")
+    except (ValueError, TypeError):
+        return "N/A"
+
+
 @app.command("list")
 def list_specs_cmd(
     status: Annotated[
@@ -142,6 +153,7 @@ def list_specs_cmd(
 
     By default, shows 'todo' and 'merge_ready' specs.
     Active spec is determined by current git branch, not status field.
+    Completed specs are sorted by completion date (most recent first).
     """
     try:
         # Get active spec based on current branch
@@ -157,6 +169,10 @@ def list_specs_cmd(
             spec_list = todo_specs + merge_ready_specs
             display_status = "TODO & MERGE_READY"
 
+        # Sort completed specs by completed_at (oldest first)
+        if status == "completed":
+            spec_list.sort(key=lambda s: s.get("completed_at") or "")
+
         if not spec_list:
             typer.echo(f"No {display_status.lower()} specs found.")
             return
@@ -169,33 +185,50 @@ def list_specs_cmd(
 
         # Display specs in a formatted table
         typer.echo(f"\n{display_status} SPECS:\n")
-        typer.echo(f"{'Slug':<30} {'Title':<30} {'Status':<12} {'Branch':<25}")
-        typer.echo("=" * 100)
 
-        for spec in spec_list:
-            slug = spec["slug"]
-            title = spec["title"]
-            status_text = spec["status"]
-            branch = spec.get("branch") or "N/A"
+        # Use different columns for completed specs
+        if status == "completed":
+            typer.echo(f"{'Completed':<14} {'Title':<40} {'Slug':<30}")
+            typer.echo("=" * 86)
 
-            # Mark active spec
-            is_active = active_spec and active_spec["slug"] == slug
-            active_marker = " *" if is_active else ""
+            for spec in spec_list:
+                slug = spec["slug"]
+                title = spec["title"]
+                completed_at = _format_completed_date(spec.get("completed_at"))
 
-            # Truncate values for display
-            display_slug = slug[:27] + "..." if len(slug) > 30 else slug
-            display_title = title[:27] + "..." if len(title) > 30 else title
-            display_status_text = (
-                status_text[:10] + "..." if len(status_text) > 12 else status_text
-            )
-            display_branch = branch[:22] + "..." if len(branch) > 25 else branch
+                # Truncate values for display
+                display_slug = slug[:27] + "..." if len(slug) > 30 else slug
+                display_title = title[:37] + "..." if len(title) > 40 else title
 
-            typer.echo(
-                f"{display_slug:<30} {display_title:<30} {display_status_text:<12} {display_branch:<25}{active_marker}"
-            )
+                typer.echo(f"{completed_at:<14} {display_title:<40} {display_slug:<30}")
+        else:
+            typer.echo(f"{'Slug':<30} {'Title':<30} {'Status':<12} {'Branch':<25}")
+            typer.echo("=" * 100)
+
+            for spec in spec_list:
+                slug = spec["slug"]
+                title = spec["title"]
+                status_text = spec["status"]
+                branch = spec.get("branch") or "N/A"
+
+                # Mark active spec
+                is_active = active_spec and active_spec["slug"] == slug
+                active_marker = " *" if is_active else ""
+
+                # Truncate values for display
+                display_slug = slug[:27] + "..." if len(slug) > 30 else slug
+                display_title = title[:27] + "..." if len(title) > 30 else title
+                display_status_text = (
+                    status_text[:10] + "..." if len(status_text) > 12 else status_text
+                )
+                display_branch = branch[:22] + "..." if len(branch) > 25 else branch
+
+                typer.echo(
+                    f"{display_slug:<30} {display_title:<30} {display_status_text:<12} {display_branch:<25}{active_marker}"
+                )
 
         typer.echo(f"\n📊 Total: {len(spec_list)} spec(s)")
-        if active_spec:
+        if active_spec and status != "completed":
             typer.echo("(* = currently active)")
         typer.echo("\n💡 To view details: mem spec show <slug>")
         typer.echo("💡 To activate: mem spec activate <slug>")
