@@ -452,7 +452,7 @@ def assign(
             "💡 To work on this spec, start a NEW agent session in the worktree:"
         )
         typer.echo(f"  cd {worktree_path}")
-        typer.echo("  claude  # or your preferred agent")
+        typer.echo("  # Start your preferred agent here")
         typer.echo("")
         typer.echo("─" * 60)
         typer.echo("❓ WHY A NEW SESSION?")

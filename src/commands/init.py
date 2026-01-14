@@ -160,9 +160,8 @@ esac
 
 
 def create_agents_files(project_root: Path):
-    """Create AGENTS.md and CLAUDE.md symlink in project root."""
+    """Create AGENTS.md in project root."""
     agents_file = project_root / "AGENTS.md"
-    claude_file = project_root / "CLAUDE.md"
 
     if not agents_file.exists():
         template_path = _get_agents_template_path()
@@ -172,14 +171,6 @@ def create_agents_files(project_root: Path):
         else:
             typer.echo("⚠️  Warning: AGENTS.md template not found", err=True)
             return
-
-    if not claude_file.exists():
-        claude_file.symlink_to("AGENTS.md")
-        typer.echo("✅ Created CLAUDE.md symlink -> AGENTS.md")
-    elif claude_file.is_symlink():
-        typer.echo("✅ CLAUDE.md symlink already exists")
-    else:
-        typer.echo("⚠️  Warning: CLAUDE.md exists but is not a symlink", err=True)
 
 
 def create_config_with_discovery(repo_name: str):
@@ -355,7 +346,7 @@ def init(
     else:
         typer.echo("✅ User mappings file already exists")
 
-    # Create AGENTS.md and CLAUDE.md symlink
+    # Create AGENTS.md
     typer.echo("\n📄 Creating agent configuration files...")
     create_agents_files(ENV_SETTINGS.caller_dir)
 
