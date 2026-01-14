@@ -1,14 +1,14 @@
 ---
 title: Task completion feedback loop and spec list ordering
-status: merge_ready
+status: completed
 assigned_to: Benjamin-van-Heerden
 issue_id: 49
 issue_url: https://github.com/Benjamin-van-Heerden/mem/issues/49
 branch: dev-benjamin_van_heerden-task_completion_feedback_loop_and_spec_list_ordering
 pr_url: https://github.com/Benjamin-van-Heerden/mem/pull/50
 created_at: '2026-01-14T10:47:32.762192'
-updated_at: '2026-01-14T11:09:34.512598'
-completed_at: null
+updated_at: '2026-01-14T11:10:39.973687'
+completed_at: '2026-01-14T11:10:39.971486'
 last_synced_at: '2026-01-14T10:48:37.567766'
 local_content_hash: 604e581c2411df98b2f2857c6c1f6394149f80defc695e81ecb56583918d06ca
 remote_content_hash: 604e581c2411df98b2f2857c6c1f6394149f80defc695e81ecb56583918d06ca
