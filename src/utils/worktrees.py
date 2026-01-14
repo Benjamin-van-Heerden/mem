@@ -111,6 +111,13 @@ def remove_worktree(main_repo_path: Path, slug: str, force: bool = False) -> boo
     else:
         repo.git.worktree("remove", str(worktree_path))
 
+    # git worktree remove sometimes leaves an empty directory shell behind
+    if worktree_path.exists() and worktree_path.is_dir():
+        try:
+            worktree_path.rmdir()  # only succeeds if directory is empty
+        except OSError:
+            pass  # directory not empty or other issue, leave it alone
+
     return True
 
 
