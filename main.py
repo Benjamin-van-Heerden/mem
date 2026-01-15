@@ -33,6 +33,7 @@ from src.commands.log import log as log_command
 from src.commands.merge import app as merge_app
 from src.commands.migrate import migrate as migrate_command
 from src.commands.onboard import onboard as onboard_command
+from src.commands.patch import app as patch_app
 from src.commands.spec import app as spec_app
 from src.commands.sync import sync as sync_command
 from src.commands.task import app as task_app
@@ -55,6 +56,7 @@ app.command(name="migrate", hidden=True)(migrate_command)
 app.add_typer(spec_app, name="spec", help="Manage specifications")
 app.add_typer(task_app, name="task", help="Manage tasks")
 app.add_typer(docs_app, name="docs", help="Manage technical documentation")
+app.add_typer(patch_app, name="patch", help="Patch configuration files")
 
 
 # Simple CLI command for testing

@@ -32,19 +32,17 @@ class MemProjectConfig(BaseModel):
 
     name: str = Field(
         ...,
-        description="Project name (displayed in onboard context).",
+        description="Project name displayed in onboard context",
     )
 
     description: str = Field(
         ...,
-        description="Project description displayed in onboard output to provide context.",
+        description="Project description to help AI agents understand the codebase",
     )
 
     generic_templates: list[str] = Field(
         default_factory=list,
-        description=(
-            "Template slugs to load from global_config_dir/templates/ (e.g. ['python', 'general'])."
-        ),
+        description="Template slugs to load from ~/.config/mem/templates/",
     )
 
 
@@ -55,12 +53,12 @@ class MemImportantFile(BaseModel):
 
     path: str = Field(
         ...,
-        description="Path to the file relative to the project root.",
+        description="Path to file relative to project root",
     )
 
     description: str | None = Field(
         default=None,
-        description="Optional description that explains the file's purpose.",
+        description="What this file contains or why it's important",
     )
 
 
@@ -71,9 +69,7 @@ class MemWorktreeConfig(BaseModel):
 
     symlink_paths: list[str] = Field(
         default_factory=list,
-        description=(
-            "Paths (relative to repo root) to symlink into created worktrees instead of copying."
-        ),
+        description="Paths to symlink into worktrees instead of copying (e.g. large data dirs)",
     )
 
 
@@ -93,17 +89,17 @@ class MemLocalConfig(BaseModel):
 
     project: MemProjectConfig = Field(
         ...,
-        description="Project metadata used by mem onboard and other commands.",
+        description="Project metadata",
     )
 
     files: list[MemImportantFile] = Field(
         default_factory=list,
-        description="Important files included in onboard output.",
+        description="Files to include in onboard output",
     )
 
     worktree: MemWorktreeConfig = Field(
         default_factory=MemWorktreeConfig,
-        description="Worktree behavior settings.",
+        description="Worktree configuration",
     )
 
 

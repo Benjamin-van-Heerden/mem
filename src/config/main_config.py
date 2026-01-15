@@ -221,3 +221,81 @@ def summarize_validation_error(err: ValidationError, max_lines: int = 6) -> str:
     if len(err.errors()) > max_lines:
         lines.append(f"... ({len(err.errors()) - max_lines} more)")
     return "\n".join(lines)
+
+
+def _escape_toml_string(s: str) -> str:
+    """Escape a string for use in TOML single-line basic string."""
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+def _format_multiline_string(s: str) -> str:
+    """Format a string as TOML multiline basic string."""
+    return f'"""\n{s}\n"""'
+
+
+def _get_field_description(model: type[BaseModel], field_name: str) -> str | None:
+    """Get the description for a field from the model."""
+    field_info = model.model_fields.get(field_name)
+    if field_info and field_info.description:
+        return field_info.description
+    return None
+
+
+def generate_default_config_toml(
+    project_name: str,
+    project_description: str = "Add your project description here.",
+    generic_templates: list[str] | None = None,
+    important_files: list[dict[str, str]] | None = None,
+    symlink_paths: list[str] | None = None,
+) -> str:
+    """
+    Generate a default `.mem/config.toml` file content from the MemLocalConfig schema.
+
+    Field descriptions are pulled directly from the Pydantic models.
+    """
+    from src.config.models import (
+        MemProjectConfig,
+        MemWorktreeConfig,
+    )
+
+    if generic_templates is None:
+        generic_templates = ["python", "general"]
+    if important_files is None:
+        important_files = [
+            {
+                "path": "README.md",
+                "description": "Project overview and setup instructions",
+            }
+        ]
+    if symlink_paths is None:
+        symlink_paths = []
+
+    templates_str = ", ".join(f'"{t}"' for t in generic_templates)
+    symlinks_str = ", ".join(f'"{p}"' for p in symlink_paths)
+
+    lines = [
+        "[project]",
+        f"# {_get_field_description(MemProjectConfig, 'name')}",
+        f'name = "{_escape_toml_string(project_name)}"',
+        "",
+        f"# {_get_field_description(MemProjectConfig, 'description')}",
+        f"description = {_format_multiline_string(project_description)}",
+        "",
+        f"# {_get_field_description(MemProjectConfig, 'generic_templates')}",
+        f"generic_templates = [{templates_str}]",
+    ]
+
+    lines.append("")
+    lines.append(f"# {_get_field_description(MemLocalConfig, 'files')}")
+    for f in important_files:
+        lines.append("[[files]]")
+        lines.append(f'path = "{_escape_toml_string(f["path"])}"')
+        if f.get("description"):
+            lines.append(f'description = "{_escape_toml_string(f["description"])}"')
+        lines.append("")
+
+    lines.append("[worktree]")
+    lines.append(f"# {_get_field_description(MemWorktreeConfig, 'symlink_paths')}")
+    lines.append(f"symlink_paths = [{symlinks_str}]")
+
+    return "\n".join(lines) + "\n"

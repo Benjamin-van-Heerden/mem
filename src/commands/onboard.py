@@ -16,6 +16,7 @@ import typer
 from env_settings import ENV_SETTINGS
 from src.commands.init import create_pre_merge_commit_hook
 from src.config.main_config import (
+    generate_default_config_toml,
     has_unknown_key_drift,
     load_and_validate_local_config,
     summarize_validation_error,
@@ -380,7 +381,10 @@ def onboard(
     # 2. Load config (create if missing)
     if not ENV_SETTINGS.config_file.exists():
         try:
-            create_config_with_discovery(ENV_SETTINGS.caller_dir.name)
+            config_content = generate_default_config_toml(
+                project_name=ENV_SETTINGS.caller_dir.name
+            )
+            ENV_SETTINGS.config_file.write_text(config_content)
             print(
                 f"✅ Created missing config file: {ENV_SETTINGS.config_file_stripped}",
                 file=sys.stderr,
@@ -526,6 +530,7 @@ def onboard(
         for file_entry in files_config:
             path = file_entry.get("path")
             desc = file_entry.get("description", "")
+            assert path is not None
             content = read_file_safely(Path(path))
             if content:
                 # Filter out Installation/Prerequisites from README files
