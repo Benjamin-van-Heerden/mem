@@ -19,6 +19,36 @@ from src.utils import docs, logs, specs, tasks, todos, worktrees
 from src.utils.specs import ensure_on_dev_branch
 
 
+def _ensure_gitignore_entry(entry: str, comment: str) -> None:
+    """
+    Ensure `entry` exists in the project's .gitignore, adding it if missing.
+
+    We keep onboard output in `.mem/tmp/` so agents with project-scoped permissions
+    can read it, but it must never be committed.
+    """
+    gitignore_path = ENV_SETTINGS.caller_dir / ".gitignore"
+    entry = entry.strip()
+
+    if not entry:
+        return
+
+    # Normalize: enforce trailing slash for directories and a final newline.
+    if not entry.endswith("/"):
+        entry = entry + "/"
+
+    if gitignore_path.exists():
+        gitignore_content = gitignore_path.read_text()
+        if entry in gitignore_content:
+            return
+        with open(gitignore_path, "a", encoding="utf-8") as f:
+            if gitignore_content and not gitignore_content.endswith("\n"):
+                f.write("\n")
+            f.write(f"\n# {comment}\n{entry}\n")
+        return
+
+    gitignore_path.write_text(f"# {comment}\n{entry}\n", encoding="utf-8")
+
+
 def ensure_mem_initialized() -> bool:
     """Check if mem is initialized in the current directory."""
     return ENV_SETTINGS.mem_dir.exists() and ENV_SETTINGS.config_file.exists()
@@ -299,7 +329,17 @@ def onboard(
         print("mem is not initialized. Run 'mem init' first.", file=sys.stderr)
         sys.exit(1)
 
-    tmp_dir = Path("/tmp/mem")
+    tmp_dir = ENV_SETTINGS.mem_dir / "tmp"
+
+    # Ensure onboard temp dir is gitignored (agent-readable, but not committed)
+    try:
+        _ensure_gitignore_entry(
+            ".mem/tmp/",
+            "mem temp artifacts (onboard output)",
+        )
+    except Exception:
+        pass
+
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)
         cutoff = datetime.now() - timedelta(hours=1)
@@ -751,7 +791,7 @@ def onboard(
         return
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    tmp_path = str(Path("/tmp/mem") / f"mem_onboard_{timestamp}.md")
+    tmp_path = str(tmp_dir / f"mem_onboard_{timestamp}.md")
     with open(tmp_path, "w", encoding="utf-8") as f:
         f.write(file_content)
 
