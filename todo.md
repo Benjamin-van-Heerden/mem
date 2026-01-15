@@ -1,0 +1,2 @@
+- Update config.toml template so that it is aligned with the functionality as it exists now in .mem/config.toml, in particular, I don't see any of the symlink directories/files.
+- Add something to the `mem onboard` command that keeps the config.toml in sync with how mem actually works. Maybe use the global config struct to parse the file and add/remove configurations that are new or no longer needed (existing set configs should obviously be kept)
