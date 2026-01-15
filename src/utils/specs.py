@@ -126,19 +126,73 @@ def create_spec(title: str) -> Path:
     return spec_file
 
 
+def resolve_spec_slug_prefix(prefix: str) -> tuple[str | None, list[str]]:
+    """
+    Resolve a spec slug by unique prefix (git-hash style).
+
+    Returns:
+        (resolved_slug_or_none, matches)
+
+    - If `prefix` exactly matches a spec slug, it wins immediately.
+    - Otherwise, we search across all spec locations (root, completed, abandoned).
+    - If there is exactly one match, we return it.
+    - If there are 0 or >1 matches, resolved_slug is None and matches contains
+      the candidate slugs (sorted).
+    """
+    prefix = (prefix or "").strip()
+    if not prefix:
+        return (None, [])
+
+    # Exact match wins
+    exact_dir = _find_spec_dir(prefix)
+    if exact_dir is not None:
+        return (prefix, [prefix])
+
+    matches: list[str] = []
+
+    # Search all locations
+    for base_dir in (_get_specs_dir(), _get_completed_dir(), _get_abandoned_dir()):
+        if not base_dir.exists():
+            continue
+
+        for spec_dir in base_dir.iterdir():
+            if not spec_dir.is_dir():
+                continue
+            # Skip the completed and abandoned subdirectories if scanning root
+            if spec_dir.name in ("completed", "abandoned"):
+                continue
+
+            slug = spec_dir.name
+            if not slug.startswith(prefix):
+                continue
+
+            if (spec_dir / "spec.md").exists():
+                matches.append(slug)
+
+    matches = sorted(set(matches))
+    if len(matches) == 1:
+        return (matches[0], matches)
+
+    return (None, matches)
+
+
 def get_spec(slug: str) -> dict[str, Any] | None:
-    """Read spec metadata + body by slug.
+    """Read spec metadata + body by slug or unique slug prefix.
 
     Returns dict with all metadata fields plus 'slug' and 'body',
-    or None if spec doesn't exist.
+    or None if spec doesn't exist or slug prefix is ambiguous.
     """
-    spec_file = _get_spec_file(slug)
+    resolved, matches = resolve_spec_slug_prefix(slug)
+    if resolved is None:
+        return None
+
+    spec_file = _get_spec_file(resolved)
 
     if not spec_file.exists():
         return None
 
     metadata, body = read_md_file(spec_file)
-    return _spec_to_dict(slug, metadata, body)
+    return _spec_to_dict(resolved, metadata, body)
 
 
 def get_spec_by_issue_id(issue_id: int) -> dict[str, Any] | None:

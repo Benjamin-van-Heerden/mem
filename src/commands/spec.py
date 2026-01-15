@@ -231,7 +231,6 @@ def list_specs_cmd(
         if active_spec and status != "completed":
             typer.echo("(* = currently active)")
         typer.echo("\n💡 To view details: mem spec show <slug>")
-        typer.echo("💡 To activate: mem spec activate <slug>")
 
     except Exception as e:
         typer.echo(f"❌ Error: {e}", err=True)
@@ -263,6 +262,30 @@ def show(
                 raise typer.Exit(code=1)
             spec_slug = spec["slug"]
         else:
+            # Support git-style unique prefix resolution
+            resolved_slug, matches = specs.resolve_spec_slug_prefix(spec_slug)
+            if resolved_slug is None:
+                if not matches:
+                    typer.echo(f"❌ Error: Spec '{spec_slug}' not found.", err=True)
+                else:
+                    typer.echo(
+                        f"❌ Error: Spec slug prefix '{spec_slug}' is ambiguous ({len(matches)} matches).",
+                        err=True,
+                    )
+                    typer.echo("\nMatches:")
+                    for m in matches[:20]:
+                        typer.echo(f"  - {m}")
+                    if len(matches) > 20:
+                        typer.echo(f"  ... and {len(matches) - 20} more")
+                    typer.echo(
+                        "\n💡 Tip: Provide more characters of the slug to disambiguate, e.g.:"
+                    )
+                    typer.echo(
+                        f"  mem spec show {matches[0][: min(len(matches[0]), len(spec_slug) + 4)]}"
+                    )
+                raise typer.Exit(code=1)
+
+            spec_slug = resolved_slug
             spec = specs.get_spec(spec_slug)
 
         if not spec:
@@ -320,8 +343,9 @@ def show(
         typer.echo(
             f'  mem task new "title" "detailed description with implementation notes if necessary" --spec {spec_slug}'
         )
-        typer.echo(f"  mem spec activate {spec_slug}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         typer.echo(f"❌ Error: {e}", err=True)
         raise typer.Exit(code=1)

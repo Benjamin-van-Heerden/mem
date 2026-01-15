@@ -796,7 +796,9 @@ def onboard(
         f.write(file_content)
 
     output.append(f"✅ Onboard context written to: {tmp_path}")
-    output.append("YOU MUST read it in full before proceeding.")
+    output.append(
+        "YOU MUST read it in full before proceeding. No exceptions, the document contains important context. An overview of the document is not enough, it must be read in its entirety."
+    )
 
     if sync_failure:
         output.append("")
