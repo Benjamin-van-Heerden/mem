@@ -2,7 +2,6 @@
 Spec command - Manage specifications
 """
 
-import tomllib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -12,6 +11,7 @@ from git import Repo
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
+from src.config.main_config import load_and_validate_local_config
 from src.utils import logs, specs, tasks, worktrees
 from src.utils.github.api import (
     close_issue_with_comment,
@@ -34,14 +34,11 @@ def _create_worktree_symlinks(main_repo_path: Path, worktree_path: Path) -> list
     if not config_file.exists():
         return []
 
-    try:
-        with open(config_file, "rb") as f:
-            config = tomllib.load(f)
-    except Exception:
+    result = load_and_validate_local_config(config_file)
+    if result.config is None:
         return []
 
-    worktree_config = config.get("worktree", {})
-    symlink_paths = worktree_config.get("symlink_paths", [])
+    symlink_paths = result.config.worktree.symlink_paths
 
     created = []
     for rel_path in symlink_paths:

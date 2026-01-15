@@ -8,27 +8,27 @@ for semantic search. AI-generated summaries are stored in .mem/docs/summaries/.
 import hashlib
 import json
 import os
-import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from env_settings import ENV_SETTINGS
+from src.config.main_config import load_and_validate_local_config
 
 if TYPE_CHECKING:
     import chromadb
     from agno.knowledge.document import Document
 
 
-def _read_config() -> dict:
-    """Read local config file. Simplified version to avoid circular imports."""
-    config_file = ENV_SETTINGS.config_file
-    if not config_file.exists():
-        return {}
-    try:
-        with open(config_file, "rb") as f:
-            return tomllib.load(f)
-    except Exception:
-        return {}
+def _read_config() -> dict[str, Any]:
+    """Read local config file via the shared main config loader."""
+    result = load_and_validate_local_config(ENV_SETTINGS.config_file)
+    return result.raw
+
+
+def _read_config_model():
+    """Read local config as a validated model (None if validation fails)."""
+    result = load_and_validate_local_config(ENV_SETTINGS.config_file)
+    return result.config
 
 
 def _get_docs_dir() -> Path:
@@ -213,9 +213,8 @@ def delete_doc(slug: str) -> bool:
 
 def _get_collection_name() -> str:
     """Get ChromaDB collection name based on project name."""
-    config = _read_config()
-    project = config.get("project", {})
-    project_name = project.get("name", "default")
+    cfg = _read_config_model()
+    project_name = cfg.project.name if cfg is not None else "default"
     safe_name = "".join(c if c.isalnum() or c == "_" else "_" for c in project_name)
     return f"{safe_name}_docs"
 

@@ -15,6 +15,12 @@ import typer
 
 from env_settings import ENV_SETTINGS
 from src.commands.init import create_pre_merge_commit_hook
+from src.config.main_config import (
+    has_unknown_key_drift,
+    load_and_validate_local_config,
+    summarize_validation_error,
+)
+from src.config.models import MemLocalConfig
 from src.utils import docs, logs, specs, tasks, todos, worktrees
 from src.utils.specs import ensure_on_dev_branch
 
@@ -66,30 +72,35 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def read_config() -> dict:
-    """Read config, merging global (~/.config/mem/config.toml) with local (.mem/config.toml).
+    """Read local config only (.mem/config.toml).
 
-    Local config values override global defaults.
+    mem does not merge global config.toml, and the global config directory is a
+    fixed default (~/.config/mem). It is not overridable via `.mem/config.toml`.
     """
-    config = {}
+    if not ENV_SETTINGS.config_file.exists():
+        raise FileNotFoundError(ENV_SETTINGS.config_file_stripped)
 
-    # Load global config first
-    if ENV_SETTINGS.global_config_file.exists():
-        try:
-            with open(ENV_SETTINGS.global_config_file, "rb") as f:
-                config = tomllib.load(f)
-        except Exception:
-            pass
+    with open(ENV_SETTINGS.config_file, "rb") as f:
+        config = tomllib.load(f)
 
-    # Merge local config on top
-    if ENV_SETTINGS.config_file.exists():
-        try:
-            with open(ENV_SETTINGS.config_file, "rb") as f:
-                local_config = tomllib.load(f)
-                config = deep_merge(config, local_config)
-        except Exception:
-            pass
+    if not isinstance(config, dict):
+        raise ValueError(ENV_SETTINGS.config_file_stripped)
 
     return config
+
+
+def read_config_model() -> MemLocalConfig:
+    """Read and validate local config as a Pydantic model.
+
+    This is the canonical way to access config, so we avoid dict-style access.
+    """
+    result = load_and_validate_local_config(ENV_SETTINGS.config_file)
+    if result.config is None:
+        if result.validation_error is not None:
+            summary = summarize_validation_error(result.validation_error)
+            raise ValueError(f"Invalid {ENV_SETTINGS.config_file_stripped}:\n{summary}")
+        raise ValueError(f"Invalid {ENV_SETTINGS.config_file_stripped}")
+    return result.config
 
 
 def read_file_safely(file_path: Path) -> str | None:
@@ -143,12 +154,8 @@ def filter_readme_sections(content: str) -> str:
 
 
 def get_global_config_dir(config: dict) -> Path:
-    """Get the global config directory, with default to ~/.config/mem."""
-    vars_config = config.get("vars", {})
-    global_dir = vars_config.get("global_config_dir", "")
-
-    if global_dir:
-        return Path(global_dir).expanduser()
+    """Get the global config directory (fixed default: ~/.config/mem)."""
+    _ = config
     return ENV_SETTINGS.global_config_dir
 
 
@@ -370,8 +377,50 @@ def onboard(
 
     print("", file=sys.stderr)  # Blank line before main output
 
-    # 2. Load config
-    config = read_config()
+    # 2. Load config (create if missing)
+    if not ENV_SETTINGS.config_file.exists():
+        try:
+            create_config_with_discovery(ENV_SETTINGS.caller_dir.name)
+            print(
+                f"✅ Created missing config file: {ENV_SETTINGS.config_file_stripped}",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(
+                f"❌ Failed to create {ENV_SETTINGS.config_file_stripped}: {e}",
+                file=sys.stderr,
+            )
+            raise typer.Exit(code=1)
+
+    # 2a. Drift detection (report-only; do not mutate)
+    local_load = load_and_validate_local_config(ENV_SETTINGS.config_file)
+
+    drift_detected = False
+    if local_load.raw:
+        if has_unknown_key_drift(local_load.raw):
+            drift_detected = True
+        if local_load.validation_error is not None:
+            drift_detected = True
+
+    if drift_detected:
+        print(
+            "⚠️  Config drift detected in .mem/config.toml. Run `mem patch config` to update it.",
+            file=sys.stderr,
+        )
+        if local_load.validation_error is not None:
+            summary = summarize_validation_error(local_load.validation_error)
+            if summary:
+                print(summary, file=sys.stderr)
+
+    # 2b. Use validated config model for all config access
+    try:
+        config_model = read_config_model()
+    except Exception as e:
+        print(
+            f"❌ Failed to validate {ENV_SETTINGS.config_file_stripped}: {e}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
 
     # 3. Get branch state
     branch_name, active_spec, warning = specs.get_branch_status()
@@ -437,10 +486,9 @@ def onboard(
     output.append("-" * 70)
     output.append("📁 PROJECT INFO")
     output.append("-" * 70)
-    project = config.get("project", {})
-    output.append(f"**Project:** {project.get('name', 'Unknown')}")
-    if project.get("description"):
-        desc = project["description"].strip()
+    output.append(f"**Project:** {config_model.project.name}")
+    desc = config_model.project.description.strip()
+    if desc:
         output.append(f"**Description:** {desc}")
     output.append(f"**Current Branch:** {branch_name}")
     output.append("")
@@ -458,7 +506,7 @@ def onboard(
     file_sections: list[str] = []
 
     # Generic templates (coding guidelines)
-    generic_templates = load_generic_templates(config)
+    generic_templates = load_generic_templates(config_model.model_dump())
     if generic_templates:
         file_sections.append("-" * 70)
         file_sections.append("📝 CODING GUIDELINES")
@@ -470,7 +518,7 @@ def onboard(
         file_sections.append("")
 
     # Important files
-    files_config = config.get("files", [])
+    files_config = [f.model_dump(exclude_none=True) for f in config_model.files]
     if files_config:
         file_sections.append("-" * 70)
         file_sections.append("📄 IMPORTANT FILES")
