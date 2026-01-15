@@ -2,19 +2,6 @@
 # Edit this file to customize mem for your project
 
 # =============================================================================
-# VARIABLES
-# =============================================================================
-[vars]
-# Environment variable name containing your GitHub personal access token
-# mem uses this to sync specs with GitHub issues
-github_token_env = "GITHUB_TOKEN"
-
-# Path to global mem config directory
-# Contains shared config defaults and templates (in templates/ subdirectory)
-# Defaults to ~/.config/mem if not specified
-# global_config_dir = "~/.config/mem"
-
-# =============================================================================
 # PROJECT
 # =============================================================================
 [project]
@@ -31,7 +18,7 @@ description = """
 # Generic templates to include from global_config_dir/templates/
 # These are loaded and displayed during `mem onboard`
 # Example: ["python", "react"] loads python.md and react.md
-generic_templates = []
+generic_templates = ["python", "general"]
 
 # =============================================================================
 # IMPORTANT FILES
@@ -68,13 +55,13 @@ description = "Project overview and setup instructions"
 [worktree]
 # Paths relative to project root that will be symlinked into worktrees
 # When `mem spec assign` creates a worktree, these paths will be symlinked
-# from the main repo to the worktree instead of being copied
+# from the main repo to the worktree instead of being copied.
+#
+# This is optional. If you don't want any symlinks, leave it as an empty list.
 #
 # Example:
 # symlink_paths = [
 #     ".mem/docs/data",    # Vector DB for document search
 #     "node_modules",      # Large dependency directory
 # ]
-symlink_paths = [
-    ".mem/docs/data",
-]
+symlink_paths = []

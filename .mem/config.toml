@@ -1,19 +1,6 @@
 # mem configuration file
 # Edit this file to customize mem for your project
 
-# =============================================================================
-# VARIABLES
-# =============================================================================
-[vars]
-# Environment variable name containing your GitHub personal access token
-# mem uses this to sync specs with GitHub issues
-github_token_env = "GITHUB_TOKEN"
-
-# Path to global mem config directory
-# Contains shared config defaults and templates (in templates/ subdirectory)
-# Defaults to ~/.config/mem if not specified
-# global_config_dir = "~/.config/mem"
-
 
 
 # =============================================================================
