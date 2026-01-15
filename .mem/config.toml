@@ -1,48 +1,21 @@
-# mem configuration file
-# Edit this file to customize mem for your project
-
-
-
-# =============================================================================
-# PROJECT
-# =============================================================================
 [project]
-# Project name (displayed in onboard context)
+# Project name displayed in onboard context
 name = "mem"
 
-# Detailed project description
-# Explain what the project does, its goals, key functionality, etc.
-# This helps AI agents understand the project context
+# Project description to help AI agents understand the codebase
 description = """
 A command-line utility for managing project context, specifications, tasks, and work logs in AI-assisted development workflows.
+
 """
 
-# Generic templates to include from global_config_dir/templates/
-# These are loaded and displayed during `mem onboard`
-# Example: ["python", "react"] loads python.md and react.md
+# Template slugs to load from ~/.config/mem/templates/
 generic_templates = ["python", "general"]
 
-# =============================================================================
-# IMPORTANT FILES
-# =============================================================================
-# Files to always include in onboard context
-# AI agents will see the contents of these files when starting a session
-#
-# Format:
-#   [[files]]
-#   path = "path/to/file"
-#   description = "Optional description of what this file contains"
-
+# Files to include in onboard output
 [[files]]
 path = "README.md"
 description = "Project overview and setup instructions"
 
-# Add more important files as needed:
-#
-# [[files]]
-# path = "src/main.py"
-# description = "Application entry point"
-#
-# [[files]]
-# path = "docs/architecture.md"
-# description = "System architecture documentation"
+[worktree]
+# Paths to symlink into worktrees instead of copying (e.g. large data dirs)
+symlink_paths = []

@@ -11,6 +11,7 @@ import typer
 from typing_extensions import Annotated
 
 from env_settings import ENV_SETTINGS
+from src.config.main_config import generate_default_config_toml
 from src.utils.docs import check_docs_env_vars, ensure_docs_dirs
 from src.utils.github.api import ensure_label, ensure_status_labels
 from src.utils.github.client import get_authenticated_user, get_github_client
@@ -61,11 +62,6 @@ def check_prerequisites() -> list[str]:
 
 # Create a Typer app for the init command
 app = typer.Typer()
-
-
-def _get_template_path() -> Path:
-    """Get path to the config template."""
-    return Path(__file__).parent.parent / "templates" / "config.toml"
 
 
 def _get_agents_template_path() -> Path:
@@ -174,14 +170,8 @@ def create_agents_files(project_root: Path):
 
 
 def create_config_with_discovery(repo_name: str):
-    """Create config.toml from template with discovered values."""
-    template_path = _get_template_path()
-    template = template_path.read_text()
-
-    config_content = template.replace("{project_name}", repo_name)
-    config_content = config_content.replace(
-        "{project_description}", "Add your project description here."
-    )
+    """Create config.toml generated from the config schema with discovered values."""
+    config_content = generate_default_config_toml(project_name=repo_name)
 
     with open(ENV_SETTINGS.config_file, "w") as f:
         f.write(config_content)
