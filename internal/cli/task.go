@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -146,16 +147,19 @@ func (a *app) taskComplete() *cobra.Command {
 				for _, r := range pending {
 					fmt.Fprintf(out, "  - %s (%s)\n", r.Meta.Title, r.Slug)
 				}
+				next := pending[0]
+				output.Section(out, "➡️ NEXT TASK: "+next.Meta.Title)
+				fmt.Fprintln(out, strings.TrimSpace(next.Body))
 				output.Instruction(out,
-					"1. Commit this task's changes now with a descriptive message.",
-					fmt.Sprintf("2. Continue with the next task: %s (%s). Its details are in `mem spec show %s`.", pending[0].Meta.Title, pending[0].Slug, s.Slug),
+					fmt.Sprintf("1. Commit this task's changes now with a descriptive message, together with its updated record %s.", p.Rel(t.Path)),
+					fmt.Sprintf("2. Continue with the next task, %s (%s), described above. The spec with its full context: `mem spec show %s`.", next.Meta.Title, next.Slug, s.Slug),
 				)
 				driftNudges(cmd.Context(), out, p)
 				return nil
 			}
 			output.Instruction(out,
 				"All tasks are done.",
-				"1. Commit this task's changes now with a descriptive message.",
+				fmt.Sprintf("1. Commit this task's changes now with a descriptive message, together with its updated record %s.", p.Rel(t.Path)),
 				fmt.Sprintf("2. Check every Success Criterion in %s against the actual code and fix any gaps.", p.Rel(s.Path())),
 				fmt.Sprintf("3. Run `mem spec complete %s`.", s.Slug),
 			)

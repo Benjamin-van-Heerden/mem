@@ -34,6 +34,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem todo new "<title>" "<description>"`: record one.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo claim <todo>`: claim it as soon as you start working on it.
+- `mem todo delete <todo>`: once it is done or no longer relevant; commit the removal with the work.
 
 ## Work Logs
 

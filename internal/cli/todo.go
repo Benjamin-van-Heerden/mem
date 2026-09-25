@@ -137,7 +137,10 @@ func (a *app) todoClaim() *cobra.Command {
 			if body := strings.TrimSpace(t.Body); body != "" {
 				fmt.Fprintf(out, "\n%s\n", body)
 			}
-			output.Instruction(out, "Work on this todo now. If it turns out to be substantial, propose turning it into a spec with the user.")
+			output.Instruction(out,
+				"1. Work on this todo now. If it turns out to be substantial, propose turning it into a spec with the user.",
+				fmt.Sprintf("2. When it is done, run `mem todo delete %s` and commit the removal together with the work.", t.Slug),
+			)
 			return nil
 		},
 	}
@@ -146,7 +149,7 @@ func (a *app) todoClaim() *cobra.Command {
 func (a *app) todoDelete() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <todo>",
-		Short: "Delete a todo that is no longer relevant",
+		Short: "Delete a todo once it is done or no longer relevant",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
