@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 )
 
 func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
@@ -47,7 +47,7 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 
 	agents, _ := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	text := string(agents)
-	if strings.Contains(text, "old harness text") || !strings.HasPrefix(text, "# Team notes\n\n<memr>") || !strings.Contains(text, "</memr>\n\nKeep this footer.") {
+	if strings.Contains(text, "old harness text") || !strings.HasPrefix(text, "# Team notes\n\n<mem>") || !strings.Contains(text, "</mem>\n\nKeep this footer.") {
 		t.Fatalf("AGENTS.md not converted in place:\n%s", text)
 	}
 	if memories, _ := agentsmd.Memories(text); len(memories) != 1 || memories[0].Body != "Use tabs.\n\n### Detail\nAlways." {
@@ -74,7 +74,7 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	if log, err := work.FindLog(p, "octo_cat_20260910_094413"); err != nil || log.Meta.Spec != "login" {
 		t.Fatalf("log = %+v, %v", log.Meta, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".memr", "structure.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".mem", "structure.md")); err != nil {
 		t.Fatal("structure doc not moved")
 	}
 	if len(sum.Runnables) != 1 {

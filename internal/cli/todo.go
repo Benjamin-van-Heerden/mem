@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 

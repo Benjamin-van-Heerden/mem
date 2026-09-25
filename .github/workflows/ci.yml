@@ -25,4 +25,4 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Build
-        run: go build -o dist/ ./cmd/memr
+        run: go build -o dist/ ./cmd/mem

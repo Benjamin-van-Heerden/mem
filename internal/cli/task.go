@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 
@@ -148,7 +148,7 @@ func (a *app) taskComplete() *cobra.Command {
 				}
 				output.Instruction(out,
 					"1. Commit this task's changes now with a descriptive message.",
-					fmt.Sprintf("2. Continue with the next task: %s (%s). Its details are in `memr spec show %s`.", pending[0].Meta.Title, pending[0].Slug, s.Slug),
+					fmt.Sprintf("2. Continue with the next task: %s (%s). Its details are in `mem spec show %s`.", pending[0].Meta.Title, pending[0].Slug, s.Slug),
 				)
 				driftNudges(cmd.Context(), out, p)
 				return nil
@@ -157,7 +157,7 @@ func (a *app) taskComplete() *cobra.Command {
 				"All tasks are done.",
 				"1. Commit this task's changes now with a descriptive message.",
 				fmt.Sprintf("2. Check every Success Criterion in %s against the actual code and fix any gaps.", p.Rel(s.Path())),
-				fmt.Sprintf("3. Run `memr spec complete %s`.", s.Slug),
+				fmt.Sprintf("3. Run `mem spec complete %s`.", s.Slug),
 			)
 			driftNudges(cmd.Context(), out, p)
 			return nil

@@ -81,7 +81,7 @@ func resolve[T named](kind, ref string, items []T) (T, error) {
 	case 1:
 		return matches[0], nil
 	case 0:
-		return zero, fmt.Errorf("no %s matches %q; run `memr %s list` to see what exists", kind, ref, kind)
+		return zero, fmt.Errorf("no %s matches %q; run `mem %s list` to see what exists", kind, ref, kind)
 	}
 	slugs := make([]string, len(matches))
 	for i, m := range matches {

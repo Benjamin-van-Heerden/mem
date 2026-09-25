@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/release"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/release"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 
@@ -63,7 +63,7 @@ func (a *app) promoteCommand() *cobra.Command {
 						"Nothing has been pushed yet.",
 						fmt.Sprintf("1. Write release notes for %s to a file outside the repository: a short summary of what this release delivers, based on the commits and specs above.", pl.Tag),
 						"2. Show the user the release notes.",
-						"3. Run `memr promote production --notes <file>`.",
+						"3. Run `mem promote production --notes <file>`.",
 					)
 					return nil
 				}
@@ -83,7 +83,7 @@ func (a *app) promoteCommand() *cobra.Command {
 				output.Instruction(out, "Tell the user the release is out and CI will deploy it. Check the deployment before reporting it as live.")
 			} else {
 				fmt.Fprintf(out, "%s/%s is now at %s.\n", remote, pl.Branch, pl.To[:7])
-				output.Instruction(out, "Tell the user the preview release is out and CI will deploy it. Once the preview checks out, release it with `memr promote production`.")
+				output.Instruction(out, "Tell the user the preview release is out and CI will deploy it. Once the preview checks out, release it with `mem promote production`.")
 			}
 			return nil
 		},
@@ -138,9 +138,9 @@ func divergedError(p project.Project, pl release.Plan) error {
 	for _, c := range pl.Diverged {
 		list = append(list, fmt.Sprintf("  %s  %s  (%s)", c.Hash, c.Subject, c.Author))
 	}
-	steps := fmt.Sprintf("`git switch %s`, `memr sync`, `git merge --no-ff --no-edit %s/%s`, `git push`, then `memr promote staging`", g.Development, g.Remote, pl.Branch)
+	steps := fmt.Sprintf("`git switch %s`, `mem sync`, `git merge --no-ff --no-edit %s/%s`, `git push`, then `mem promote staging`", g.Development, g.Remote, pl.Branch)
 	if pl.Stage == "production" {
-		steps += " and `memr promote production`"
+		steps += " and `mem promote production`"
 	}
 	return fmt.Errorf("%s/%s has %d commit(s) that are not on %s, so it cannot be fast-forwarded:\n%s\nTell the user. To bring them back into the shared history, run %s", g.Remote, pl.Branch, len(pl.Diverged), pl.Source, strings.Join(list, "\n"), steps)
 }

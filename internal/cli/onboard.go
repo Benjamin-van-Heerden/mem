@@ -10,17 +10,17 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/memr/internal/buildinfo"
-	"github.com/Benjamin-van-Heerden/memr/internal/converge"
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/hooks"
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/release"
-	"github.com/Benjamin-van-Heerden/memr/internal/runnables"
-	"github.com/Benjamin-van-Heerden/memr/internal/structure"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
+	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/converge"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/release"
+	"github.com/Benjamin-van-Heerden/mem/internal/runnables"
+	"github.com/Benjamin-van-Heerden/mem/internal/structure"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 
@@ -61,7 +61,7 @@ func (a *app) onboardCommand() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			output.Heading(out, "📄 MEMR ONBOARD: "+p.Config.Name)
+			output.Heading(out, "📄 MEM ONBOARD: "+p.Config.Name)
 			if p.Config.Description != "" {
 				fmt.Fprintln(out, p.Config.Description)
 			}
@@ -118,21 +118,21 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	switch {
 	case newer != "":
-		lines = append(lines, fmt.Sprintf("AGENTS.md was written by memr %s, which is newer than this memr (%s). Tell the user to update memr.", newer, buildinfo.Version))
+		lines = append(lines, fmt.Sprintf("AGENTS.md was written by mem %s, which is newer than this mem (%s). Tell the user to update mem.", newer, buildinfo.Version))
 	case refreshed != text:
 		status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", "AGENTS.md")
 		if err := writeAgents(p, refreshed); err != nil {
 			return nil, err
 		}
 		if status != "" {
-			lines = append(lines, "Refreshed the memr instructions in AGENTS.md. It already had uncommitted edits, so commit it together with them.")
+			lines = append(lines, "Refreshed the mem instructions in AGENTS.md. It already had uncommitted edits, so commit it together with them.")
 		} else {
-			lines = append(lines, "Refreshed the memr instructions in AGENTS.md.")
+			lines = append(lines, "Refreshed the mem instructions in AGENTS.md.")
 			publishPaths = append(publishPaths, "AGENTS.md")
 		}
 	}
 	if len(publishPaths) > 0 {
-		lines = append(lines, publish(ctx, p, "Update memr project files", publishPaths...))
+		lines = append(lines, publish(ctx, p, "Update mem project files", publishPaths...))
 	}
 	hookLines, err := hooks.Sync(ctx, p)
 	return append(lines, hookLines...), err
@@ -177,7 +177,7 @@ func renderReleases(out io.Writer, p project.Project, st release.Status) {
 	g := p.Config.Git
 	output.Section(out, "🚀 RELEASES")
 	if len(st.Missing) > 0 {
-		fmt.Fprintf(out, "Not on %s yet: %s. The first `memr promote staging` creates %s and `memr promote production` creates %s.\n", g.Remote, strings.Join(st.Missing, ", "), g.Staging, g.Production)
+		fmt.Fprintf(out, "Not on %s yet: %s. The first `mem promote staging` creates %s and `mem promote production` creates %s.\n", g.Remote, strings.Join(st.Missing, ", "), g.Staging, g.Production)
 		return
 	}
 	switch {
@@ -275,7 +275,7 @@ func writeStructure(ctx context.Context, out io.Writer, p project.Project) (stru
 	}
 	output.Heading(out, "🗺️ CODEBASE AND STRUCTURE")
 	if d.Stale() {
-		fmt.Fprintf(out, "⚠️ Out of date: %d code file(s) and %d line(s) changed since this doc was last updated. Refresh it with `memr structure`.\n\n", len(d.Changes), d.Lines)
+		fmt.Fprintf(out, "⚠️ Out of date: %d code file(s) and %d line(s) changed since this doc was last updated. Refresh it with `mem structure`.\n\n", len(d.Changes), d.Lines)
 	}
 	fmt.Fprintln(out, strings.TrimSpace(string(data)))
 	return d, nil
@@ -350,9 +350,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	}
 	switch {
 	case state.drift.Missing:
-		step("Mention that there is no codebase structure doc yet, and offer to create one with `memr structure`.")
+		step("Mention that there is no codebase structure doc yet, and offer to create one with `mem structure`.")
 	case state.drift.Stale():
-		step("Mention that the codebase structure doc is out of date, and offer to refresh it with `memr structure`.")
+		step("Mention that the codebase structure doc is out of date, and offer to refresh it with `mem structure`.")
 	}
 	step("Summarize the project state: open specs, open todos and what the recent work logs say comes next. Use tables where they help.")
 	step("Ask the user how they would like to proceed.")

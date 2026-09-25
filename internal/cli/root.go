@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/buildinfo"
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ type app struct {
 func New() *cobra.Command {
 	a := &app{}
 	root := &cobra.Command{
-		Use:           "memr",
+		Use:           "mem",
 		Short:         "Context building and work records for coding agents",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -54,7 +54,7 @@ func (a *app) user(cmd *cobra.Command, p project.Project) (string, error) {
 	return project.User(cmd.Context(), p.Root)
 }
 
-// publish commits and pushes memr-owned paths so teammates see the change, and describes the outcome.
+// publish commits and pushes mem-owned paths so teammates see the change, and describes the outcome.
 func publish(ctx context.Context, p project.Project, message string, paths ...string) string {
 	pushed, err := git.CommitPaths(ctx, p.Root, message, paths...)
 	switch {
@@ -93,10 +93,10 @@ func writeAgents(p project.Project, text string) error {
 func versionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print the memr version",
+		Short: "Print the mem version",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(cmd.OutOrStdout(), "memr %s (%s, schema %d)\n", buildinfo.Version, buildinfo.Commit, project.Schema)
+			fmt.Fprintf(cmd.OutOrStdout(), "mem %s (%s, schema %d)\n", buildinfo.Version, buildinfo.Commit, project.Schema)
 		},
 	}
 }

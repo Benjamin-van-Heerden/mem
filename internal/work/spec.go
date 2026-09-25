@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const (

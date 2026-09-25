@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/release"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/release"
 )
 
 func testProject(t *testing.T, protect bool) project.Project {
@@ -58,14 +58,14 @@ func TestSyncKeepsForeignHooksAndRemovesOwnWhenUnprotected(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(p.Root, ".git", "hooks", "pre-push")); !os.IsNotExist(err) {
-		t.Fatal("memr pre-push hook not removed")
+		t.Fatal("mem pre-push hook not removed")
 	}
 	if _, err := os.Stat(foreign); err != nil {
 		t.Fatal("foreign hook removed")
 	}
 }
 
-func TestInstalledHookIsInertWithoutAMemrThatSupportsHooks(t *testing.T) {
+func TestInstalledHookIsInertWithoutAMemThatSupportsHooks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Git runs hooks through its own sh on Windows")
 	}
@@ -75,11 +75,11 @@ func TestInstalledHookIsInertWithoutAMemrThatSupportsHooks(t *testing.T) {
 	}
 	bin := t.TempDir()
 	old := "#!/bin/sh\necho \"unknown command\" >&2\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(bin, "memr"), []byte(old), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(bin, "mem"), []byte(old), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	if err := exec.Command(filepath.Join(p.Root, ".git", "hooks", "pre-commit")).Run(); err != nil {
-		t.Fatalf("hook blocked a commit when memr has no hook command: %v", err)
+		t.Fatalf("hook blocked a commit when mem has no hook command: %v", err)
 	}
 }

@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"github.com/Benjamin-van-Heerden/memr/internal/hooks"
+	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/spf13/cobra"
 )
 
 // hookCommand is called by the installed Git hooks.
 func (a *app) hookCommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "hook", Short: "Checks run by memr's Git hooks", Hidden: true}
+	cmd := &cobra.Command{Use: "hook", Short: "Checks run by mem's Git hooks", Hidden: true}
 	cmd.AddCommand(&cobra.Command{
 		Use:  "pre-push <remote> <url>",
 		Args: cobra.MinimumNArgs(1),

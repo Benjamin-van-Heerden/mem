@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/spf13/cobra"
 )
 

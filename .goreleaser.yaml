@@ -1,10 +1,10 @@
 version: 2
-project_name: memr
+project_name: mem
 
 builds:
-  - id: memr
-    main: ./cmd/memr
-    binary: memr
+  - id: mem
+    main: ./cmd/mem
+    binary: mem
     env:
       - CGO_ENABLED=0
     goos: [darwin, linux, windows]
@@ -12,11 +12,11 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/Benjamin-van-Heerden/memr/internal/buildinfo.Version={{ if .IsSnapshot }}dev{{ else }}{{ .Tag }}{{ end }} -X github.com/Benjamin-van-Heerden/memr/internal/buildinfo.Commit={{ .Commit }}
+      - -s -w -X github.com/Benjamin-van-Heerden/mem/internal/buildinfo.Version={{ if .IsSnapshot }}dev{{ else }}{{ .Tag }}{{ end }} -X github.com/Benjamin-van-Heerden/mem/internal/buildinfo.Commit={{ .Commit }}
 
 archives:
   - formats: [binary]
-    name_template: "memr_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "mem_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt
@@ -24,5 +24,5 @@ checksum:
 release:
   github:
     owner: Benjamin-van-Heerden
-    name: memr
+    name: mem
   draft: false

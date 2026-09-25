@@ -1,4 +1,4 @@
-module github.com/Benjamin-van-Heerden/memr
+module github.com/Benjamin-van-Heerden/mem
 
 go 1.27.1
 

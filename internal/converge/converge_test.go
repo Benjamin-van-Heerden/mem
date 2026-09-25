@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 // clones returns two checkouts of dev sharing a bare remote; the second is the project under test.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 func TestResolveBySlugTitleAndPrefix(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSpecLifecycleKeepsTaskOrderAndArchivesTasks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if archived.Dir != filepath.Join(p.Root, ".memr", "specs", "archive", "login") {
+	if archived.Dir != filepath.Join(p.Root, ".mem", "specs", "archive", "login") {
 		t.Fatalf("archived to %s", archived.Dir)
 	}
 	if open, _ := Specs(p, false); len(open) != 0 {

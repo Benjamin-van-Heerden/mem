@@ -13,8 +13,8 @@ import (
 var instructions string
 
 const (
-	blockOpen     = "<memr>"
-	blockClose    = "</memr>"
+	blockOpen     = "<mem>"
+	blockClose    = "</mem>"
 	memoriesOpen  = "<memories>"
 	memoriesClose = "</memories>"
 	memoriesTitle = "# Project Memories"
@@ -22,7 +22,7 @@ const (
 
 var (
 	memoryName   = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
-	stampVersion = regexp.MustCompile(`<!-- Managed by memr (\S+)\.`)
+	stampVersion = regexp.MustCompile(`<!-- Managed by mem (\S+)\.`)
 )
 
 type Memory struct {
@@ -33,7 +33,7 @@ type Memory struct {
 // Install adds the managed block and an empty memories block to existing AGENTS.md content.
 func Install(text, version string) (string, error) {
 	if strings.Contains(text, blockOpen) {
-		return "", errors.New("AGENTS.md already contains a <memr> block")
+		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
 	parts := []string{strings.TrimSpace(text), block(version)}
 	if !strings.Contains(text, memoriesOpen) {
@@ -44,7 +44,7 @@ func Install(text, version string) (string, error) {
 
 var legacyBlock = regexp.MustCompile(`(?s)<(core_instructions|AGENT_CORE|agent_core)>.*?</(core_instructions|AGENT_CORE|agent_core)>`)
 
-// ReplaceLegacy swaps the Python coding harness's managed block for the memr
+// ReplaceLegacy swaps the Python coding harness's managed block for the mem
 // block in the same position and adds an empty memories block.
 func ReplaceLegacy(text, version string) (string, error) {
 	loc := legacyBlock.FindStringIndex(text)
@@ -52,7 +52,7 @@ func ReplaceLegacy(text, version string) (string, error) {
 		return "", errors.New("AGENTS.md has no <core_instructions> block from the Python coding harness")
 	}
 	if strings.Contains(text, blockOpen) {
-		return "", errors.New("AGENTS.md already contains a <memr> block")
+		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
 	updated := text[:loc[0]] + block(version) + text[loc[1]:]
 	if !strings.Contains(updated, memoriesOpen) {
@@ -62,7 +62,7 @@ func ReplaceLegacy(text, version string) (string, error) {
 }
 
 // Refresh replaces the managed block with the instructions shipped in this
-// executable. A block written by a newer memr is left alone and its version returned.
+// executable. A block written by a newer mem is left alone and its version returned.
 func Refresh(text, version string) (updated string, newer string, err error) {
 	start, end, err := span(text, blockOpen, blockClose)
 	if err != nil {
@@ -76,7 +76,7 @@ func Refresh(text, version string) (updated string, newer string, err error) {
 
 func block(version string) string {
 	body := strings.TrimPrefix(strings.TrimSpace(instructions), blockOpen)
-	return blockOpen + "\n<!-- Managed by memr " + version + ". Edits inside this block are replaced on onboard. -->" + body
+	return blockOpen + "\n<!-- Managed by mem " + version + ". Edits inside this block are replaced on onboard. -->" + body
 }
 
 // semverLess reports whether a < b; versions that are not x.y.z never compare as less.

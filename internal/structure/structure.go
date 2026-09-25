@@ -1,4 +1,4 @@
-// Package structure maintains .memr/structure.md, the living map of the
+// Package structure maintains .mem/structure.md, the living map of the
 // codebase, and measures how far the code has moved since it was last updated.
 package structure
 
@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const (
-	RelPath        = ".memr/structure.md"
+	RelPath        = ".mem/structure.md"
 	staleFiles     = 5
 	staleLines     = 1000
 	maxTreeEntries = 300
@@ -57,7 +57,7 @@ const Template = `# Codebase and Structure
 
 var (
 	excludedDirs = map[string]bool{
-		".git": true, ".memr": true, ".agent_core": true, ".next": true, ".nuxt": true, ".pytest_cache": true, ".ruff_cache": true,
+		".git": true, ".mem": true, ".agent_core": true, ".next": true, ".nuxt": true, ".pytest_cache": true, ".ruff_cache": true,
 		".tox": true, ".venv": true, "__pycache__": true, "build": true, "coverage": true, "deps": true, "dist": true,
 		"node_modules": true, "target": true, "vendor": true, "venv": true,
 	}

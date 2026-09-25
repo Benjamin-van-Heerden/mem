@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/structure"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/structure"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 
@@ -57,9 +57,9 @@ func (a *app) logNew() *cobra.Command {
 			lines := []string{fmt.Sprintf("1. Read %s and replace every {placeholder} with details from this session. The next session starts with only this log and the records, so be specific.", p.Rel(l.Path))}
 			switch {
 			case drift.Stale():
-				lines = append(lines, fmt.Sprintf("2. The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `memr structure` and follow its instructions.", len(drift.Changes), drift.Lines))
+				lines = append(lines, fmt.Sprintf("2. The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))
 			case drift.Missing:
-				lines = append(lines, "2. There is no codebase structure doc yet. Offer the user to create one with `memr structure`.")
+				lines = append(lines, "2. There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
 			lines = append(lines, fmt.Sprintf("%d. Commit and push the log together with the session's work.", len(lines)+1))
 			output.Instruction(out, lines...)

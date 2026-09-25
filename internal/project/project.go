@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -52,7 +52,7 @@ type Project struct {
 }
 
 func (p Project) Path(parts ...string) string {
-	return filepath.Join(append([]string{p.Root, ".memr"}, parts...)...)
+	return filepath.Join(append([]string{p.Root, ".mem"}, parts...)...)
 }
 
 func (p Project) Rel(path string) string {
@@ -64,7 +64,7 @@ func (p Project) Rel(path string) string {
 }
 
 func ConfigPath(root string) string {
-	return filepath.Join(root, ".memr", "config.toml")
+	return filepath.Join(root, ".mem", "config.toml")
 }
 
 func Load(ctx context.Context, dir string) (Project, error) {
@@ -74,17 +74,17 @@ func Load(ctx context.Context, dir string) (Project, error) {
 	}
 	data, err := os.ReadFile(ConfigPath(root))
 	if errors.Is(err, os.ErrNotExist) {
-		return Project{}, fmt.Errorf("%s is not a memr project; run `memr init` to set it up", root)
+		return Project{}, fmt.Errorf("%s is not a mem project; run `mem init` to set it up", root)
 	}
 	if err != nil {
 		return Project{}, err
 	}
 	var config Config
 	if err := toml.Unmarshal(data, &config); err != nil {
-		return Project{}, fmt.Errorf("invalid .memr/config.toml: %w", err)
+		return Project{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
 	}
 	if config.Schema > Schema {
-		return Project{}, fmt.Errorf("this project uses memr schema %d but the installed memr supports schema %d; update memr", config.Schema, Schema)
+		return Project{}, fmt.Errorf("this project uses mem schema %d but the installed mem supports schema %d; update mem", config.Schema, Schema)
 	}
 	return Project{Root: root, Config: config}, nil
 }
@@ -104,7 +104,7 @@ func WriteConfig(root string, config Config) error {
 func User(ctx context.Context, root string) (string, error) {
 	name := Slugify(git.UserName(ctx, root))
 	if name == "" {
-		return "", errors.New("Git user.name is not set; run `git config --global user.name \"Your Name\"` so memr can attribute work")
+		return "", errors.New("Git user.name is not set; run `git config --global user.name \"Your Name\"` so mem can attribute work")
 	}
 	return name, nil
 }

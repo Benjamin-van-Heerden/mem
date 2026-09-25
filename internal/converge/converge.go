@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/structure"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/structure"
 )
 
 const (
@@ -52,9 +52,9 @@ func Sync(ctx context.Context, p project.Project) Report {
 	if fetchErr != nil {
 		r.FetchError, _, _ = strings.Cut(fetchErr.Error(), "\n")
 		if r.HasRemote {
-			r.Nudges = append(r.Nudges, fmt.Sprintf("Could not fetch from %s, so the state below may be stale (%s). Tell the user, and run `memr sync` once the remote is reachable.", remote, r.FetchError))
+			r.Nudges = append(r.Nudges, fmt.Sprintf("Could not fetch from %s, so the state below may be stale (%s). Tell the user, and run `mem sync` once the remote is reachable.", remote, r.FetchError))
 		}
-		r.Nudges = append(r.Nudges, standingNudges(r, "run `memr sync`")...)
+		r.Nudges = append(r.Nudges, standingNudges(r, "run `mem sync`")...)
 		return r
 	}
 	r.Fetched = true
@@ -68,7 +68,7 @@ func Sync(ctx context.Context, p project.Project) Report {
 // Local inspects cached refs without fetching or changing anything.
 func Local(ctx context.Context, p project.Project) Report {
 	r := inspect(ctx, p)
-	r.Nudges = standingNudges(r, "run `memr sync`")
+	r.Nudges = standingNudges(r, "run `mem sync`")
 	return r
 }
 
@@ -77,12 +77,12 @@ func update(ctx context.Context, p project.Project, r Report) Report {
 	switch {
 	case ahead == 0:
 		if _, err := git.Run(ctx, p.Root, "merge", "--ff-only", "--quiet", r.Upstream); err != nil {
-			r.Nudges = append(r.Nudges, fmt.Sprintf("%s is %d commit(s) behind %s but could not be fast-forwarded, most likely because uncommitted changes touch the same files. Tell the user; commit the work in progress, then run `memr sync`.", r.Branch, behind, r.Upstream))
+			r.Nudges = append(r.Nudges, fmt.Sprintf("%s is %d commit(s) behind %s but could not be fast-forwarded, most likely because uncommitted changes touch the same files. Tell the user; commit the work in progress, then run `mem sync`.", r.Branch, behind, r.Upstream))
 			return r
 		}
 		r.Done = append(r.Done, fmt.Sprintf("Fast-forwarded %s by %d commit(s) from %s.", r.Branch, behind, r.Upstream))
 	case r.Dirty:
-		r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)) and uncommitted changes prevent rebasing. Tell the user; commit the work in progress, then run `memr sync`.", r.Branch, r.Upstream, ahead, behind))
+		r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)) and uncommitted changes prevent rebasing. Tell the user; commit the work in progress, then run `mem sync`.", r.Branch, r.Upstream, ahead, behind))
 		return r
 	default:
 		if _, err := git.Run(ctx, p.Root, "rebase", "--quiet", r.Upstream); err != nil {
@@ -107,7 +107,7 @@ func standingNudges(r Report, behindAction string) []string {
 	case r.Branch == "":
 		return append(nudges, "HEAD is detached. Tell the user, and switch to a branch before making changes.")
 	case !r.HasRemote:
-		return append(nudges, fmt.Sprintf("This repository has no remote named %s, so nobody else can see its work. Tell the user; add the shared remote (`git remote add %s <url>`) or set the remote in .memr/config.toml.", r.Remote, r.Remote))
+		return append(nudges, fmt.Sprintf("This repository has no remote named %s, so nobody else can see its work. Tell the user; add the shared remote (`git remote add %s <url>`) or set the remote in .mem/config.toml.", r.Remote, r.Remote))
 	case r.Upstream == "" && r.Branch == dev:
 		nudges = append(nudges, fmt.Sprintf("%s is not on %s yet, so nobody else can see its commits. Tell the user, and publish it with `git push -u %s %s`.", dev, r.Remote, r.Remote, dev))
 	case r.Upstream == "":
@@ -118,7 +118,7 @@ func standingNudges(r Report, behindAction string) []string {
 		nudges = append(nudges, fmt.Sprintf("%d local commit(s) on %s are not pushed to %s. Tell the user, and push them at the next sensible point (`git push`) so everyone works on the same code.", r.Ahead, r.Branch, r.Upstream))
 	}
 	if r.Branch == r.Staging || r.Branch == r.Production {
-		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `memr promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
+		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `mem promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
 	}
 	if r.Branch != dev && r.DevBehind > 0 {
 		nudges = append(nudges, fmt.Sprintf("You are on %s, not the development branch %s, and it is %d commit(s) behind %s. Tell the user this branch is drifting from the shared codebase; bring %s into it soon and merge it back into %s as early as possible.", r.Branch, dev, r.DevBehind, r.Development, r.Development, dev))

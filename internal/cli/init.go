@@ -8,22 +8,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/memr/internal/buildinfo"
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/hooks"
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
+	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/spf13/cobra"
 )
 
-const localIgnore = "/.memr/local/"
+const localIgnore = "/.mem/local/"
 
 func (a *app) initCommand() *cobra.Command {
 	config := project.Config{Schema: project.Schema}
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Set up memr in the current Git repository",
+		Short: "Set up mem in the current Git repository",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := git.Toplevel(cmd.Context(), a.dir)
@@ -31,7 +31,7 @@ func (a *app) initCommand() *cobra.Command {
 				return err
 			}
 			if _, err := os.Stat(project.ConfigPath(root)); err == nil {
-				return errors.New("this repository already has .memr/config.toml")
+				return errors.New("this repository already has .mem/config.toml")
 			}
 			if config.Name == "" {
 				config.Name = filepath.Base(root)
@@ -62,13 +62,13 @@ func (a *app) initCommand() *cobra.Command {
 			branchLine := ensureDevelopmentBranch(cmd.Context(), p)
 
 			out := cmd.OutOrStdout()
-			output.Heading(out, "📦 MEMR INITIALIZED")
+			output.Heading(out, "📦 MEM INITIALIZED")
 			fmt.Fprintf(out, "Project: %s\n", config.Name)
 			fmt.Fprintf(out, "Branches: %s → %s → %s (remote %s)\n", config.Git.Development, config.Git.Staging, config.Git.Production, config.Git.Remote)
 			output.Section(out, "📄 FILES")
-			fmt.Fprintln(out, ".memr/config.toml   project configuration")
-			fmt.Fprintln(out, "AGENTS.md           memr instructions and project memories added; existing content kept")
-			fmt.Fprintln(out, ".gitignore          ignores .memr/local/")
+			fmt.Fprintln(out, ".mem/config.toml   project configuration")
+			fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
+			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
@@ -79,7 +79,7 @@ func (a *app) initCommand() *cobra.Command {
 			output.Instruction(out,
 				"1. Read AGENTS.md now: it contains the working instructions for this project.",
 				fmt.Sprintf("2. Show the user these files. Commit them on %s and push it (`git push -u %s %s`) so every clone shares the setup.", dev, config.Git.Remote, dev),
-				fmt.Sprintf("3. Run `memr onboard` to build the project context. %s and %s are created on %s by their first `memr promote`.", config.Git.Staging, config.Git.Production, config.Git.Remote),
+				fmt.Sprintf("3. Run `mem onboard` to build the project context. %s and %s are created on %s by their first `mem promote`.", config.Git.Staging, config.Git.Production, config.Git.Remote),
 			)
 			return nil
 		},

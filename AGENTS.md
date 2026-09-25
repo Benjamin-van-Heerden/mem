@@ -1,9 +1,9 @@
-# Developing memr
+# Developing mem
 
-This is the source repository for memr. It is not yet initialized as a memr-managed project.
+This is the source repository for mem. It is not yet initialized as a mem-managed project.
 
-- Run development commands through `go run ./cmd/memr` or a build at `dist/memr-dev`.
-- `memr` on PATH is the globally installed runtime. It does not necessarily execute the source being edited. There are no project-local runtime launchers in new projects.
+- Run development commands through `go run ./cmd/mem` or a build at `dist/mem-dev`.
+- `mem` on PATH is the globally installed runtime. It does not necessarily execute the source being edited. There are no project-local runtime launchers in new projects.
 - Test initialization, bootstrap, and upgrades in disposable Git repositories. Do not initialize or update this source checkout as a side effect of testing.
 - Runtime assets are authored in `internal/agentsmd/instructions.md`. Never edit installed copies to implement source changes.
 - `old/` is legacy reference material. Do not execute its onboarding or update commands.
@@ -13,7 +13,7 @@ This is the source repository for memr. It is not yet initialized as a memr-mana
 - Preserve the coding harness's stdout style: clear section headings and separators, readable context, and explicit, assertive agent instructions with concrete commands where warranted. Use `old/coding/.agent_core/harness/src/commands/onboard/formatting.py` and `content.py` as references. Carry forward the interaction style while adapting instructions to the current workflow and the user's existing authorization.
 - Run focused Go tests for changes, and `go vet` for affected packages. End-to-end tests must not publish GitHub state or require credentials.
 - The documents under `docs/` distinguish planned behavior from what is implemented. Preserve that distinction in output and documentation.
-- Do not ship compatibility layers or historical snapshots for unreleased memr prototypes. Keep temporary development references outside the source tree. The explicitly supported Python-harness importer is separate from prototype compatibility.
+- Do not ship compatibility layers or historical snapshots for unreleased mem prototypes. Keep temporary development references outside the source tree. The explicitly supported Python-harness importer is separate from prototype compatibility.
 
 ## Persistent agent context
 

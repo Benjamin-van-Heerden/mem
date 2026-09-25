@@ -1,5 +1,5 @@
 // Package importer converts a project that uses the Python coding harness
-// (.agent_core/) into a memr project. The original files are left in place.
+// (.agent_core/) into a mem project. The original files are left in place.
 package importer
 
 import (
@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -59,12 +59,12 @@ type Summary struct {
 	Notes     []string
 }
 
-// Import writes the memr configuration, AGENTS.md and work records converted from .agent_core/.
+// Import writes the mem configuration, AGENTS.md and work records converted from .agent_core/.
 func Import(root, version string) (Summary, error) {
 	var sum Summary
 	old := filepath.Join(root, Source)
 	if _, err := os.Stat(project.ConfigPath(root)); err == nil {
-		return sum, errors.New("this repository already has .memr/config.toml; the import only runs once")
+		return sum, errors.New("this repository already has .mem/config.toml; the import only runs once")
 	}
 	data, err := os.ReadFile(filepath.Join(old, "config.toml"))
 	if err != nil {
@@ -130,7 +130,7 @@ func convertAgents(root, version, memoriesDir string, sum *Summary) (string, err
 		return "", err
 	}
 	if info, err := os.Lstat(filepath.Join(root, "CLAUDE.md")); err == nil && info.Mode()&os.ModeSymlink == 0 {
-		sum.Notes = append(sum.Notes, "CLAUDE.md is a separate file. Claude Code reads it instead of AGENTS.md, so the memr instructions would be skipped. Tell the user; move anything still needed from CLAUDE.md into AGENTS.md and delete CLAUDE.md.")
+		sum.Notes = append(sum.Notes, "CLAUDE.md is a separate file. Claude Code reads it instead of AGENTS.md, so the mem instructions would be skipped. Tell the user; move anything still needed from CLAUDE.md into AGENTS.md and delete CLAUDE.md.")
 	}
 	files, _ := filepath.Glob(filepath.Join(memoriesDir, "*.md"))
 	sort.Strings(files)
@@ -310,7 +310,7 @@ func specStatus(old, assigned string) string {
 	return work.SpecDraft
 }
 
-// userMappings maps GitHub usernames to memr identities (slugified Git names).
+// userMappings maps GitHub usernames to mem identities (slugified Git names).
 func userMappings(path string) map[string]string {
 	users := map[string]string{}
 	data, err := os.ReadFile(path)

@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/cli"
+	"github.com/Benjamin-van-Heerden/mem/internal/cli"
 )
 
 func main() {

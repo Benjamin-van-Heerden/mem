@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/Benjamin-van-Heerden/memr/internal/converge"
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/converge"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/spf13/cobra"
 )
 

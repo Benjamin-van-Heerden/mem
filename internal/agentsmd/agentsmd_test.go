@@ -14,7 +14,7 @@ func TestInstallAndRefreshPreserveUserContentAndMemories(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale := strings.Replace(text, "# Working With memr", "# Edited by hand", 1)
+	stale := strings.Replace(text, "# Working With mem", "# Edited by hand", 1)
 	refreshed, newer, err := Refresh(stale, "1.2.0")
 	if err != nil || newer != "" {
 		t.Fatalf("refresh newer=%q err=%v", newer, err)
@@ -40,7 +40,7 @@ func TestRefreshLeavesBlockFromNewerVersion(t *testing.T) {
 	if err != nil || newer != "1.10.0" || updated != text {
 		t.Fatalf("newer=%q err=%v changed=%v", newer, err, updated != text)
 	}
-	if updated, newer, _ := Refresh(text, "dev"); newer != "" || !strings.Contains(updated, "Managed by memr dev.") {
+	if updated, newer, _ := Refresh(text, "dev"); newer != "" || !strings.Contains(updated, "Managed by mem dev.") {
 		t.Fatal("a development build did not refresh the block")
 	}
 }

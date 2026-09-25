@@ -1,18 +1,18 @@
-<memr>
+<mem>
 
-# Working With memr
+# Working With mem
 
 ## Getting Started
 
-Run `memr onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies memr updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and release status. Read all of it and follow its agent instruction. Use `memr onboard --offline` when there is no network access.
+Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and release status. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
 
 Don't rerun onboard later in the session unless the user asks.
 
-memr commands print instructions specific to the current state. Follow them. Use `memr <command> --help` for details.
+mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details.
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Push at the end of each session together with the work log, after completing a spec, and before a promotion. memr applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `memr sync` to fetch and update mid-session, for example before starting new work.
+Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Push at the end of each session together with the work log, after completing a spec, and before a promotion. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` to fetch and update mid-session, for example before starting new work.
 
 ## Specs, Tasks and Todos
 
@@ -20,40 +20,40 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 **Specs** are larger pieces of planned work, broken into ordered **tasks**:
 
-- `memr spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
-- `memr task new "<title>" "<detailed description>" --spec <spec>`: add a task.
-- `memr spec start <spec>`: begin implementation. This assigns the spec to you and publishes that.
-- `memr task complete <task> "<what was done and how it was verified>"`: record a finished task, then continue with the next one without waiting for approval.
-- `memr spec complete <spec>`: once every task is done and the Success Criteria hold in the code.
-- `memr spec list`, `memr spec show <spec>`: see what exists and where it stands.
+- `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
+- `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
+- `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that.
+- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task, then continue with the next one without waiting for approval.
+- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code.
+- `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
 `--spec` can be omitted when exactly one active spec is assigned to you. Refer to specs, tasks and todos by slug or by title.
 
 **Todos** are standalone matters that need attention:
 
-- `memr todo new "<title>" "<description>"`: record one.
-- `memr todo list`, `memr todo show <todo>`: see open todos.
-- `memr todo claim <todo>`: claim it as soon as you start working on it.
+- `mem todo new "<title>" "<description>"`: record one.
+- `mem todo list`, `mem todo show <todo>`: see open todos.
+- `mem todo claim <todo>`: claim it as soon as you start working on it.
 
 ## Work Logs
 
 Work logs carry context from one session to the next: what was done, what failed and what comes next.
 
-- `memr log new`: create a log for this session and fill it in as instructed.
+- `mem log new`: create a log for this session and fill it in as instructed.
 - Write a log at the end of a session, or when the session is getting long. Ask the user first.
-- `memr log list`, `memr log show <log>`: read earlier logs.
+- `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
 
-`.memr/structure.md` is a living map of the codebase, and onboard includes it. Keep it current rather than regenerating it. When your changes alter what it describes, such as modules, entry points, data flow or commands, update the affected sections and commit them with the work. `memr structure` creates the doc or lists what changed since it was last updated.
+`.mem/structure.md` is a living map of the codebase, and onboard includes it. Keep it current rather than regenerating it. When your changes alter what it describes, such as modules, entry points, data flow or commands, update the affected sections and commit them with the work. `mem structure` creates the doc or lists what changed since it was last updated.
 
 ## Memories
 
 Memories are lasting project conventions, kept in the memories section at the end of this file. They are not for session progress.
 
-- When the user asks you to remember something, run `memr memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
+- When the user asks you to remember something, run `mem memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
 - When you notice a useful convention, suggest it, and record it if the user agrees.
-- `memr memory remove <name>`: retire a convention.
+- `mem memory remove <name>`: retire a convention.
 
 Use project memories rather than external memory tools.
 
@@ -61,11 +61,11 @@ Use project memories rather than external memory tools.
 
 Nothing deploys from the development branch. Releases move the staging and production branches forward along the development history, and CI deploys them.
 
-- When the user asks for a preview release: `memr promote staging`. Use `--to <commit>` to leave out unfinished work.
-- When the user asks for a release: `memr promote production`, then follow its instructions for the release notes.
+- When the user asks for a preview release: `mem promote staging`. Use `--to <commit>` to leave out unfinished work.
+- When the user asks for a release: `mem promote production`, then follow its instructions for the release notes.
 - A full deployment means both, in that order.
 
-Staging and production only move through `memr promote`. Never commit on them or push to them directly.
+Staging and production only move through `mem promote`. Never commit on them or push to them directly.
 
 ## Working Guidelines
 
@@ -229,4 +229,4 @@ Testing is critical to maintaining software quality, but not all tests are creat
 Apply this review to tests introduced or changed in the current task. Revise or remove those tests when they do not verify meaningful behavior, while preserving coverage required by the task. If an unrelated existing test appears unhelpful, flag it rather than deleting it without an explicit request.
 
 NEVER run a full test suite unless specifically asked to. focus on specific tests related to the feature/functionality you are working on.
-</memr>
+</mem>

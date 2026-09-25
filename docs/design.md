@@ -1,16 +1,16 @@
-# memr design
+# mem design
 
 Target design for the Go rewrite. Where the implementation differs, [status](status.md) says so.
 
 ## Purpose
 
-memr automates context building for coding agents and standardizes how work is done in a repository. It is one executable on PATH; each repository carries its own state in `.memr/` and `AGENTS.md`.
+mem automates context building for coding agents and standardizes how work is done in a repository. It is one executable on PATH; each repository carries its own state in `.mem/` and `AGENTS.md`.
 
-Audience: solo developers and small teams in daily contact. memr guides and nudges; it does not police every eventuality or make deliberate actions difficult.
+Audience: solo developers and small teams in daily contact. mem guides and nudges; it does not police every eventuality or make deliberate actions difficult.
 
 ## Principles
 
-- **One shared codebase.** Everyone works on substantially the same code at all times, apart from uncommitted changes. memr converges automatically where that is safe (fast-forward, rebasing unpublished commits) and nudges firmly where it is not (divergence, long-lived branches, unpushed work).
+- **One shared codebase.** Everyone works on substantially the same code at all times, apart from uncommitted changes. mem converges automatically where that is safe (fast-forward, rebasing unpublished commits) and nudges firmly where it is not (divergence, long-lived branches, unpushed work).
 - **Onboard builds context.** One command syncs, applies updates and produces everything an agent needs to start working.
 - **Stdout directs the agent.** Clear headings, concrete commands, state-specific instructions. No disclaimers, no generic footers, no commands that do not exist.
 - **Agents act autonomously within the user's request.** No approval flags or per-task confirmation loops.
@@ -19,8 +19,8 @@ Audience: solo developers and small teams in daily contact. memr guides and nudg
 ## Repository layout
 
 ```text
-AGENTS.md                           managed <memr> block, <memories> block, user content
-.memr/
+AGENTS.md                           managed <mem> block, <memories> block, user content
+.mem/
   config.toml
   structure.md                      living codebase and structure map
   docs/*.md                         project documents, included in onboard
@@ -61,13 +61,13 @@ Identity is `git config user.name`, slugified.
    | Behind | Fast-forward. Works with uncommitted changes unless incoming commits touch the same files. |
    | Unpushed local commits and remote moved | Clean tree: rebase onto upstream. Conflict: abort and instruct the agent to raise it with the user. |
    | Ahead only | Nudge to push at the next sensible point |
-   | Uncommitted changes block convergence | Nudge: commit, then `memr sync` |
+   | Uncommitted changes block convergence | Nudge: commit, then `mem sync` |
    | Not on the development branch | Report lag behind `origin/<development>`; nudge to integrate soon |
 
-2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these memr-owned paths.
-3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Output over ~14k characters goes to `.memr/local/onboard.md` with an instruction to read all of it.
+2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
+3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
 
-`memr sync` performs step 1 on demand. Other commands print a short divergence nudge when local Git state shows drift.
+`mem sync` performs step 1 on demand. Other commands print a short divergence nudge when local Git state shows drift.
 
 **Commit rhythm.** Commit each coherent, working change (typically one per task or fix); `task complete` asks for it. Push at the end of each session with the work log, after completing a spec and before a promotion. Uncommitted work over 15 code files or 800 lines triggers a nudge to commit the finished parts.
 
@@ -93,18 +93,18 @@ Two layers:
 
 ## Structure doc
 
-`.memr/structure.md` is a living document: agents keep it current incrementally rather than regenerating it.
+`.mem/structure.md` is a living document: agents keep it current incrementally rather than regenerating it.
 
-- `memr structure` without an existing file scaffolds the template, prints a file tree and instructs a full research pass.
+- `mem structure` without an existing file scaffolds the template, prints a file tree and instructs a full research pass.
 - With an existing file, it lists code changes since the baseline and instructs the agent to update only the affected sections.
 
-The baseline is the last commit that touched `.memr/structure.md`; uncommitted edits to it count as up to date. Committing an update moves the baseline, so no stamping step is needed.
+The baseline is the last commit that touched `.mem/structure.md`; uncommitted edits to it count as up to date. Committing an update moves the baseline, so no stamping step is needed.
 
-Drift is measured from the baseline to the working tree, excluding Markdown, `.memr/`, `AGENTS.md`, lockfiles, binary and generated files, and configured globs. More than 5 changed code files or 1000+ changed lines produces a warning: one line in onboard, and an explicit instruction in `log new` to update the structure doc.
+Drift is measured from the baseline to the working tree, excluding Markdown, `.mem/`, `AGENTS.md`, lockfiles, binary and generated files, and configured globs. More than 5 changed code files or 1000+ changed lines produces a warning: one line in onboard, and an explicit instruction in `log new` to update the structure doc.
 
 ## Runnables
 
-Each executable in `.memr/runnables/` runs at onboard from the repository root with a time limit. Its stdout appears under a heading named after the file. Failures print a short note and never stop onboard. Use them to extract focused context such as design tokens, UI components or database models, instead of including whole files.
+Each executable in `.mem/runnables/` runs at onboard from the repository root with a time limit. Its stdout appears under a heading named after the file. Failures print a short note and never stop onboard. Use them to extract focused context such as design tokens, UI components or database models, instead of including whole files.
 
 ## Branches and promotion
 
@@ -116,13 +116,13 @@ Three branch roles, named per project (defaults `dev`, `test`, `main`):
 
 Staging and production only ever fast-forward to commits that already exist on development, so there is exactly one history and nothing reaches production without having been previewed.
 
-- `memr promote staging [--to <commit>]` fast-forwards staging to `origin/<development>`, or to an earlier development commit to leave unfinished work out.
-- `memr promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and asks for release notes; `--notes <file>` then pushes production together with an annotated date tag (`v2026.09.24.1`) carrying the notes, atomically.
+- `mem promote staging [--to <commit>]` fast-forwards staging to `origin/<development>`, or to an earlier development commit to leave unfinished work out.
+- `mem promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and asks for release notes; `--notes <file>` then pushes production together with an annotated date tag (`v2026.09.24.1`) carrying the notes, atomically.
 - A missing staging or production branch is created by its first promotion.
 - If staging or production has commits that are not on development (a hotfix or a web-UI merge), promotion stops and prints the commands to merge them back into development.
 - Onboard shows release status: the latest production tag and how far staging and development are ahead.
 
-**Hooks.** With `protect = true`, `init` and onboard install `pre-push` and `pre-commit` hooks in the repository's hooks directory. They refuse pushes to staging or production that do not come from `memr promote`, and commits made on those branches. The hooks call `memr hook <name>` and do nothing where memr is not installed. Existing non-memr hooks are never overwritten; onboard explains how to add the call instead. `protect = false` removes the hooks for solo projects. `git push --no-verify` and web-UI merges bypass hooks; promotion detects the resulting divergence.
+**Hooks.** With `protect = true`, `init` and onboard install `pre-push` and `pre-commit` hooks in the repository's hooks directory. They refuse pushes to staging or production that do not come from `mem promote`, and commits made on those branches. The hooks call `mem hook <name>` and do nothing where mem is not installed. Existing non-mem hooks are never overwritten; onboard explains how to add the call instead. `protect = false` removes the hooks for solo projects. `git push --no-verify` and web-UI merges bypass hooks; promotion detects the resulting divergence.
 
 ## Updates
 
@@ -132,4 +132,4 @@ Staging and production only ever fast-forward to commits that already exist on d
 
 ## Import
 
-`memr import agent-core` converts a Python coding-harness project: config, memories, docs, specs and tasks, todos, logs and its structure doc map almost directly onto this layout. The original `.agent_core/` is left in place for the user to remove.
+`mem import agent-core` converts a Python coding-harness project: config, memories, docs, specs and tasks, todos, logs and its structure doc map almost directly onto this layout. The original `.agent_core/` is left in place for the user to remove.

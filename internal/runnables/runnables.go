@@ -1,4 +1,4 @@
-// Package runnables executes the scripts in .memr/runnables/ whose output augments onboard context.
+// Package runnables executes the scripts in .mem/runnables/ whose output augments onboard context.
 package runnables
 
 import (
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const (
@@ -56,7 +56,7 @@ func run(ctx context.Context, root, script string) Result {
 		return r
 	}
 	if info.Mode()&0o111 == 0 {
-		r.Error = fmt.Sprintf("not executable; run `chmod +x %s` and give it a shebang line", filepath.ToSlash(filepath.Join(".memr", "runnables", r.Name)))
+		r.Error = fmt.Sprintf("not executable; run `chmod +x %s` and give it a shebang line", filepath.ToSlash(filepath.Join(".mem", "runnables", r.Name)))
 		return r
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)

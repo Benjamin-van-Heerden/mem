@@ -5,9 +5,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/output"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
-	"github.com/Benjamin-van-Heerden/memr/internal/work"
+	"github.com/Benjamin-van-Heerden/mem/internal/output"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
 
@@ -37,8 +37,8 @@ func (a *app) specNew() *cobra.Command {
 			output.Instruction(out,
 				"1. Research the codebase and clarify requirements with the user until the work can be described precisely.",
 				fmt.Sprintf("2. Replace every {placeholder} in %s. Success Criteria must be concrete enough to check against the code.", p.Rel(s.Path())),
-				fmt.Sprintf("3. Break the work into ordered tasks: `memr task new \"title\" \"detailed description\" --spec %s`", s.Slug),
-				fmt.Sprintf("4. When the user wants implementation to begin: `memr spec start %s`", s.Slug),
+				fmt.Sprintf("3. Break the work into ordered tasks: `mem task new \"title\" \"detailed description\" --spec %s`", s.Slug),
+				fmt.Sprintf("4. When the user wants implementation to begin: `mem spec start %s`", s.Slug),
 				"",
 				"Write the spec and tasks so that a fresh session can implement them without this conversation.",
 			)
@@ -139,12 +139,12 @@ func (a *app) specStart() *cobra.Command {
 			fmt.Fprintln(out, publish(cmd.Context(), p, "Start spec "+s.Slug, p.Rel(s.Dir)))
 			pending := work.PendingTasks(tasks)
 			if len(pending) == 0 {
-				output.Instruction(out, fmt.Sprintf("This spec has no pending tasks. Add them before implementing: `memr task new \"title\" \"detailed description\" --spec %s`", s.Slug))
+				output.Instruction(out, fmt.Sprintf("This spec has no pending tasks. Add them before implementing: `mem task new \"title\" \"detailed description\" --spec %s`", s.Slug))
 				return nil
 			}
 			output.Instruction(out,
 				fmt.Sprintf("Implement the pending tasks in order, starting with %s (%s).", pending[0].Meta.Title, pending[0].Slug),
-				"After each task, record it with `memr task complete <task> \"what was done and how it was verified\"` and continue with the next one.",
+				"After each task, record it with `mem task complete <task> \"what was done and how it was verified\"` and continue with the next one.",
 			)
 			return nil
 		},
@@ -188,8 +188,8 @@ func (a *app) specComplete() *cobra.Command {
 			fmt.Fprintf(out, "Spec: %s\nArchived to: %s\n", s.Meta.Title, p.Rel(s.Dir))
 			output.Instruction(out,
 				"1. Summarize for the user what the spec delivered.",
-				fmt.Sprintf("2. Offer to write a session log: `memr log new --spec %s`.", s.Slug),
-				"3. Commit and push the work together with the .memr/ changes.",
+				fmt.Sprintf("2. Offer to write a session log: `mem log new --spec %s`.", s.Slug),
+				"3. Commit and push the work together with the .mem/ changes.",
 			)
 			driftNudges(cmd.Context(), out, p)
 			return nil
@@ -222,7 +222,7 @@ func (a *app) specAbandon() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "🗑️ SPEC ABANDONED")
 			fmt.Fprintf(out, "Spec: %s\nReason: %s\nArchived to: %s\n", s.Meta.Title, reason, p.Rel(s.Dir))
-			fmt.Fprintln(out, "Commit and push the .memr/ changes with your next commit.")
+			fmt.Fprintln(out, "Commit and push the .mem/ changes with your next commit.")
 			return nil
 		},
 	}

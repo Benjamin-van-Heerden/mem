@@ -24,14 +24,14 @@ func TestCommitPathsCommitsOnlyGivenPathsAndPushes(t *testing.T) {
 
 	write(t, repo, "code.go", "package main // edited\n")
 	mustRun(t, repo, "add", "code.go")
-	write(t, repo, ".memr/todos/x.md", "todo\n")
+	write(t, repo, ".mem/todos/x.md", "todo\n")
 
-	pushed, err := CommitPaths(ctx, repo, "Claim todo x", ".memr/todos/x.md")
+	pushed, err := CommitPaths(ctx, repo, "Claim todo x", ".mem/todos/x.md")
 	if err != nil || !pushed {
 		t.Fatalf("pushed=%v err=%v", pushed, err)
 	}
 	files := mustRun(t, repo, "show", "--name-only", "--format=", "origin/dev")
-	if files != ".memr/todos/x.md" {
+	if files != ".mem/todos/x.md" {
 		t.Fatalf("pushed commit contains %q", files)
 	}
 	if status := mustRun(t, repo, "status", "--porcelain"); !strings.Contains(status, "M  code.go") {

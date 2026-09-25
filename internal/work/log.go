@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const logTemplate = `# Work Log - {short title}

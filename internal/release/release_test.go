@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 func setup(t *testing.T) project.Project {

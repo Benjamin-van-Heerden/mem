@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/memr/internal/git"
-	"github.com/Benjamin-van-Heerden/memr/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
-// PromoteEnv marks pushes made by memr promote so the pre-push hook allows them.
-const PromoteEnv = "MEMR_PROMOTE"
+// PromoteEnv marks pushes made by mem promote so the pre-push hook allows them.
+const PromoteEnv = "MEM_PROMOTE"
 
 const networkTimeout = 60 * time.Second
 
@@ -151,9 +151,9 @@ func nextTag(ctx context.Context, root string) (string, error) {
 
 // completedSpecs finds specs archived as completed within the promoted range.
 func completedSpecs(ctx context.Context, root, from, to string) []string {
-	args := []string{"ls-tree", "-r", "--name-only", to, "--", ".memr/specs/archive"}
+	args := []string{"ls-tree", "-r", "--name-only", to, "--", ".mem/specs/archive"}
 	if from != "" {
-		args = []string{"diff", "--name-only", "--diff-filter=A", from, to, "--", ".memr/specs/archive"}
+		args = []string{"diff", "--name-only", "--diff-filter=A", from, to, "--", ".mem/specs/archive"}
 	}
 	out, err := git.Run(ctx, root, args...)
 	if err != nil {
