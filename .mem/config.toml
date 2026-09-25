@@ -1,0 +1,10 @@
+schema = 1
+name = 'mem'
+description = 'Context building and work records for coding agents'
+
+[git]
+remote = 'origin'
+development = 'dev'
+staging = 'test'
+production = 'main'
+protect = true
