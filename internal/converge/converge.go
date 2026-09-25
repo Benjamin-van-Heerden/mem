@@ -114,8 +114,8 @@ func standingNudges(r Report, behindAction string) []string {
 		nudges = append(nudges, fmt.Sprintf("%s has no remote counterpart, so nobody else can see its commits. Tell the user; publish it (`git push -u %s %s`) or integrate it into %s.", r.Branch, r.Remote, r.Branch, dev))
 	case behindAction != "" && r.Behind > 0:
 		nudges = append(nudges, fmt.Sprintf("%s is %d commit(s) behind %s (as of the last fetch). %s to update it before continuing.", r.Branch, r.Behind, r.Upstream, capitalize(behindAction)))
-	case r.Ahead > 0 && r.Behind == 0:
-		nudges = append(nudges, fmt.Sprintf("%d local commit(s) on %s are not pushed to %s. Tell the user, and push them at the next sensible point (`git push`) so everyone works on the same code.", r.Ahead, r.Branch, r.Upstream))
+	case behindAction == "" && Unpushed(r) != "":
+		nudges = append(nudges, Unpushed(r))
 	}
 	if r.Branch == r.Staging || r.Branch == r.Production {
 		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `mem promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
@@ -126,6 +126,15 @@ func standingNudges(r Report, behindAction string) []string {
 		nudges = append(nudges, fmt.Sprintf("You are on %s, which has %d commit(s) not yet in %s. Tell the user; merge it into %s soon so everyone works on the same code.", r.Branch, r.DevAhead, dev, dev))
 	}
 	return nudges
+}
+
+// Unpushed describes local commits that are not on the upstream yet. Mid-session
+// checks leave it out: the commit rhythm pushes at session and spec boundaries.
+func Unpushed(r Report) string {
+	if r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d local commit(s) on %s are not pushed to %s. Tell the user, and push them at the next sensible point (`git push`) so everyone works on the same code.", r.Ahead, r.Branch, r.Upstream)
 }
 
 func inspect(ctx context.Context, p project.Project) Report {

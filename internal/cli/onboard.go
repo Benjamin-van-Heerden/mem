@@ -53,6 +53,7 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			report = afterUpdates(ctx, p, report)
 
 			var buf bytes.Buffer
 			state, err := writeContext(ctx, &buf, p, user)
@@ -136,6 +137,25 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	hookLines, err := hooks.Sync(ctx, p)
 	return append(lines, hookLines...), err
+}
+
+// afterUpdates refreshes the ahead/behind counts and the unpushed nudge, since
+// publishing updates may have pushed commits that were local during the sync.
+func afterUpdates(ctx context.Context, p project.Project, r converge.Report) converge.Report {
+	stale := converge.Unpushed(r)
+	fresh := converge.Local(ctx, p)
+	r.Ahead, r.Behind = fresh.Ahead, fresh.Behind
+	nudges := r.Nudges[:0:0]
+	for _, line := range r.Nudges {
+		if line != stale {
+			nudges = append(nudges, line)
+		}
+	}
+	if line := converge.Unpushed(r); line != "" {
+		nudges = append(nudges, line)
+	}
+	r.Nudges = nudges
+	return r
 }
 
 func renderReport(out io.Writer, r converge.Report, offline bool) {
