@@ -1,8 +1,9 @@
 ---
 title: Project templates
-status: draft
+status: active
+assigned_to: benjamin_van_heerden
 created_at: "2026-09-25T13:57:57+02:00"
-updated_at: "2026-09-25T14:20:00+02:00"
+updated_at: "2026-09-25T14:29:14+02:00"
 ---
 
 ## Overview
