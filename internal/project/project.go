@@ -21,6 +21,7 @@ type Config struct {
 	Description string          `toml:"description"`
 	Git         GitConfig       `toml:"git"`
 	Structure   StructureConfig `toml:"structure,omitempty"`
+	Templates   TemplatesConfig `toml:"templates,omitempty"`
 }
 
 type GitConfig struct {
@@ -40,6 +41,13 @@ func (g GitConfig) Stage(stage string) (branch, source string, ok bool) {
 		return g.Production, g.Staging, true
 	}
 	return "", "", false
+}
+
+// TemplatesConfig names the template library and the templates this project draws items from.
+type TemplatesConfig struct {
+	Source  string   `toml:"source,omitempty"`
+	Use     []string `toml:"use,omitempty"`
+	Exclude []string `toml:"exclude,omitempty"`
 }
 
 type StructureConfig struct {
