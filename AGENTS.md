@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem dev. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.2.0. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
