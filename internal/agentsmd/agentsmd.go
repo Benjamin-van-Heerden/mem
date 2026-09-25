@@ -32,11 +32,11 @@ type Memory struct {
 
 // Install puts the managed block and an empty memories block ahead of existing AGENTS.md content.
 func Install(text, version string) (string, error) {
-	if strings.Contains(text, blockOpen) {
+	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
 	parts := []string{block(version)}
-	if !strings.Contains(text, memoriesOpen) {
+	if !hasTag(text, memoriesOpen) {
 		parts = append(parts, renderMemories(nil))
 	}
 	parts = append(parts, strings.TrimSpace(text))
@@ -52,11 +52,11 @@ func ReplaceLegacy(text, version string) (string, error) {
 	if loc == nil {
 		return "", errors.New("AGENTS.md has no <core_instructions> block from the Python coding harness")
 	}
-	if strings.Contains(text, blockOpen) {
+	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
 	updated := text[:loc[0]] + block(version) + text[loc[1]:]
-	if !strings.Contains(updated, memoriesOpen) {
+	if !hasTag(updated, memoriesOpen) {
 		updated = strings.TrimRight(updated, "\n") + "\n\n" + renderMemories(nil) + "\n"
 	}
 	return updated, nil
@@ -199,10 +199,25 @@ func renderMemories(memories []Memory) string {
 }
 
 func span(text, open, close string) (int, int, error) {
-	start := strings.Index(text, open)
-	end := strings.Index(text, close)
-	if start < 0 || end < start || strings.Count(text, open) != 1 || strings.Count(text, close) != 1 {
-		return 0, 0, fmt.Errorf("AGENTS.md must contain exactly one %s ... %s block", open, close)
+	opens, closes := tagLines(text, open), tagLines(text, close)
+	if len(opens) != 1 || len(closes) != 1 || closes[0] < opens[0] {
+		return 0, 0, fmt.Errorf("AGENTS.md must contain exactly one %s ... %s block, with each tag on a line of its own", open, close)
 	}
-	return start, end + len(close), nil
+	return opens[0], closes[0] + len(close), nil
 }
+
+// tagLines returns the offsets of the lines that consist of tag alone, so that
+// mentions of a tag inside prose or code spans are not mistaken for the block.
+func tagLines(text, tag string) []int {
+	var offsets []int
+	offset := 0
+	for _, line := range strings.SplitAfter(text, "\n") {
+		if strings.TrimRight(line, "\r\n") == tag {
+			offsets = append(offsets, offset)
+		}
+		offset += len(line)
+	}
+	return offsets
+}
+
+func hasTag(text, tag string) bool { return len(tagLines(text, tag)) > 0 }

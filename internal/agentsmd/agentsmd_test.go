@@ -65,3 +65,16 @@ func TestSetMemoryReplacesByNameAndRemoveDeletesOnlyThatMemory(t *testing.T) {
 		t.Fatal("a level-2 heading inside a memory was accepted")
 	}
 }
+
+func TestTagMentionsInUserContentDoNotBreakTheBlocks(t *testing.T) {
+	text, err := Install("# Notes\n\nThe `<mem>` block and the <memories> section are managed by mem.\n", "1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Refresh(text, "1.0.0"); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if _, err := SetMemory(text, "a", "first"); err != nil {
+		t.Fatalf("set memory: %v", err)
+	}
+}
