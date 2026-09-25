@@ -257,7 +257,7 @@ This is the source repository for mem, and mem itself manages it: the installed 
 
 - Generated instructions at `internal/agentsmd/instructions.md` contain only what an agent needs routinely: working conventions and essential workflow entry points. They are not a CLI manual. Keep installation, initialization, migration, configuration, uncommon flags and operational preconditions in CLI help, documentation and state-specific stdout. Update the appropriate surface with each command change; do not add every command to persistent context.
 - Treat compaction and session resumption as normal: an agent with AGENTS.md and repository state must retain the conventions and essential workflow entry points needed to continue. Detailed command usage is discovered through help and state-specific stdout. Dynamic progress needs durable work records once that feature exists; project memories are conventions, not task state.
-- The general guidelines in the `<mem>` block are authored in `internal/agentsmd/instructions.md`. Follow them in this source repository too; change them there, never in this file.
+- The general guidelines in the managed mem block are authored in `internal/agentsmd/instructions.md`. Follow them in this source repository too; change them there, never in this file.
 - Go-specific test layout: preserve the existing colocated `_test.go` files for package tests; use `tests/` for standalone cross-package scenarios when appropriate. This is the source repository exception to the general test layout default.
 - Intentional CLI stdout is product behavior; the restriction on diagnostic print statements does not prohibit it.
 - Preserve user changes, stop immediately when asked to stop, and omit agent attribution from commit messages.
