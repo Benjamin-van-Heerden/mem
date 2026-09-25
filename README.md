@@ -26,7 +26,7 @@ In an existing Git repository:
 mem init
 ```
 
-This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates the development branch if needed and installs the Git hooks. Commit the result on the development branch and push it.
+This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development and installs the Git hooks. Commit the result on the development branch and push it.
 
 Branch names default to `dev`, `test` and `main`:
 

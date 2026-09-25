@@ -118,7 +118,7 @@ Staging and production only ever fast-forward to commits that already exist on d
 
 - `mem promote staging [--to <commit>]` fast-forwards staging to `origin/<development>`, or to an earlier development commit to leave unfinished work out.
 - `mem promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and asks for release notes; `--notes <file>` then pushes production together with an annotated date tag (`v2026.09.24.1`) carrying the notes, atomically.
-- A missing staging or production branch is created by its first promotion.
+- `mem init` creates missing branches in promotion order: staging from production, development from staging, tracking the remote's copy where one exists. It publishes any branch the remote lacks and switches to development.
 - If staging or production has commits that are not on development (a hotfix or a web-UI merge), promotion stops and prints the commands to merge them back into development.
 - Onboard shows release status: the latest production tag and how far staging and development are ahead.
 

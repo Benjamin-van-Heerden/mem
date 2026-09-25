@@ -22,8 +22,8 @@ func TestInstallAndRefreshPreserveUserContentAndMemories(t *testing.T) {
 	if refreshed != text {
 		t.Fatal("refresh did not restore the managed block exactly")
 	}
-	if !strings.HasPrefix(refreshed, "# My project\n\nUser notes.\n") {
-		t.Fatal("user content outside the block was not preserved")
+	if !strings.HasPrefix(refreshed, "<mem>\n") || !strings.HasSuffix(refreshed, "\n\n# My project\n\nUser notes.\n") {
+		t.Fatal("the managed block does not lead, or user content after it was not preserved")
 	}
 	memories, err := Memories(refreshed)
 	if err != nil || len(memories) != 1 || memories[0].Body != "Use the project logger.\n\n### Detail\nNever print." {

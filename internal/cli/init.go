@@ -14,6 +14,7 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/release"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,10 @@ func (a *app) initCommand() *cobra.Command {
 			}
 			if config.Name == "" {
 				config.Name = filepath.Base(root)
+			}
+			branchLines, err := ensureBranches(cmd.Context(), root, config.Git)
+			if err != nil {
+				return err
 			}
 			agentsPath := filepath.Join(root, "AGENTS.md")
 			existing, err := os.ReadFile(agentsPath)
@@ -59,7 +64,6 @@ func (a *app) initCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			branchLine := ensureDevelopmentBranch(cmd.Context(), p)
 
 			out := cmd.OutOrStdout()
 			output.Heading(out, "📦 MEM INITIALIZED")
@@ -72,14 +76,15 @@ func (a *app) initCommand() *cobra.Command {
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
-			if branchLine != "" {
-				fmt.Fprintln(out, branchLine)
+			output.Section(out, "🌿 BRANCHES")
+			for _, line := range branchLines {
+				fmt.Fprintln(out, line)
 			}
 			dev := config.Git.Development
 			output.Instruction(out,
 				"1. Read AGENTS.md now: it contains the working instructions for this project.",
 				fmt.Sprintf("2. Show the user these files. Commit them on %s and push it (`git push -u %s %s`) so every clone shares the setup.", dev, config.Git.Remote, dev),
-				fmt.Sprintf("3. Run `mem onboard` to build the project context. %s and %s are created on %s by their first `mem promote`.", config.Git.Staging, config.Git.Production, config.Git.Remote),
+				"3. Run `mem onboard` to build the project context.",
 			)
 			return nil
 		},
@@ -94,19 +99,68 @@ func (a *app) initCommand() *cobra.Command {
 	return cmd
 }
 
-// ensureDevelopmentBranch creates the development branch at HEAD when it does not exist yet.
-func ensureDevelopmentBranch(ctx context.Context, p project.Project) string {
-	dev := p.Config.Git.Development
-	if git.CurrentBranch(ctx, p.Root) == dev {
-		return ""
+// ensureBranches creates missing branches in promotion order (staging from production, development from staging),
+// tracking the remote's copy where one exists, publishes those the remote lacks, and switches to development.
+func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]string, error) {
+	if g.Development == g.Staging || g.Staging == g.Production || g.Development == g.Production {
+		return nil, errors.New("the development, staging and production branches must have different names")
 	}
-	if _, err := git.Run(ctx, p.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+dev); err == nil {
-		return fmt.Sprintf("You are not on the development branch %s. Switch with `git switch %s`; uncommitted changes come along.", dev, dev)
+	if !refExists(ctx, root, "HEAD") {
+		return nil, errors.New("this repository has no commits yet; make a first commit, then run `mem init`")
 	}
-	if _, err := git.Run(ctx, p.Root, "branch", dev); err != nil {
-		return fmt.Sprintf("The development branch %s does not exist yet. Create it once the repository has a commit: `git switch -c %s`.", dev, dev)
+	_, err := git.Run(ctx, root, "remote", "get-url", g.Remote)
+	hasRemote := err == nil
+	if hasRemote {
+		if _, err := git.Run(ctx, root, "fetch", "--quiet", g.Remote); err != nil {
+			return nil, fmt.Errorf("could not fetch %s: %w", g.Remote, err)
+		}
 	}
-	return fmt.Sprintf("Created the development branch %s at HEAD. Switch to it with `git switch %s`; uncommitted changes come along.", dev, dev)
+	order := []string{g.Production, g.Staging, g.Development}
+	var lines []string
+	for i, branch := range order {
+		switch {
+		case refExists(ctx, root, "refs/heads/"+branch):
+			lines = append(lines, fmt.Sprintf("%s exists", branch))
+		case hasRemote && refExists(ctx, root, "refs/remotes/"+g.Remote+"/"+branch):
+			if _, err := git.Run(ctx, root, "branch", "--quiet", "--track", branch, g.Remote+"/"+branch); err != nil {
+				return nil, err
+			}
+			lines = append(lines, fmt.Sprintf("Created %s tracking %s/%s", branch, g.Remote, branch))
+		case i == 0:
+			return nil, fmt.Errorf("the production branch %s does not exist locally or on %s; pass --production with the branch that holds your releases (you are on %s)", branch, g.Remote, git.CurrentBranch(ctx, root))
+		default:
+			if _, err := git.Run(ctx, root, "branch", branch, order[i-1]); err != nil {
+				return nil, err
+			}
+			lines = append(lines, fmt.Sprintf("Created %s from %s", branch, order[i-1]))
+		}
+	}
+	if hasRemote {
+		for _, branch := range order {
+			if refExists(ctx, root, "refs/remotes/"+g.Remote+"/"+branch) {
+				continue
+			}
+			if _, err := git.RunEnv(ctx, root, []string{release.PromoteEnv + "=1"}, "push", "--quiet", "-u", g.Remote, branch+":"+branch); err != nil {
+				return nil, fmt.Errorf("could not publish %s to %s: %w", branch, g.Remote, err)
+			}
+			lines = append(lines, fmt.Sprintf("Published %s to %s", branch, g.Remote))
+		}
+	} else {
+		lines = append(lines, fmt.Sprintf("No remote %s: add it and push all three branches so every clone shares them.", g.Remote))
+	}
+	if git.CurrentBranch(ctx, root) != g.Development {
+		if _, err := git.Run(ctx, root, "switch", "--quiet", g.Development); err != nil {
+			lines = append(lines, fmt.Sprintf("⚠️ Could not switch to %s (%v). Commit or stash the conflicting changes, then run `git switch %s`.", g.Development, err, g.Development))
+		} else {
+			lines = append(lines, fmt.Sprintf("Switched to %s", g.Development))
+		}
+	}
+	return lines, nil
+}
+
+func refExists(ctx context.Context, root, ref string) bool {
+	_, err := git.Run(ctx, root, "rev-parse", "--verify", "--quiet", ref)
+	return err == nil
 }
 
 func ensureIgnored(root, entry string) error {

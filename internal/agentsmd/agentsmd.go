@@ -30,16 +30,17 @@ type Memory struct {
 	Body string
 }
 
-// Install adds the managed block and an empty memories block to existing AGENTS.md content.
+// Install puts the managed block and an empty memories block ahead of existing AGENTS.md content.
 func Install(text, version string) (string, error) {
 	if strings.Contains(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	parts := []string{strings.TrimSpace(text), block(version)}
+	parts := []string{block(version)}
 	if !strings.Contains(text, memoriesOpen) {
 		parts = append(parts, renderMemories(nil))
 	}
-	return strings.TrimLeft(strings.Join(parts, "\n\n"), "\n") + "\n", nil
+	parts = append(parts, strings.TrimSpace(text))
+	return strings.TrimRight(strings.Join(parts, "\n\n"), "\n") + "\n", nil
 }
 
 var legacyBlock = regexp.MustCompile(`(?s)<(core_instructions|AGENT_CORE|agent_core)>.*?</(core_instructions|AGENT_CORE|agent_core)>`)
