@@ -11,9 +11,10 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
-const logTemplate = `# Work Log - {short title}
+// logGuidance is for the agent writing the log; Finish removes it before the log is committed.
+const logGuidance = "<!-- A work log records what happened in this session, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
 
-<!-- A work log records what happened in this session, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->
+const logTemplate = "# Work Log - {short title}\n\n" + logGuidance + `
 
 ## Overarching Goals
 
@@ -84,6 +85,16 @@ func (l Log) Unfilled() []string {
 		}
 	}
 	return left
+}
+
+// Finish removes the template's guidance comment from the log file.
+func (l *Log) Finish() error {
+	body := strings.Replace(l.Body, logGuidance+"\n\n", "", 1)
+	if body == l.Body {
+		return nil
+	}
+	l.Body = body
+	return WriteMarkdown(l.Path, l.Meta, body)
 }
 
 // Heading is the log's title from its first heading, or its file name.

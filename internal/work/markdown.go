@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -88,6 +89,26 @@ func resolve[T named](kind, ref string, items []T) (T, error) {
 		slugs[i] = m.slug()
 	}
 	return zero, fmt.Errorf("%q matches several %ss: %s; use the full slug", ref, kind, strings.Join(slugs, ", "))
+}
+
+// maxSlugWords caps record slugs so they stay easy to type; the full title still resolves.
+const maxSlugWords = 5
+
+var fillerWords = map[string]bool{"a": true, "an": true, "the": true, "of": true, "to": true, "into": true, "for": true, "and": true, "or": true, "in": true, "on": true, "with": true, "from": true, "by": true, "at": true}
+
+// recordSlug turns a title into a short slug: filler words dropped, at most maxSlugWords words.
+func recordSlug(title string) string {
+	words := strings.Split(project.Slugify(title), "_")
+	var kept []string
+	for _, w := range words {
+		if !fillerWords[w] {
+			kept = append(kept, w)
+		}
+	}
+	if len(kept) == 0 {
+		kept = words
+	}
+	return strings.Join(kept[:min(len(kept), maxSlugWords)], "_")
 }
 
 func uniqueSlug(base string, exists func(string) bool) (string, error) {

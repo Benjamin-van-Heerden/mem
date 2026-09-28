@@ -77,7 +77,7 @@ func FindTodo(p project.Project, ref string) (Todo, error) {
 }
 
 func NewTodo(p project.Project, title, description string) (Todo, error) {
-	slug, err := uniqueSlug(project.Slugify(title), func(s string) bool {
+	slug, err := uniqueSlug(recordSlug(title), func(s string) bool {
 		return pathExists(filepath.Join(todosDir(p), s+".md"))
 	})
 	if err != nil {

@@ -108,7 +108,7 @@ func FindSpec(p project.Project, ref string) (Spec, error) {
 }
 
 func NewSpec(p project.Project, title string) (Spec, error) {
-	slug, err := uniqueSlug(project.Slugify(title), func(s string) bool {
+	slug, err := uniqueSlug(recordSlug(title), func(s string) bool {
 		return pathExists(filepath.Join(specsDir(p), s)) || pathExists(filepath.Join(archiveDir(p), s))
 	})
 	if err != nil {

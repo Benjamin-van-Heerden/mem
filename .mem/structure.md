@@ -99,6 +99,6 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 - stdout is product behavior: use `output.Heading`, `output.Section` and `output.Instruction` for the separator/heading style, and make instructions specific to the current state with concrete commands.
 - Commands return errors to cobra rather than exiting; recoverable problems become ⚠️ lines or instruction text.
 - Git access goes through `git.Run`/`RunEnv`; helpers such as `refExists` are small local functions inside the package that needs them.
-- Record files are Markdown with YAML frontmatter; identifiers are readable slugs (`project.Slugify`), with ordered task files `NN_<slug>.md`.
+- Record files are Markdown with YAML frontmatter; identifiers are readable slugs (`work.recordSlug`: `project.Slugify` without filler words, at most five words), with ordered task files `NN_<slug>.md`.
 - Changes to the managed instructions go into `internal/agentsmd/instructions.md`; the copy in `AGENTS.md` is regenerated.
 - Package doc comments and short function comments explain intent; code otherwise stays uncommented.

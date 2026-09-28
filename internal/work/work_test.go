@@ -74,3 +74,37 @@ func TestSpecLifecycleKeepsTaskOrderAndArchivesTasks(t *testing.T) {
 		t.Fatal("tasks did not move with the spec")
 	}
 }
+
+func TestLongTitlesGetShortUniqueSlugs(t *testing.T) {
+	p := project.Project{Root: t.TempDir()}
+	cases := []struct{ title, want string }{
+		{"Logs record facts; log commit closes the session", "logs_record_facts_log_commit"},
+		{"Strip the log template's guidance comment", "strip_log_templates_guidance_comment"},
+		{"Logs record facts, log commit pushes", "logs_record_facts_log_commit_2"},
+		{"The end", "end"},
+	}
+	for _, c := range cases {
+		todo, err := NewTodo(p, c.title, "")
+		if err != nil || todo.Slug != c.want {
+			t.Errorf("NewTodo(%q) slug = %q, %v; want %q", c.title, todo.Slug, err, c.want)
+		}
+	}
+	if got, err := FindTodo(p, "Logs record facts, log commit pushes"); err != nil || got.Slug != "logs_record_facts_log_commit_2" {
+		t.Errorf("FindTodo by full title = %q, %v", got.Slug, err)
+	}
+}
+
+func TestFinishRemovesTheGuidanceCommentOnly(t *testing.T) {
+	p := project.Project{Root: t.TempDir()}
+	l, err := NewLog(p, "tester", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	logs, _ := Logs(p)
+	if len(logs) != 1 || strings.Contains(logs[0].Body, "<!--") || !strings.HasPrefix(logs[0].Body, "# Work Log - {short title}\n\n## Overarching Goals") {
+		t.Fatalf("finished log body:\n%s", logs[0].Body)
+	}
+}

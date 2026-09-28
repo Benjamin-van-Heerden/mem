@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const (
@@ -88,7 +86,7 @@ func NewTask(s Spec, title, description string) (Task, error) {
 	if err != nil {
 		return Task{}, err
 	}
-	slug, err := uniqueSlug(project.Slugify(title), func(slug string) bool {
+	slug, err := uniqueSlug(recordSlug(title), func(slug string) bool {
 		for _, t := range tasks {
 			if t.Slug == slug {
 				return true

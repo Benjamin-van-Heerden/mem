@@ -159,6 +159,9 @@ func (a *app) logCommit() *cobra.Command {
 			if left := l.Unfilled(); len(left) > 0 {
 				return fmt.Errorf("%s still has %d unfilled placeholder(s): %s. Fill them in, then run `mem log commit` again", p.Rel(l.Path), len(left), strings.Join(left, " / "))
 			}
+			if err := l.Finish(); err != nil {
+				return err
+			}
 
 			out := cmd.OutOrStdout()
 			output.Section(out, "📝 WORK LOG COMMITTED: "+l.Heading())
