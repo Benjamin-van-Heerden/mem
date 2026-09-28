@@ -5,7 +5,7 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 ## Implemented
 
 - `init`, which also creates and publishes missing development, staging and production branches, and `import agent-core` (conversion from the Python coding harness).
-- `onboard`: Git convergence, managed `AGENTS.md` refresh with a version stamp, project patch hook (no patches yet), hook installation, and context: structure doc, docs, runnables, active spec, open specs and todos with their age, the latest work log with a list of other recent ones, release status.
+- `onboard`: Git convergence, managed `AGENTS.md` refresh with a version stamp, the `.mem/local/` ignore entry, project patch hook (no patches yet), hook installation, memories and skills changed by the sync, and context: structure doc, docs, runnables, active spec, open specs and todos with their age, the latest work log with a list of other recent ones, release status.
 - `sync`, with drift nudges from `task complete`, `spec complete` and `log new`.
 - Specs, tasks, todos, work logs (facts only, closed with `log commit`) and memories.
 - `structure` with drift detection against the last commit that touched `.mem/structure.md`.

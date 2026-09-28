@@ -27,7 +27,7 @@ func (a *app) importCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := ensureIgnored(root, localIgnore); err != nil {
+			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
 			hookLines, err := hooks.Sync(cmd.Context(), sum.Project)

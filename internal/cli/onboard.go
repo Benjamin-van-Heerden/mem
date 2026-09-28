@@ -7,21 +7,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
-	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
-	"github.com/Benjamin-van-Heerden/mem/internal/git"
-	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
 	"github.com/Benjamin-van-Heerden/mem/internal/runnables"
 	"github.com/Benjamin-van-Heerden/mem/internal/structure"
-	"github.com/Benjamin-van-Heerden/mem/internal/templates"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
@@ -52,6 +46,7 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			before := readKnowledge(p)
 			report := converge.Local(ctx, p)
 			if !offline {
 				report = converge.Sync(ctx, p)
@@ -98,6 +93,7 @@ func (a *app) onboardCommand() *cobra.Command {
 					fmt.Fprintln(out, line)
 				}
 			}
+			state.knowledgeChanged = renderKnowledgeChanges(out, before, readKnowledge(p))
 			if buf.Len() <= inlineContextLimit {
 				out.Write(buf.Bytes())
 			} else {
@@ -113,117 +109,12 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
 			state.templateWarnings = hasWarning(templateLines)
-			state.instructionsChanged = slices.ContainsFunc(append(updates, templateLines...), func(line string) bool {
-				return strings.HasPrefix(line, "Refreshed the mem instructions") || strings.HasPrefix(line, "Added memory") || strings.HasPrefix(line, "Updated memory")
-			})
 			renderOnboardInstruction(out, report, state)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&offline, "offline", false, "Skip fetching and syncing with the remote")
 	return cmd
-}
-
-// applyUpdates brings the project and its managed instructions up to date with this executable.
-func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
-	var lines, publishPaths []string
-	applied, err := project.Upgrade(p)
-	if err != nil {
-		return nil, err
-	}
-	if len(applied) > 0 {
-		lines = append(lines, fmt.Sprintf("Upgraded the project format to schema %d.", project.Schema))
-		publishPaths = append(publishPaths, p.Rel(project.ConfigPath(p.Root)))
-	}
-
-	text, err := readAgents(p)
-	if err != nil {
-		return nil, err
-	}
-	refreshed, newer, err := agentsmd.Refresh(text, buildinfo.Version)
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case newer != "":
-		lines = append(lines, fmt.Sprintf("AGENTS.md was written by mem %s, which is newer than this mem (%s). Tell the user to update mem.", newer, buildinfo.Version))
-	case refreshed != text:
-		status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", "AGENTS.md")
-		if err := writeAgents(p, refreshed); err != nil {
-			return nil, err
-		}
-		if status != "" {
-			lines = append(lines, "Refreshed the mem instructions in AGENTS.md. It already had uncommitted edits, so commit it together with them.")
-		} else {
-			lines = append(lines, "Refreshed the mem instructions in AGENTS.md.")
-			publishPaths = append(publishPaths, "AGENTS.md")
-		}
-	}
-	if len(publishPaths) > 0 {
-		lines = append(lines, publish(ctx, p, "Update mem project files", publishPaths...))
-	}
-	hookLines, err := hooks.Sync(ctx, p)
-	return append(lines, hookLines...), err
-}
-
-var templatePaths = []string{"AGENTS.md", ".agents/skills", ".claude/skills", ".mem/docs", templates.LockPath, ".mem/config.toml"}
-
-// syncTemplates brings the project's template items up to date and publishes
-// the result, unless those paths already had uncommitted edits.
-func syncTemplates(ctx context.Context, p *project.Project, pull bool) ([]string, error) {
-	if len(p.Config.Templates.Use) == 0 {
-		return nil, nil
-	}
-	lib, warning, err := openTemplates(ctx, *p, pull)
-	if err != nil {
-		return []string{fmt.Sprintf("⚠️ Could not open the template library: %v. Template items were not synced.", err)}, nil
-	}
-	var lines []string
-	if warning != "" {
-		lines = append(lines, "⚠️ "+warning)
-	}
-	dirty, _ := git.Run(ctx, p.Root, append([]string{"status", "--porcelain", "--"}, templatePaths...)...)
-	res, err := templates.Sync(p, lib)
-	if err != nil {
-		return nil, err
-	}
-	lines = append(lines, res.Lines...)
-	switch {
-	case len(res.Paths) == 0:
-	case dirty != "":
-		lines = append(lines, fmt.Sprintf("These paths already had uncommitted edits, so nothing was committed: commit the template changes (%s) together with them.", strings.Join(res.Paths, ", ")))
-	default:
-		lines = append(lines, publish(ctx, *p, "Sync template items", res.Paths...))
-	}
-	return lines, nil
-}
-
-func hasWarning(lines []string) bool {
-	for _, line := range lines {
-		if strings.HasPrefix(line, "⚠️") {
-			return true
-		}
-	}
-	return false
-}
-
-// afterUpdates refreshes the ahead/behind counts and the unpushed nudge, since
-// publishing updates may have pushed commits that were local during the sync.
-func afterUpdates(ctx context.Context, p project.Project, r converge.Report) converge.Report {
-	stale := converge.Unpushed(r)
-	fresh := converge.Local(ctx, p)
-	r.Ahead, r.Behind = fresh.Ahead, fresh.Behind
-	nudges := r.Nudges[:0:0]
-	for _, line := range r.Nudges {
-		if line != stale {
-			nudges = append(nudges, line)
-		}
-	}
-	if line := converge.Unpushed(r); line != "" {
-		nudges = append(nudges, line)
-	}
-	r.Nudges = nudges
-	return r
 }
 
 func renderReport(out io.Writer, r converge.Report, offline bool) {
@@ -257,10 +148,10 @@ func renderReport(out io.Writer, r converge.Report, offline bool) {
 }
 
 type contextState struct {
-	active              *work.Spec
-	drift               structure.Drift
-	templateWarnings    bool
-	instructionsChanged bool
+	active           *work.Spec
+	drift            structure.Drift
+	templateWarnings bool
+	knowledgeChanged bool
 }
 
 func renderReleases(out io.Writer, p project.Project, st release.Status) {
@@ -461,8 +352,8 @@ func age(timestamp string) string {
 func renderOnboardInstruction(out io.Writer, r converge.Report, state contextState) {
 	lines := []string{"Your next response must:"}
 	step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines), text)) }
-	if state.instructionsChanged {
-		step("Read AGENTS.md again before anything else: this onboard changed its mem instructions or memories, so the copy you started with is out of date.")
+	if state.knowledgeChanged {
+		step("Follow the memories under 🧠 CHANGED MEMORIES for the rest of this session, and use the skills under 🛠️ CHANGED SKILLS where they apply: they changed after this session started.")
 	}
 	if len(r.Nudges) > 0 {
 		step("Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")

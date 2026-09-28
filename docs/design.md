@@ -67,7 +67,7 @@ Identity is `git config user.name`, slugified.
    | Not on the development branch | Report lag behind `origin/<development>`; nudge to integrate soon |
 
 2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
-3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
+3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Memories and skills that changed during this onboard's sync are shown instead, since the running agent loaded the older copies. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
 
 `mem sync` performs step 1 on demand. Other commands print a short divergence nudge when local Git state shows drift.
 

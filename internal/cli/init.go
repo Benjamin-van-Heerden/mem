@@ -71,7 +71,7 @@ func (a *app) initCommand() *cobra.Command {
 			if err := os.WriteFile(agentsPath, []byte(agents), 0o644); err != nil {
 				return err
 			}
-			if err := ensureIgnored(root, localIgnore); err != nil {
+			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
 			p := project.Project{Root: root, Config: config}
@@ -198,20 +198,21 @@ func templateNote(res templates.Result) string {
 	return ", including the template items (" + strings.Join(res.Paths, ", ") + ")"
 }
 
-func ensureIgnored(root, entry string) error {
+// ensureIgnored adds entry to .gitignore unless a line already matches it, and reports whether it did.
+func ensureIgnored(root, entry string) (bool, error) {
 	path := filepath.Join(root, ".gitignore")
 	data, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
+		return false, err
 	}
 	for _, line := range strings.Split(string(data), "\n") {
 		if strings.TrimSpace(line) == entry {
-			return nil
+			return false, nil
 		}
 	}
 	text := string(data)
 	if text != "" && !strings.HasSuffix(text, "\n") {
 		text += "\n"
 	}
-	return os.WriteFile(path, []byte(text+entry+"\n"), 0o644)
+	return true, os.WriteFile(path, []byte(text+entry+"\n"), 0o644)
 }
