@@ -16,7 +16,6 @@ func library(t *testing.T, files map[string]string) (source, work string) {
 	base := t.TempDir()
 	t.Setenv("HOME", filepath.Join(base, "home"))
 	t.Setenv("XDG_CACHE_HOME", "")
-	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("LocalAppData", filepath.Join(base, "home", "cache"))
 	source = filepath.Join(base, "library.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", source)

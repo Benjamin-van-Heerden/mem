@@ -22,6 +22,9 @@ import (
 
 const networkTimeout = 20 * time.Second
 
+// DefaultSource is the template library used when neither a flag nor the project names one.
+const DefaultSource = "https://github.com/Benjamin-van-Heerden/mem-templates.git"
+
 const (
 	Memory = "memory"
 	Skill  = "skill"
@@ -206,38 +209,4 @@ func itemName(kind string, e os.DirEntry) (string, bool) {
 	}
 	name, ok := strings.CutSuffix(e.Name(), ".md")
 	return name, ok && !e.IsDir()
-}
-
-// DefaultSource reads template_source from the user's mem config
-// ($XDG_CONFIG_HOME/mem/config.toml, or ~/.config/mem/config.toml).
-func DefaultSource() (string, error) {
-	path, err := UserConfigPath()
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	var config struct {
-		TemplateSource string `toml:"template_source"`
-	}
-	if err := toml.Unmarshal(data, &config); err != nil {
-		return "", fmt.Errorf("invalid %s: %w", path, err)
-	}
-	return config.TemplateSource, nil
-}
-
-func UserConfigPath() (string, error) {
-	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
-		return filepath.Join(dir, "mem", "config.toml"), nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".config", "mem", "config.toml"), nil
 }

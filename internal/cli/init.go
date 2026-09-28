@@ -43,9 +43,7 @@ func (a *app) initCommand() *cobra.Command {
 			var lib templates.Library
 			var libWarning string
 			if len(templateNames) > 0 {
-				if config.Templates.Source, err = librarySource(templateSource, ""); err != nil {
-					return err
-				}
+				config.Templates.Source = librarySource(templateSource, "")
 				if lib, libWarning, err = templates.Open(cmd.Context(), config.Templates.Source, true); err != nil {
 					return err
 				}
@@ -124,7 +122,7 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Git.Staging, "staging", "test", "Staging branch, deployed as preview releases")
 	cmd.Flags().StringVar(&config.Git.Production, "production", "main", "Production branch")
 	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills and docs from; repeat for several (later ones win on name clashes)")
-	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to template_source in the user config)")
+	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to "+templates.DefaultSource+")")
 	cmd.Flags().BoolVar(&config.Git.Protect, "protect", true, "Install Git hooks that keep staging and production promotion-only (use --protect=false for solo projects)")
 	return cmd
 }

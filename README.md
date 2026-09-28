@@ -39,10 +39,10 @@ Solo projects that do not want the hooks: `mem init --protect=false`.
 To start from templates, name them and the template library:
 
 ```sh
-mem init --template nextjs-web --template-source https://github.com/Benjamin-van-Heerden/mem-templates.git
+mem init --template nextjs-web
 ```
 
-Set `template_source = "<git url>"` in `~/.config/mem/config.toml` to leave out `--template-source`. `mem template use <name>` adds a template to an existing project.
+Templates come from [mem-templates](https://github.com/Benjamin-van-Heerden/mem-templates) unless `--template-source <git url>` names another library; the project remembers its library. `mem template use <name>` adds a template to an existing project.
 
 A project that uses the Python coding harness (`.agent_core/`) is converted instead:
 

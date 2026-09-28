@@ -24,20 +24,15 @@ func (a *app) templateCommand() *cobra.Command {
 	return cmd
 }
 
-// librarySource picks the library URL: the flag, then the project's, then the user default.
-func librarySource(flag, configured string) (string, error) {
+// librarySource picks the library URL: the flag, then the project's, then mem's default library.
+func librarySource(flag, configured string) string {
 	if flag != "" {
-		return flag, nil
+		return flag
 	}
 	if configured != "" {
-		return configured, nil
+		return configured
 	}
-	source, err := templates.DefaultSource()
-	if err != nil || source != "" {
-		return source, err
-	}
-	path, _ := templates.UserConfigPath()
-	return "", fmt.Errorf("no template library is configured. Pass --template-source <git url>, or set a default for all projects by adding `template_source = \"<git url>\"` to %s", path)
+	return templates.DefaultSource
 }
 
 func (a *app) templateUse() *cobra.Command {
@@ -51,9 +46,7 @@ func (a *app) templateUse() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if p.Config.Templates.Source, err = librarySource(source, p.Config.Templates.Source); err != nil {
-				return err
-			}
+			p.Config.Templates.Source = librarySource(source, p.Config.Templates.Source)
 			lib, warning, err := templates.Open(cmd.Context(), p.Config.Templates.Source, true)
 			if err != nil {
 				return err
@@ -81,7 +74,7 @@ func (a *app) templateUse() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&source, "template-source", "", "Git URL of the template library (defaults to the project's, then template_source in the user config)")
+	cmd.Flags().StringVar(&source, "template-source", "", "Git URL of the template library (defaults to the project's, then "+templates.DefaultSource+")")
 	return cmd
 }
 
@@ -93,10 +86,7 @@ func (a *app) templateList() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, projectErr := a.project(cmd)
-			src, err := librarySource(source, p.Config.Templates.Source)
-			if err != nil {
-				return err
-			}
+			src := librarySource(source, p.Config.Templates.Source)
 			lib, warning, err := templates.Open(cmd.Context(), src, true)
 			if err != nil {
 				return err
@@ -165,7 +155,7 @@ func (a *app) templateList() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&source, "template-source", "", "Git URL of the template library (defaults to the project's, then template_source in the user config)")
+	cmd.Flags().StringVar(&source, "template-source", "", "Git URL of the template library (defaults to the project's, then "+templates.DefaultSource+")")
 	return cmd
 }
 
@@ -181,9 +171,7 @@ func (a *app) templatePromote() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if p.Config.Templates.Source, err = librarySource("", p.Config.Templates.Source); err != nil {
-				return err
-			}
+			p.Config.Templates.Source = librarySource("", p.Config.Templates.Source)
 			lib, _, err := templates.Open(cmd.Context(), p.Config.Templates.Source, false)
 			if err != nil {
 				return err
