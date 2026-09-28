@@ -11,17 +11,18 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 - `structure` with drift detection against the last commit that touched `.mem/structure.md`.
 - Runnables in `.mem/runnables/`.
 - `promote staging|production` with date tags, and the `pre-push`/`pre-commit` hooks.
+- Templates: `init --template`, `template use|list|promote|reset`, and template sync at onboard with `.mem/templates.lock`.
+- Self-update: onboard installs a newer release automatically; `mem update` on demand.
 - Releases: v0.2.0 is published with binaries for Linux, macOS and Windows, built by GoReleaser from semver tags.
 
 Tested with disposable repositories and bare remotes; CI runs on Linux, macOS and Windows. mem manages its own source repository. praxis-app has been imported; its commit is pending review.
 
 ## Planned
 
-- **Self-update.** A check at onboard for a newer mem release.
-- **Templates.** Project profiles (for example Next.js web app, Rust + GPUI desktop app, general Python, Go and Rust) kept in a GitHub template library, supplying initial memories, docs and skills, with a way to promote a project's memory or doc back into its template and receive template updates at onboard.
+- **Template content.** The library at github.com/Benjamin-van-Heerden/mem-templates starts with few templates; profiles for further kinds of project (for example Rust + GPUI desktop, Go) are added as they are needed.
 
 ## Known limits
 
-- Hooks and runnables rely on `sh` and executable bits; Windows behavior is untested.
+- Hooks and runnables rely on `sh` and executable bits, and template skills are linked into `.claude/skills` with symlinks; Windows behavior is untested.
 - `git push --no-verify` and merges made in a Git host's web UI bypass the hooks. Promotion detects the resulting divergence and prints the recovery steps.
 - Work logs imported from the Python harness are interpreted in the importing machine's local time zone.

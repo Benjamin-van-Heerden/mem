@@ -50,11 +50,12 @@ Work logs carry context from one session to the next: what was done, what failed
 
 ## Memories
 
-Memories are lasting project conventions, kept in the memories section at the end of this file. They are not for session progress.
+Memories are lasting project conventions, kept in the memories section of this file. They are not for session progress.
 
 - When the user asks you to remember something, run `mem memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
 - When you notice a useful convention, suggest it, and record it if the user agrees.
 - `mem memory remove <name>`: retire a convention.
+- When the user wants a memory, skill or doc available in similar projects: `mem template promote <memory|skill|doc> <name>`. Projects using that template receive it at their next onboard.
 
 Use project memories rather than external memory tools.
 

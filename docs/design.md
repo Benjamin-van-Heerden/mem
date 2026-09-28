@@ -30,6 +30,8 @@ AGENTS.md                           managed <mem> block, <memories> block, user 
   specs/archive/<slug>/...          completed and abandoned specs
   todos/<slug>.md
   logs/<user>_<YYYYMMDD>_<HHMMSS>.md
+  templates.lock                    template items and the content they last shared with their template
+.agents/skills/<name>/              skills, from templates or the project; linked from .claude/skills/<name>
   local/                            ignored; generated onboard output
 ```
 
@@ -124,11 +126,31 @@ Staging and production only ever fast-forward to commits that already exist on d
 
 **Hooks.** With `protect = true`, `init` and onboard install `pre-push` and `pre-commit` hooks in the repository's hooks directory. They refuse pushes to staging or production that do not come from `mem promote`, and commits made on those branches. The hooks call `mem hook <name>` and do nothing where mem is not installed. Existing non-mem hooks are never overwritten; onboard explains how to add the call instead. `protect = false` removes the hooks for solo projects. `git push --no-verify` and web-UI merges bypass hooks; promotion detects the resulting divergence.
 
+## Templates
+
+A template library is an ordinary Git repository with one directory per template, recognized by its `template.toml` (`description = "…"`), holding `memories/<name>.md`, `skills/<name>/` and `docs/<name>.md`. A project names its library and templates in `.mem/config.toml`:
+
+```toml
+[templates]
+source = "https://github.com/Benjamin-van-Heerden/mem-templates.git"
+use = ["base", "nextjs-web"]      # later templates win when two provide the same item
+exclude = ["skill:old-guide"]     # opt-outs, written by mem
+```
+
+- `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`. The library defaults to `template_source` in `~/.config/mem/config.toml` when `--template-source` is not given.
+- mem keeps one clone of each library in the user cache and pulls it at onboard (not with `--offline`).
+- `.mem/templates.lock` records, per item, the content it last shared with its template. Onboard compares project copy, template copy and that record: it adds missing items, updates items the project has not edited, reports local-only edits as promotion candidates, flags items edited on both sides, keeps items a template no longer provides, and turns a deleted item into an `exclude` entry. It never deletes project files, and it publishes its changes unless those paths already had uncommitted edits.
+- `mem template promote <memory|skill|doc> <name> [--to <template>]` copies a project item into its template, commits and pushes the library, so every project using the template receives it at its next onboard. Promoting to a template that does not exist creates it.
+- `mem template reset <kind> <name>` takes the template's copy, and brings back an excluded item.
+- `mem template list` shows the library's templates and the state of each of the project's template items.
+
+Framework guides belong in templates as skills rather than docs: docs are printed in full at every onboard, skills load when they are relevant.
+
 ## Updates
 
 - The managed `AGENTS.md` block is refreshed from the executable on every onboard.
 - Project patches are numbered migrations keyed by `schema`, applied once at onboard.
-- A newer-executable check at onboard is planned.
+- Onboard checks the latest GitHub release (from the redirect of `releases/latest`, no API token) and, when it is newer than a release build of mem, downloads the binary for the platform, verifies it against `checksums.txt`, replaces the executable and re-runs onboard with it. `mem update` does the same on demand. `MEM_NO_UPDATE=1` turns the automatic update off; development builds never replace themselves.
 
 ## Import
 

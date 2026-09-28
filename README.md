@@ -14,9 +14,9 @@ go install github.com/Benjamin-van-Heerden/mem/cmd/mem@latest
 
 This puts `mem` in Go's binary directory (`~/go/bin` by default), which must be on your PATH. Without Go, download the binary for your platform from the [latest release](https://github.com/Benjamin-van-Heerden/mem/releases/latest), make it executable and move it to a directory on your PATH as `mem`.
 
-`mem version` shows the installed version. Everyone on a team should run the same release; onboard warns when a teammate's newer mem has written the project's instructions.
+`mem version` shows the installed version. Release builds keep themselves current: onboard installs a newer release when there is one, and `mem update` does so on demand (`MEM_NO_UPDATE=1` turns the automatic update off).
 
-Releases are published by pushing a `v*` tag to GitHub.
+Releases are published by pushing a `vX.Y.Z` tag to GitHub.
 
 ## Set up a project
 
@@ -36,6 +36,14 @@ mem init --development development --staging test --production production
 
 Solo projects that do not want the hooks: `mem init --protect=false`.
 
+To start from templates, name them and the template library:
+
+```sh
+mem init --template nextjs-web --template-source https://github.com/Benjamin-van-Heerden/mem-templates.git
+```
+
+Set `template_source = "<git url>"` in `~/.config/mem/config.toml` to leave out `--template-source`. `mem template use <name>` adds a template to an existing project.
+
 A project that uses the Python coding harness (`.agent_core/`) is converted instead:
 
 ```sh
@@ -52,6 +60,7 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 - **Specs, tasks and todos** track planned work. A spec is written up with the user, broken into ordered tasks and implemented task by task; todos are standalone matters. None of them are needed for ordinary coding.
 - **Work logs** carry context between sessions: what was done, what failed and what comes next. Onboard shows the most recent ones.
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
+- **Templates** supply memories, skills and docs for a kind of project from a shared Git library. Onboard draws in what is missing and updates what the project has not changed; `mem template promote` sends a project's memory, skill or doc back so similar projects receive it.
 - **The structure doc**, `.mem/structure.md`, is a living map of the codebase that onboard includes. `mem structure` creates it and later lists what has changed since it was last updated; mem warns when it falls behind the code.
 
 ## Releases
@@ -76,7 +85,9 @@ AGENTS.md                  mem block, your content, project memories
   specs/<slug>/            spec.md and tasks/; completed specs move to specs/archive/
   todos/<slug>.md
   logs/<user>_<date>_<time>.md
+  templates.lock           template items and the content they last shared with their template
   local/                   ignored; generated onboard output
+.agents/skills/<name>/     skills; linked from .claude/skills/<name>
 ```
 
 ```toml

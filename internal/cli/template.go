@@ -112,7 +112,7 @@ func (a *app) templateList() *cobra.Command {
 				fmt.Fprintln(out, "⚠️ "+warning)
 			}
 			if len(available) == 0 {
-				fmt.Fprintln(out, "\nThe library has no templates yet. A template is a directory with a template.toml; `mem template promote --to <name>` creates one.")
+				fmt.Fprintln(out, "\nThe library has no templates yet. A template is a directory with a template.toml; `mem template promote <memory|skill|doc> <name> --to <template>` creates one from a project item.")
 			} else {
 				rows := [][]string{{"TEMPLATE", "USED HERE", "DESCRIPTION"}}
 				for _, t := range available {

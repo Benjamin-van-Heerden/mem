@@ -2,7 +2,7 @@
 
 ## Overview
 
-mem is a single Go command-line executable (`cmd/mem`) that builds context for coding agents and keeps work records in a Git repository. Each project it manages holds its state as plain files: `.mem/` (config, structure doc, docs, runnables, specs, todos, logs) and a managed block in `AGENTS.md`. mem shells out to the `git` executable for all repository operations; it has no database or server.
+mem is a single Go command-line executable (`cmd/mem`) that builds context for coding agents and keeps work records in a Git repository. Each project it manages holds its state as plain files: `.mem/` (config, structure doc, docs, runnables, specs, todos, logs) and a managed block in `AGENTS.md`. mem shells out to the `git` executable for all repository operations and uses HTTPS only to update itself from GitHub releases; it has no database or server.
 
 ## Tech Stack
 
@@ -27,6 +27,8 @@ internal/
   structure/             .mem/structure.md template, drift measurement, file tree
   work/                  specs, tasks, todos and logs as Markdown with YAML frontmatter
   release/               promotion planning/execution and release status
+  templates/             template library clone, item sync with .mem/templates.lock, promote and reset
+  selfupdate/            latest-release check and verified binary replacement
   hooks/                 pre-push / pre-commit hook install and checks
   runnables/             runs .mem/runnables/* for onboard
   importer/              conversion from the Python harness (.agent_core/)
@@ -40,23 +42,27 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 ## Key Modules
 
-- **`internal/cli`**: builds the cobra tree in `root.go` (`New`, `app{dir}` for the global `--dir` flag). Commands: `init.go`, `onboard.go`, `sync.go`, `spec.go`, `task.go`, `todo.go`, `log.go`, `memory.go`, `structure.go`, `promote.go`, `import.go`, `version` (in `root.go`) and the hidden `hook.go`. Shared helpers in `root.go`: `publish` (commit and push mem-owned paths via `git.CommitPaths`), `table`, `readAgents`/`writeAgents`. Depends on every other internal package; nothing depends on it except `cmd/mem`.
-- **`internal/project`**: `Config`/`GitConfig`/`StructureConfig` (TOML), `Load` (finds the Git toplevel and reads `.mem/config.toml`, rejecting newer schemas), `WriteConfig`, `User` (slug of `git config user.name`), `Slugify`, and `Project.Path`/`Rel` helpers rooted at `.mem/`. `patches.go` holds `Upgrade` with an empty per-schema patch map (`Schema = 1`).
+- **`internal/cli`**: builds the cobra tree in `root.go` (`New`, `app{dir}` for the global `--dir` flag). Commands: `init.go`, `onboard.go`, `sync.go`, `spec.go`, `task.go`, `todo.go`, `log.go`, `memory.go`, `structure.go`, `promote.go`, `template.go` (`template use|list|promote|reset`), `update.go` (`update`, plus `autoUpdate`/`rerun` used by onboard), `import.go`, `version` (in `root.go`) and the hidden `hook.go`. Shared helpers in `root.go`: `publish` (commit and push mem-owned paths via `git.CommitPaths`), `table`, `readAgents`/`writeAgents`. Depends on every other internal package; nothing depends on it except `cmd/mem`.
+- **`internal/project`**: `Config`/`GitConfig`/`StructureConfig`/`TemplatesConfig` (TOML), `Load` (finds the Git toplevel and reads `.mem/config.toml`, rejecting newer schemas), `WriteConfig`, `User` (slug of `git config user.name`), `Slugify`, and `Project.Path`/`Rel` helpers rooted at `.mem/`. `patches.go` holds `Upgrade` with an empty per-schema patch map (`Schema = 1`).
 - **`internal/agentsmd`**: `Install` (block first, then memories, then existing content), `ReplaceLegacy` (swaps the Python harness block in place), `Refresh` (rewrites the block from the embedded `instructions.md` unless the stamp `<!-- Managed by mem X -->` is a newer semver), and memory CRUD (`Memories`, `SetMemory`, `RemoveMemory`) over `## name` sections inside `<memories>`. `span` locates each block by its tags and requires exactly one of each.
 - **`internal/converge`**: `Sync` (fetch with a 20 s limit, then fast-forward or rebase unpushed commits, aborting on conflict) and `Local` (inspect cached refs only). Both return a `Report` with `Done` and `Nudges`: unpushed commits, drift from the development branch, missing remote, being on staging/production, and uncommitted work above 15 code files or 800 lines.
 - **`internal/structure`**: `Template` for the doc, `Measure`/`ChangesSince` (code changes since the last commit touching `.mem/structure.md`, including untracked files; `Stale` at more than 5 code files or 1,000 changed lines), `Relevant` (excludes Markdown, lockfiles, binaries, vendored/build dirs and `[structure] ignore` patterns), and `Tree` (tracked and unignored files, capped at 300 entries).
 - **`internal/work`**: record types `Spec`, `Task`, `Todo`, `Log` with frontmatter structs, create/find/list/complete/claim/archive functions, and the templates for specs and logs. `markdown.go` has `ReadMarkdown`/`WriteMarkdown` and `resolve`, which matches a reference by exact slug, then case-insensitive title, then unique slug prefix.
 - **`internal/release`**: `Prepare` (fetch, compute commits, completed specs, divergence and the next date tag `vYYYY.MM.DD.N`), `Execute` (one atomic push of the branch and, for production, an annotated tag, with `MEM_PROMOTE=1` so the hook allows it), `CurrentStatus` for onboard.
 - **`internal/hooks`**: `Sync` installs or removes `pre-push`/`pre-commit` scripts per `protect`, never overwriting non-mem hooks. The scripts run `mem hook <name>` and exit 0 when no mem with hook support is on PATH. `PrePush` and `PreCommit` implement the checks.
+- **`internal/templates`**: `library.go` has `Open` (clone a library URL into `os.UserCacheDir()/mem/templates/<slug>`, `git pull --ff-only` with a 20 s limit; a failed pull is a warning), `Templates` (directories with `template.toml`), `Items` (memories/skills/docs of the used templates, later templates overriding earlier ones) and `DefaultSource` (`template_source` in `$XDG_CONFIG_HOME` or `~/.config/mem/config.toml`). `sync.go` has `Sync` and `Status`: `classify` compares project copy, template copy and the `.mem/templates.lock` hash into a state (`StateMissing`, `StateUpdated`, `StateLocalEdits`, `StateBothEdited`, …), and `reconcile` acts on it; installs go to `AGENTS.md` memories, `.agents/skills/<name>` (plus a relative `.claude/skills/<name>` symlink) and `.mem/docs/<name>.md`. `promote.go` has `Promote` (copy into the library clone, commit with the project's Git identity, push) and `Reset`.
+- **`internal/selfupdate`**: `Latest` reads the tag from the redirect of `<releases>/latest` (`MEM_RELEASES_URL` overrides the base URL), `Newer`/`IsRelease` compare `vX.Y.Z` versions, `Install` downloads `mem_<tag>_<os>_<arch>[.exe]`, verifies it against `checksums.txt` and renames it over the executable.
 - **`internal/runnables`**: `Run` executes each file in `.mem/runnables/` from the repo root in name order, 15 s timeout, output capped at 20,000 bytes.
 - **`internal/importer`**: `Import` converts `.agent_core/` config, memories, docs, specs and tasks, todos, logs, structure doc and old files/tree_dirs/runnables settings; it leaves the originals in place.
 - **`internal/git`**: `Run`, `RunEnv` (adds `GIT_TERMINAL_PROMPT=0`), `Toplevel`, `CurrentBranch`, `UserName`, `CommitPaths` (commits only the given paths and pushes when there is an upstream).
 
 ## Data Flow
 
-**Onboard** (`cli/onboard.go`): load project → `converge.Sync` (or `Local` with `--offline`) → `applyUpdates` (schema `Upgrade`, `agentsmd.Refresh`, `publish` of changed mem files, `hooks.Sync`) → `writeContext` into a buffer: structure doc (with drift), `.mem/docs/*.md`, runnable output, active spec and tasks, open specs, open todos, recent logs (up to three of the user's, filled to five) → print shared-codebase report, release status and updates → print the context inline, or write it to `.mem/local/onboard.md` when over 14,000 bytes → print the agent instruction.
+**Onboard** (`cli/onboard.go`): `autoUpdate` (unless `--offline` or `MEM_NO_UPDATE=1`; a newer release replaces the executable and `rerun` hands the invocation to it with `MEM_NO_UPDATE=1`) → load project → `converge.Sync` (or `Local` with `--offline`) → `applyUpdates` (schema `Upgrade`, `agentsmd.Refresh`, `publish` of changed mem files, `hooks.Sync`) → `syncTemplates` (open the library, `templates.Sync`, publish unless the paths had uncommitted edits) → `afterUpdates` (refresh ahead/behind and the unpushed nudge) → `writeContext` into a buffer: structure doc (with drift), `.mem/docs/*.md`, runnable output, active spec and tasks, open specs, open todos, recent logs (up to three of the user's, filled to five) → print shared-codebase report, release status and updates → print the context inline, or write it to `.mem/local/onboard.md` when over 14,000 bytes → print the agent instruction.
 
 **Work records**: `cli` commands call `work` functions that read and write Markdown files under `.mem/specs/`, `.mem/specs/archive/`, `.mem/todos/` and `.mem/logs/`. `spec start` and `todo claim` publish their record; onboard publishes its own updates. `task complete`, `spec complete` and `log new` print `driftNudges` from `converge.Local`.
+
+**Templates**: `init --template`/`template use` resolve the library (flag, project config, user config), `templates.Open`, then `templates.Sync`. `template promote` runs `templates.Promote` against the cached clone and pushes the library; other projects receive the item at their next onboard sync.
 
 **Promotion**: `promote staging|production` → `release.Prepare` → print plan (production requires `--notes` to execute) → `release.Execute`.
 
@@ -71,7 +77,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 - `go test ./internal/<pkg>/ -run <Test>` for focused tests; `go vet ./internal/<pkg>` for affected packages.
 - CI (`.github/workflows/ci.yml`): on every push and pull request, `go test ./...`, `go vet ./...` and `go build` on ubuntu, macos and windows.
-- Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`. mem's own date tags from `mem promote production` do not match.
+- Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`. mem's own date tags from `mem promote production` do not match. Installed release builds pick up a new release at their next onboard.
 - Branches for this repository: `dev` → `test` → `main` with `protect = true`.
 
 ## External Interfaces
@@ -79,12 +85,14 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 - The `git` executable and the configured remote (default `origin`); network access is limited to `git fetch`/`git push`.
 - The filesystem of the target repository: `.mem/`, `AGENTS.md`, `.gitignore` and the Git hooks directory.
 - `sh` for hooks and runnables.
-- No HTTP APIs or GitHub API calls.
+- The template library: any Git URL, cloned into the user cache.
+- HTTPS to `github.com/Benjamin-van-Heerden/mem/releases` for the self-update (no API token).
+- User config at `~/.config/mem/config.toml` (`template_source`).
 
 ## Tests and Verification
 
-- Colocated `_test.go` files per package: `agentsmd`, `cli` (`init_test.go`), `converge`, `git`, `hooks`, `importer`, `release`, `structure`, `work`. There is no `tests/` directory yet.
-- Tests build throwaway repositories in `t.TempDir()`, often with a bare repository as the remote, and drive the real `git` executable. They must not touch GitHub or need credentials.
+- Colocated `_test.go` files per package: `agentsmd`, `cli` (`init_test.go`, `template_test.go` driving `New()` end to end), `converge`, `git`, `hooks`, `importer`, `release`, `selfupdate` (an `httptest` release server), `structure`, `templates`, `work`. There is no `tests/` directory yet.
+- Tests build throwaway repositories in `t.TempDir()`, often with a bare repository as the remote or template library, and drive the real `git` executable. Tests that touch the user cache or config set `HOME` (and clear `XDG_CACHE_HOME`/`XDG_CONFIG_HOME`) to a temp directory. They must not touch GitHub or need credentials.
 - For end-to-end checks of `init`, `import` or onboard, run `dist/mem-dev` in a disposable repository, never in this checkout.
 
 ## Conventions and Patterns
