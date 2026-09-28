@@ -3,10 +3,12 @@ package git
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func Run(ctx context.Context, dir string, args ...string) (string, error) {
@@ -48,8 +50,14 @@ func UserName(ctx context.Context, root string) string {
 	return name
 }
 
+const PushTimeout = 30 * time.Second
+
+// ErrPush reports that CommitPaths committed but could not push.
+var ErrPush = errors.New("push failed")
+
 // CommitPaths commits only the given paths, leaving any other changes in the
 // working tree and index untouched, then pushes when the branch has an upstream.
+// A failed or timed-out push wraps ErrPush; the commit is kept.
 func CommitPaths(ctx context.Context, root, message string, paths ...string) (pushed bool, err error) {
 	if _, err := Run(ctx, root, append([]string{"add", "--all", "--"}, paths...)...); err != nil {
 		return false, err
@@ -60,8 +68,13 @@ func CommitPaths(ctx context.Context, root, message string, paths ...string) (pu
 	if _, err := Run(ctx, root, "rev-parse", "--abbrev-ref", "@{upstream}"); err != nil {
 		return false, nil
 	}
-	if _, err := Run(ctx, root, "push", "--quiet"); err != nil {
-		return false, err
+	pushCtx, cancel := context.WithTimeout(ctx, PushTimeout)
+	defer cancel()
+	if _, err := Run(pushCtx, root, "push", "--quiet"); err != nil {
+		if pushCtx.Err() != nil {
+			err = fmt.Errorf("no response from the remote within %s", PushTimeout)
+		}
+		return false, fmt.Errorf("%w: %v", ErrPush, err)
 	}
 	return true, nil
 }

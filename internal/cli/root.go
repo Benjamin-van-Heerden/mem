@@ -2,10 +2,12 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
@@ -58,8 +60,10 @@ func (a *app) user(cmd *cobra.Command, p project.Project) (string, error) {
 func publish(ctx context.Context, p project.Project, message string, paths ...string) string {
 	pushed, err := git.CommitPaths(ctx, p.Root, message, paths...)
 	switch {
+	case errors.Is(err, git.ErrPush):
+		return fmt.Sprintf("⚠️ Committed %q, but the push failed (%v). Tell the user that teammates will not see it until it is pushed; run `git push` once the remote is reachable.", message, err)
 	case err != nil:
-		return fmt.Sprintf("Saved locally but could not commit and push (%v). Tell the user that teammates will not see this until it is committed and pushed.", err)
+		return fmt.Sprintf("⚠️ Saved locally but could not commit (%v). Tell the user; commit %s together with the next commit.", err, strings.Join(paths, ", "))
 	case pushed:
 		return "Committed and pushed: " + message
 	default:
