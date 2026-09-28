@@ -35,6 +35,14 @@ func (a *app) onboardCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			var updateLine string
+			if !offline {
+				var takeOver bool
+				if updateLine, takeOver = autoUpdate(ctx); takeOver {
+					fmt.Fprintln(cmd.OutOrStdout(), updateLine)
+					rerun(cmd.OutOrStdout())
+				}
+			}
 			p, err := a.project(cmd)
 			if err != nil {
 				return err
@@ -53,6 +61,9 @@ func (a *app) onboardCommand() *cobra.Command {
 			updates, err := applyUpdates(ctx, p)
 			if err != nil {
 				return err
+			}
+			if updateLine != "" {
+				updates = append([]string{updateLine}, updates...)
 			}
 			templateLines, err := syncTemplates(ctx, &p, !offline)
 			if err != nil {

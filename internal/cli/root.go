@@ -32,6 +32,7 @@ func New() *cobra.Command {
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.AddCommand(
 		versionCommand(),
+		updateCommand(),
 		a.initCommand(),
 		a.memoryCommand(),
 		a.specCommand(),
