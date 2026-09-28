@@ -54,14 +54,29 @@ func (a *app) logNew() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "📝 WORK LOG CREATED")
 			fmt.Fprintf(out, "File: %s\nSpec: %s\n", p.Rel(l.Path), orDash(spec))
-			lines := []string{fmt.Sprintf("1. Read %s and replace every {placeholder} with details from this session. The next session starts with only this log and the records, so be specific.", p.Rel(l.Path))}
+			todos, err := work.Todos(p)
+			if err != nil {
+				return err
+			}
+			open := work.OpenTodos(todos)
+			output.Section(out, "📌 OPEN TODOS")
+			if len(open) == 0 {
+				fmt.Fprintln(out, "No open todos.")
+			}
+			for _, t := range open {
+				fmt.Fprintf(out, "- %s (%s)\n", t.Meta.Title, t.Slug)
+			}
+			var lines []string
+			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }
+			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from this session: what was done, decided and tried. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
+			step("If this session completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
 			switch {
 			case drift.Stale():
-				lines = append(lines, fmt.Sprintf("2. The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))
+				step(fmt.Sprintf("The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))
 			case drift.Missing:
-				lines = append(lines, "2. There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
+				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
-			lines = append(lines, fmt.Sprintf("%d. Commit and push the log together with the session's work.", len(lines)+1))
+			step("Run `mem log commit` to close the session: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
 			output.Instruction(out, lines...)
 			driftNudges(cmd.Context(), out, p)
 			return nil

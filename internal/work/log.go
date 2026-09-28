@@ -12,44 +12,40 @@ import (
 
 const logTemplate = `# Work Log - {short title}
 
+<!-- A work log records what happened in this session, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->
+
 ## Overarching Goals
 
 {
-Broad goals and what we were trying to achieve with this work in the context of our interaction so far.
+What we set out to achieve in this session, in the context of the interaction so far.
 }
 
 ## What Was Accomplished
 
 {
-Description of what was done. Use appropriate subtitles to organize work done and things achieved.
+What was done. Use subheadings to organize it. Leave out deliberation and context building; be technical and include code snippets where they help.
+}
 
-Don't mention anything that is not relevant to actual changes made, e.g. deliberations or context building actions. You can be technical here and use actual code snippets and examples.
+## Decisions
+
+{
+Decisions made and the reasons for them, so later sessions do not reopen them without cause.
+
+(Omit this section if no notable decisions were made)
 }
 
 ## Key Files Affected
 
 {
-List of files affected and changes made. Be reasonably detailed here.
+Files affected and the changes made to them. Be reasonably detailed.
 }
 
 ## Errors and Barriers
 
 {
-Implementation errors and barriers encountered that have not been resolved yet. Mention approaches which were tried and failed so we can learn from them and avoid repeating mistakes.
+Errors and barriers met, approaches that were tried and failed, and why, so they are not repeated.
 
-(Omit this entire section if there were no errors or barriers)
-}
-
-## What Comes Next
-
-{
-If there are next steps or logical progressions from where we were, mention/list them here.
-
-Be explicit about work done and expectations for follow up sessions. Remember that future sessions won't have any context about what was discussed.
-
-If we were on an active spec, mention which parts of the spec were completed and which parts need further work.
-
-(This section may be omitted entirely if nothing major needs to happen next)
+(Omit this section if there were none)
 }
 `
 
