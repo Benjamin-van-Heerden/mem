@@ -10,23 +10,27 @@ import (
 func TestOnboardShowsMemoriesAndSkillsThatArriveDuringTheSync(t *testing.T) {
 	mine, teammate := sharedProject(t)
 	mem(t, teammate, "memory", "set", "logging", "Use the structured logger.")
+	writeFile(t, teammate, ".mem/docs/glossary.md", strings.Repeat("A long project doc that pushes the context into a file.\n", 300))
 	writeFile(t, teammate, ".agents/skills/deploy/SKILL.md", "---\nname: deploy\ndescription: Deploy the app to staging.\n---\n\nRun the deploy script.\n")
 	run(t, teammate, "add", "--all")
 	run(t, teammate, "commit", "--quiet", "-m", "Add a memory and a skill")
 	run(t, teammate, "push", "--quiet")
 
+	contextFile := filepath.Join(mine, ".mem/local/onboard.md")
 	out := mem(t, mine, "onboard")
-	for _, want := range []string{"🧠 CHANGED MEMORIES", "New: logging\nUse the structured logger.", "🛠️ CHANGED SKILLS", "New: deploy (.agents/skills/deploy/SKILL.md)\n  Deploy the app to staging.", "Follow the memories under 🧠 CHANGED MEMORIES"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("onboard output lacks %q:\n%s", want, out)
+	context, _ := os.ReadFile(contextFile)
+	for _, want := range []string{"🧠 CHANGED MEMORIES\n---", "New: logging\nUse the structured logger.", "🛠️ CHANGED SKILLS\n---", "New: deploy (.agents/skills/deploy/SKILL.md)\n  Deploy the app to staging."} {
+		if !strings.Contains(string(context), want) || strings.Contains(out, want) {
+			t.Fatalf("%q belongs in onboard.md only.\nstdout:\n%s\nonboard.md:\n%s", want, out, context)
 		}
 	}
-	if strings.Contains(out, "Read AGENTS.md again") {
-		t.Fatalf("onboard still asks to re-read AGENTS.md:\n%s", out)
+	if !strings.Contains(out, "Follow the memories under 🧠 CHANGED MEMORIES") || strings.Contains(out, "Read AGENTS.md again") {
+		t.Fatalf("onboard instruction:\n%s", out)
 	}
 
 	out = mem(t, mine, "onboard")
-	if strings.Contains(out, "CHANGED MEMORIES") || strings.Contains(out, "CHANGED SKILLS") || strings.Contains(out, "Follow the memories") {
+	context, _ = os.ReadFile(contextFile)
+	if strings.Contains(string(context), "CHANGED MEMORIES") || strings.Contains(string(context), "CHANGED SKILLS") || strings.Contains(out, "Follow the memories") {
 		t.Fatalf("a second onboard reports changes again:\n%s", out)
 	}
 }

@@ -68,10 +68,12 @@ func (a *app) onboardCommand() *cobra.Command {
 			report = afterUpdates(ctx, p, report)
 
 			var buf bytes.Buffer
+			knowledgeChanged := renderKnowledgeChanges(&buf, before, readKnowledge(p))
 			state, err := writeContext(ctx, &buf, p, user)
 			if err != nil {
 				return err
 			}
+			state.knowledgeChanged = knowledgeChanged
 
 			out := cmd.OutOrStdout()
 			output.Heading(out, "📄 MEM ONBOARD: "+p.Config.Name)
@@ -93,7 +95,6 @@ func (a *app) onboardCommand() *cobra.Command {
 					fmt.Fprintln(out, line)
 				}
 			}
-			state.knowledgeChanged = renderKnowledgeChanges(out, before, readKnowledge(p))
 			if buf.Len() <= inlineContextLimit {
 				out.Write(buf.Bytes())
 			} else {
