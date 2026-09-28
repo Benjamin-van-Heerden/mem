@@ -125,7 +125,7 @@ func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
 	}
 
 	out = mem(t, a, "onboard")
-	if !strings.Contains(out, "Added memory testing from nextjs-web.") {
+	if !strings.Contains(out, "Added memory testing from nextjs-web.") || !strings.Contains(out, "Read AGENTS.md again") {
 		t.Fatalf("the promoted memory did not reach project a:\n%s", out)
 	}
 	if agents, _ := os.ReadFile(filepath.Join(a, "AGENTS.md")); !strings.Contains(string(agents), "## testing\nRun focused tests only.") {

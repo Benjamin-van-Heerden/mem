@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -112,6 +113,9 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
 			state.templateWarnings = hasWarning(templateLines)
+			state.instructionsChanged = slices.ContainsFunc(append(updates, templateLines...), func(line string) bool {
+				return strings.HasPrefix(line, "Refreshed the mem instructions") || strings.HasPrefix(line, "Added memory") || strings.HasPrefix(line, "Updated memory")
+			})
 			renderOnboardInstruction(out, report, state)
 			return nil
 		},
@@ -253,9 +257,10 @@ func renderReport(out io.Writer, r converge.Report, offline bool) {
 }
 
 type contextState struct {
-	active           *work.Spec
-	drift            structure.Drift
-	templateWarnings bool
+	active              *work.Spec
+	drift               structure.Drift
+	templateWarnings    bool
+	instructionsChanged bool
 }
 
 func renderReleases(out io.Writer, p project.Project, st release.Status) {
@@ -427,6 +432,9 @@ func recentLogs(logs []work.Log, user string) []work.Log {
 func renderOnboardInstruction(out io.Writer, r converge.Report, state contextState) {
 	lines := []string{"Your next response must:"}
 	step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines), text)) }
+	if state.instructionsChanged {
+		step("Read AGENTS.md again before anything else: this onboard changed its mem instructions or memories, so the copy you started with is out of date.")
+	}
 	if len(r.Nudges) > 0 {
 		step("Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")
 	}
