@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.2.0. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.3.1. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -35,6 +35,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem todo new "<title>" "<description>"`: record one.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo claim <todo>`: claim it as soon as you start working on it.
+- `mem todo delete <todo>`: once it is done or no longer relevant; commit the removal with the work.
 
 ## Work Logs
 
@@ -50,11 +51,12 @@ Work logs carry context from one session to the next: what was done, what failed
 
 ## Memories
 
-Memories are lasting project conventions, kept in the memories section at the end of this file. They are not for session progress.
+Memories are lasting project conventions, kept in the memories section of this file. They are not for session progress.
 
 - When the user asks you to remember something, run `mem memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
 - When you notice a useful convention, suggest it, and record it if the user agrees.
 - `mem memory remove <name>`: retire a convention.
+- When the user wants a memory, skill or doc available in similar projects: `mem template promote <memory|skill|doc> <name>`. Projects using that template receive it at their next onboard.
 
 Use project memories rather than external memory tools.
 
