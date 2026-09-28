@@ -186,7 +186,7 @@ func (a *app) templatePromote() *cobra.Command {
 				fmt.Fprintln(out, line)
 			}
 			output.Instruction(out,
-				fmt.Sprintf("1. Commit %s in this project.", strings.Join(res.Paths, " and ")),
+				fmt.Sprintf("1. Commit %s in this project.", strings.Join(res.Paths, ", ")),
 				"2. Tell the user that every project using the template receives the item at its next `mem onboard`.",
 			)
 			return nil

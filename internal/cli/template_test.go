@@ -119,8 +119,12 @@ func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
 		t.Fatalf("promote output:\n%s", out)
 	}
 	out = mem(t, b, "template", "promote", "skill", "deploy", "--to", "ops")
-	if !strings.Contains(out, "Created the template ops") || !strings.Contains(out, "This project now uses ops.") {
+	if !strings.Contains(out, "Created the template ops") || !strings.Contains(out, "This project now uses ops.") || !strings.Contains(out, ".agents/skills/deploy") {
 		t.Fatalf("promote to a new template:\n%s", out)
+	}
+
+	if _, err := os.Readlink(filepath.Join(b, ".claude/skills/deploy")); err != nil {
+		t.Fatalf("promoting a hand-made skill did not link it for Claude Code: %v", err)
 	}
 
 	out = mem(t, a, "onboard")

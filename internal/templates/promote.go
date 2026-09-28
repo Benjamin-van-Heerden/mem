@@ -79,7 +79,7 @@ func Promote(ctx context.Context, p *project.Project, lib Library, kind, name, t
 		defer cancel()
 		if _, err := git.Run(pushCtx, lib.Dir, "push", "--quiet"); err != nil {
 			git.Run(ctx, lib.Dir, "reset", "--quiet", "--hard", "@{upstream}")
-			return res, fmt.Errorf("could not push the template library, so nothing was promoted (%v); try again once %s is reachable", err, lib.Source)
+			return res, fmt.Errorf("could not push to the template library %s, so nothing was promoted (%v). Promotion needs write access to that repository: if the network was the problem, try again; if you cannot push there, fork the library and point this project at your fork by setting [templates] source in .mem/config.toml", lib.Source, err)
 		}
 		res.Lines = append(res.Lines, fmt.Sprintf("Pushed %q to the template library.", message))
 	}
@@ -89,12 +89,37 @@ func Promote(ctx context.Context, p *project.Project, lib Library, kind, name, t
 		s.configChanged = true
 		res.Lines = append(res.Lines, fmt.Sprintf("This project now uses %s.", template))
 	}
+	if kind == Skill {
+		if line, created := linkSkill(p.Root, name); line != "" {
+			res.Lines = append(res.Lines, line)
+		} else if created != "" {
+			res.Lines = append(res.Lines, fmt.Sprintf("Linked %s so Claude Code finds the skill in this project too.", created))
+			res.changed(created)
+		}
+	}
+	if local := filepath.ToSlash(localPath(kind, name)); local != "" {
+		if status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", local); status != "" {
+			res.changed(local)
+		}
+	}
 	hash, err := hashItem(kind, dest)
 	if err != nil {
 		return res, err
 	}
 	s.record(Item{Kind: kind, Name: name, Template: template, Path: dest}, hash)
 	return res, s.save()
+}
+
+// localPath is where an item lives in a project.
+func localPath(kind, name string) string {
+	switch kind {
+	case Memory:
+		return "AGENTS.md"
+	case Skill:
+		return SkillPath(name)
+	default:
+		return DocPath(name)
+	}
 }
 
 // Reset replaces the project's copy of an item with its template's copy and
