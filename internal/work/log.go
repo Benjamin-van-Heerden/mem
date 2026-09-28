@@ -3,6 +3,7 @@ package work
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -64,6 +65,50 @@ type Log struct {
 
 func (l Log) slug() string  { return l.Name }
 func (l Log) title() string { return l.Name }
+
+var placeholder = regexp.MustCompile(`\{[^{}]*\}`)
+
+// Unfilled returns the template placeholders still present in the log, each
+// by its first line of guidance.
+func (l Log) Unfilled() []string {
+	var left []string
+	for _, ph := range placeholder.FindAllString(logTemplate, -1) {
+		if !strings.Contains(l.Body, ph) {
+			continue
+		}
+		for _, line := range strings.Split(strings.Trim(ph, "{}"), "\n") {
+			if line = strings.TrimSpace(line); line != "" {
+				left = append(left, line)
+				break
+			}
+		}
+	}
+	return left
+}
+
+// Heading is the log's title from its first heading, or its file name.
+func (l Log) Heading() string {
+	for _, line := range strings.Split(l.Body, "\n") {
+		if title, ok := strings.CutPrefix(line, "# "); ok {
+			return strings.TrimSpace(strings.TrimPrefix(title, "Work Log - "))
+		}
+	}
+	return l.Name
+}
+
+// LatestLog returns the user's newest log.
+func LatestLog(p project.Project, user string) (Log, bool, error) {
+	logs, err := Logs(p)
+	if err != nil {
+		return Log{}, false, err
+	}
+	for _, l := range logs {
+		if l.Meta.User == user {
+			return l, true, nil
+		}
+	}
+	return Log{}, false, nil
+}
 
 func logsDir(p project.Project) string { return p.Path("logs") }
 

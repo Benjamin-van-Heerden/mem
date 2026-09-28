@@ -55,26 +55,40 @@ const PushTimeout = 30 * time.Second
 // ErrPush reports that CommitPaths committed but could not push.
 var ErrPush = errors.New("push failed")
 
-// CommitPaths commits only the given paths, leaving any other changes in the
-// working tree and index untouched, then pushes when the branch has an upstream.
-// A failed or timed-out push wraps ErrPush; the commit is kept.
-func CommitPaths(ctx context.Context, root, message string, paths ...string) (pushed bool, err error) {
+// Commit commits only the given paths, leaving any other changes in the
+// working tree and index untouched.
+func Commit(ctx context.Context, root, message string, paths ...string) error {
 	if _, err := Run(ctx, root, append([]string{"add", "--all", "--"}, paths...)...); err != nil {
-		return false, err
+		return err
 	}
-	if _, err := Run(ctx, root, append([]string{"commit", "--quiet", "-m", message, "--"}, paths...)...); err != nil {
-		return false, err
-	}
-	if _, err := Run(ctx, root, "rev-parse", "--abbrev-ref", "@{upstream}"); err != nil {
-		return false, nil
-	}
+	_, err := Run(ctx, root, append([]string{"commit", "--quiet", "-m", message, "--"}, paths...)...)
+	return err
+}
+
+// Push pushes the current branch to its upstream within PushTimeout. Failures wrap ErrPush.
+func Push(ctx context.Context, root string) error {
 	pushCtx, cancel := context.WithTimeout(ctx, PushTimeout)
 	defer cancel()
 	if _, err := Run(pushCtx, root, "push", "--quiet"); err != nil {
 		if pushCtx.Err() != nil {
 			err = fmt.Errorf("no response from the remote within %s", PushTimeout)
 		}
-		return false, fmt.Errorf("%w: %v", ErrPush, err)
+		return fmt.Errorf("%w: %v", ErrPush, err)
+	}
+	return nil
+}
+
+// CommitPaths commits only the given paths, then pushes when the branch has an
+// upstream. A failed or timed-out push wraps ErrPush; the commit is kept.
+func CommitPaths(ctx context.Context, root, message string, paths ...string) (pushed bool, err error) {
+	if err := Commit(ctx, root, message, paths...); err != nil {
+		return false, err
+	}
+	if _, err := Run(ctx, root, "rev-parse", "--abbrev-ref", "@{upstream}"); err != nil {
+		return false, nil
+	}
+	if err := Push(ctx, root); err != nil {
+		return false, err
 	}
 	return true, nil
 }

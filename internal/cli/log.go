@@ -1,9 +1,14 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"path"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/converge"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/structure"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
@@ -12,7 +17,7 @@ import (
 
 func (a *app) logCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "log", Short: "Write and read session work logs"}
-	cmd.AddCommand(a.logNew(), a.logList(), a.logShow())
+	cmd.AddCommand(a.logNew(), a.logCommit(), a.logList(), a.logShow())
 	return cmd
 }
 
@@ -120,6 +125,109 @@ func (a *app) logList() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&limit, "limit", 10, "Maximum number of logs to list")
 	return cmd
+}
+
+func (a *app) logCommit() *cobra.Command {
+	return &cobra.Command{
+		Use:   "commit [<log>]",
+		Short: "Close the session: commit the log and .mem/ records, sync with the shared codebase and push",
+		Long:  "Commits the changed .mem/ records (the log, todos, specs, structure doc) with the log, brings the branch up to date with its upstream (fast-forward, or rebase when safe), and pushes. Code outside .mem/ is never committed; uncommitted work is reported. Without an argument it closes your newest log.",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			p, err := a.project(cmd)
+			if err != nil {
+				return err
+			}
+			var l work.Log
+			if len(args) == 1 {
+				if l, err = work.FindLog(p, args[0]); err != nil {
+					return err
+				}
+			} else {
+				user, err := a.user(cmd, p)
+				if err != nil {
+					return err
+				}
+				var ok bool
+				if l, ok, err = work.LatestLog(p, user); err != nil {
+					return err
+				} else if !ok {
+					return errors.New("you have no work log yet; start one with `mem log new`")
+				}
+			}
+			if left := l.Unfilled(); len(left) > 0 {
+				return fmt.Errorf("%s still has %d unfilled placeholder(s): %s. Fill them in, then run `mem log commit` again", p.Rel(l.Path), len(left), strings.Join(left, " / "))
+			}
+
+			out := cmd.OutOrStdout()
+			output.Section(out, "📝 WORK LOG COMMITTED: "+l.Heading())
+			fmt.Fprintf(out, "Log: %s\n", p.Rel(l.Path))
+			var warnings []string
+			if status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", ".mem"); status != "" {
+				message := "Work log: " + l.Heading()
+				if err := git.Commit(ctx, p.Root, message, ".mem"); err != nil {
+					warnings = append(warnings, fmt.Sprintf("Could not commit the .mem/ records (%v). Tell the user, and commit them by hand.", err))
+				} else {
+					fmt.Fprintf(out, "Committed .mem/ records: %s\n", message)
+				}
+			} else {
+				fmt.Fprintln(out, "The .mem/ records were already committed.")
+			}
+
+			r := converge.Sync(ctx, p)
+			if r.Upstream != "" && r.Ahead > 0 && r.Behind == 0 {
+				if err := git.Push(ctx, p.Root); err != nil {
+					warnings = append(warnings, fmt.Sprintf("Pushing %s failed (%v). Tell the user; teammates will not see this session's work until `git push` succeeds.", r.Branch, err))
+				} else {
+					r.Done = append(r.Done, fmt.Sprintf("Pushed %d commit(s) to %s.", r.Ahead, r.Upstream))
+				}
+			}
+			final := converge.Local(ctx, p)
+			final.Fetched, final.FetchError, final.Done = r.Fetched, r.FetchError, r.Done
+			final.Nudges = warnings
+			for _, line := range r.Nudges {
+				if line != converge.Unpushed(r) {
+					final.Nudges = append(final.Nudges, line)
+				}
+			}
+			if line := converge.Unpushed(final); line != "" {
+				final.Nudges = append(final.Nudges, line)
+			}
+			if n := uncommittedOutsideMem(ctx, p.Root); n > 0 {
+				final.Dirty = true
+				final.Nudges = append(final.Nudges, fmt.Sprintf("The session ends with uncommitted work in %d file(s) outside .mem/ (`git status`). Commit it now if it is finished, or tell the user why it stays uncommitted.", n))
+			}
+			renderReport(out, final, false)
+			if len(final.Nudges) > 0 {
+				output.Instruction(out, "Tell the user about each ⚠️ item above and resolve it with them before the session ends.")
+				return nil
+			}
+			target := final.Upstream
+			if target == "" {
+				target = "its remote"
+			}
+			output.Instruction(out, fmt.Sprintf("Tell the user the session is closed: the log is committed and %s matches %s.", final.Branch, target))
+			return nil
+		},
+	}
+}
+
+// uncommittedOutsideMem counts changed and untracked files outside .mem/, ignoring .DS_Store.
+func uncommittedOutsideMem(ctx context.Context, root string) int {
+	status, _ := git.Run(ctx, root, "status", "--porcelain", "--untracked-files=all")
+	n := 0
+	for _, line := range strings.Split(status, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		file := strings.Trim(line[3:], "\"")
+		if strings.HasPrefix(file, ".mem/") || path.Base(file) == ".DS_Store" {
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 func (a *app) logShow() *cobra.Command {
