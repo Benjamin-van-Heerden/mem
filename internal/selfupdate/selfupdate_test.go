@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -69,7 +70,7 @@ func TestInstallReplacesTheExecutableOnlyWithAVerifiedBinary(t *testing.T) {
 	if data, _ := os.ReadFile(target); string(data) != "new" {
 		t.Fatalf("target = %q after install", data)
 	}
-	if info, _ := os.Stat(target); info.Mode().Perm()&0o100 == 0 {
+	if info, _ := os.Stat(target); runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 		t.Fatal("the installed binary is not executable")
 	}
 

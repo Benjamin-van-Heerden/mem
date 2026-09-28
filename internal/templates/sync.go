@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -354,8 +355,10 @@ func templateHash(item Item) (string, error) {
 	return hashPath(item.Path)
 }
 
+// hashBytes ignores carriage returns, so checkouts with CRLF line endings
+// (Git's autocrlf on Windows) hash the same as LF ones.
 func hashBytes(data []byte) string {
-	sum := sha256.Sum256(data)
+	sum := sha256.Sum256(bytes.ReplaceAll(data, []byte("\r"), nil))
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
@@ -382,8 +385,7 @@ func hashPath(path string) (string, error) {
 			return err
 		}
 		rel, _ := filepath.Rel(path, file)
-		fmt.Fprintf(h, "%s\x00%d\x00", filepath.ToSlash(rel), len(data))
-		h.Write(data)
+		fmt.Fprintf(h, "%s\x00%s\x00", filepath.ToSlash(rel), hashBytes(data))
 		return nil
 	})
 	if err != nil {

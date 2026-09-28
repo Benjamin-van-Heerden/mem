@@ -86,7 +86,7 @@ func TestOnboardDrawsInNewTemplateItemsAndPublishesThem(t *testing.T) {
 	if !strings.Contains(out, "🧩 TEMPLATES") || !strings.Contains(out, "Added skill next-routing from nextjs-web.") || !strings.Contains(out, "Committed and pushed: Sync template items") {
 		t.Fatalf("onboard output:\n%s", out)
 	}
-	if data, err := os.ReadFile(filepath.Join(root, ".claude/skills/next-routing/SKILL.md")); err != nil || string(data) != "Await params.\n" {
+	if data, err := os.ReadFile(filepath.Join(root, ".claude/skills/next-routing/SKILL.md")); err != nil || strings.TrimSpace(string(data)) != "Await params." {
 		t.Fatalf("skill not reachable through .claude/skills: %v", err)
 	}
 	if status := run(t, root, "status", "--porcelain"); status != "" {

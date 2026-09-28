@@ -44,7 +44,7 @@ func read(t *testing.T, root, rel string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(data)
+	return strings.ReplaceAll(string(data), "\r", "")
 }
 
 func memory(t *testing.T, p *project.Project, name string) string {
