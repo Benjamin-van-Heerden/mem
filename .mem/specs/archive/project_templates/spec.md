@@ -1,9 +1,10 @@
 ---
 title: Project templates
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-09-25T13:57:57+02:00"
-updated_at: "2026-09-25T14:29:14+02:00"
+updated_at: "2026-09-28T07:56:46+02:00"
+completed_at: "2026-09-28T07:56:46+02:00"
 ---
 
 ## Overview
