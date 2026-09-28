@@ -20,6 +20,7 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
 	"github.com/Benjamin-van-Heerden/mem/internal/runnables"
 	"github.com/Benjamin-van-Heerden/mem/internal/structure"
+	"github.com/Benjamin-van-Heerden/mem/internal/templates"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,10 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			templateLines, err := syncTemplates(ctx, &p, !offline)
+			if err != nil {
+				return err
+			}
 			report = afterUpdates(ctx, p, report)
 
 			var buf bytes.Buffer
@@ -75,6 +80,12 @@ func (a *app) onboardCommand() *cobra.Command {
 					fmt.Fprintln(out, line)
 				}
 			}
+			if len(templateLines) > 0 {
+				output.Section(out, "🧩 TEMPLATES")
+				for _, line := range templateLines {
+					fmt.Fprintln(out, line)
+				}
+			}
 			if buf.Len() <= inlineContextLimit {
 				out.Write(buf.Bytes())
 			} else {
@@ -89,6 +100,7 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintf(out, "The project context is %d lines long and was written to %s.\n", bytes.Count(buf.Bytes(), []byte("\n")), p.Rel(path))
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
+			state.templateWarnings = hasWarning(templateLines)
 			renderOnboardInstruction(out, report, state)
 			return nil
 		},
@@ -137,6 +149,47 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	hookLines, err := hooks.Sync(ctx, p)
 	return append(lines, hookLines...), err
+}
+
+var templatePaths = []string{"AGENTS.md", ".agents/skills", ".claude/skills", ".mem/docs", templates.LockPath, ".mem/config.toml"}
+
+// syncTemplates brings the project's template items up to date and publishes
+// the result, unless those paths already had uncommitted edits.
+func syncTemplates(ctx context.Context, p *project.Project, pull bool) ([]string, error) {
+	if len(p.Config.Templates.Use) == 0 {
+		return nil, nil
+	}
+	lib, warning, err := openTemplates(ctx, *p, pull)
+	if err != nil {
+		return []string{fmt.Sprintf("⚠️ Could not open the template library: %v. Template items were not synced.", err)}, nil
+	}
+	var lines []string
+	if warning != "" {
+		lines = append(lines, "⚠️ "+warning)
+	}
+	dirty, _ := git.Run(ctx, p.Root, append([]string{"status", "--porcelain", "--"}, templatePaths...)...)
+	res, err := templates.Sync(p, lib)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, res.Lines...)
+	switch {
+	case len(res.Paths) == 0:
+	case dirty != "":
+		lines = append(lines, fmt.Sprintf("These paths already had uncommitted edits, so nothing was committed: commit the template changes (%s) together with them.", strings.Join(res.Paths, ", ")))
+	default:
+		lines = append(lines, publish(ctx, *p, "Sync template items", res.Paths...))
+	}
+	return lines, nil
+}
+
+func hasWarning(lines []string) bool {
+	for _, line := range lines {
+		if strings.HasPrefix(line, "⚠️") {
+			return true
+		}
+	}
+	return false
 }
 
 // afterUpdates refreshes the ahead/behind counts and the unpushed nudge, since
@@ -189,8 +242,9 @@ func renderReport(out io.Writer, r converge.Report, offline bool) {
 }
 
 type contextState struct {
-	active *work.Spec
-	drift  structure.Drift
+	active           *work.Spec
+	drift            structure.Drift
+	templateWarnings bool
 }
 
 func renderReleases(out io.Writer, p project.Project, st release.Status) {
@@ -364,6 +418,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines), text)) }
 	if len(r.Nudges) > 0 {
 		step("Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")
+	}
+	if state.templateWarnings {
+		step("Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
 	}
 	if state.active != nil {
 		step(fmt.Sprintf("Summarize where your active spec %s stands and name its next pending task.", state.active.Slug))
