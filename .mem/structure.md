@@ -77,7 +77,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 - `go test ./internal/<pkg>/ -run <Test>` for focused tests; `go vet ./internal/<pkg>` for affected packages.
 - CI (`.github/workflows/ci.yml`): on every push and pull request, `go test ./...`, `go vet ./...` and `go build` on ubuntu, macos and windows.
-- Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`. mem's own date tags from `mem promote production` do not match. Installed release builds pick up a new release at their next onboard.
+- Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`. `GORELEASER_CURRENT_TAG` is set to the pushed tag, because the date tag from `mem promote production` sits on the same commit. mem's own date tags from `mem promote production` do not match. Installed release builds pick up a new release at their next onboard.
 - Branches for this repository: `dev` → `test` → `main` with `protect = true`.
 
 ## External Interfaces

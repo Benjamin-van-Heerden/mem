@@ -118,7 +118,7 @@ func User(ctx context.Context, root string) (string, error) {
 }
 
 var (
-	separators = regexp.MustCompile(`[\s\-]+`)
+	separators = regexp.MustCompile(`[\s\-/\\.:]+`)
 	invalid    = regexp.MustCompile(`[^a-z0-9_]`)
 	repeats    = regexp.MustCompile(`_+`)
 )
