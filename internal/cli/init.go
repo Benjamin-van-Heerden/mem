@@ -15,6 +15,7 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
+	"github.com/Benjamin-van-Heerden/mem/internal/templates"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +23,8 @@ const localIgnore = "/.mem/local/"
 
 func (a *app) initCommand() *cobra.Command {
 	config := project.Config{Schema: project.Schema}
+	var templateNames []string
+	var templateSource string
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up mem in the current Git repository",
@@ -36,6 +39,20 @@ func (a *app) initCommand() *cobra.Command {
 			}
 			if config.Name == "" {
 				config.Name = filepath.Base(root)
+			}
+			var lib templates.Library
+			var libWarning string
+			if len(templateNames) > 0 {
+				if config.Templates.Source, err = librarySource(templateSource, ""); err != nil {
+					return err
+				}
+				if lib, libWarning, err = templates.Open(cmd.Context(), config.Templates.Source, true); err != nil {
+					return err
+				}
+				config.Templates.Use = templateNames
+				if _, _, err := lib.Items(templateNames); err != nil {
+					return err
+				}
 			}
 			branchLines, err := ensureBranches(cmd.Context(), root, config.Git)
 			if err != nil {
@@ -64,6 +81,12 @@ func (a *app) initCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			var synced templates.Result
+			if len(templateNames) > 0 {
+				if synced, err = templates.Sync(&p, lib); err != nil {
+					return err
+				}
+			}
 
 			out := cmd.OutOrStdout()
 			output.Heading(out, "📦 MEM INITIALIZED")
@@ -76,6 +99,11 @@ func (a *app) initCommand() *cobra.Command {
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
+			if len(templateNames) > 0 {
+				output.Section(out, "🧩 TEMPLATES: "+strings.Join(templateNames, ", "))
+				fmt.Fprintf(out, "Library: %s\n", config.Templates.Source)
+				renderTemplateSync(out, libWarning, synced)
+			}
 			output.Section(out, "🌿 BRANCHES")
 			for _, line := range branchLines {
 				fmt.Fprintln(out, line)
@@ -83,7 +111,7 @@ func (a *app) initCommand() *cobra.Command {
 			dev := config.Git.Development
 			output.Instruction(out,
 				"1. Read AGENTS.md now: it contains the working instructions for this project.",
-				fmt.Sprintf("2. Show the user these files. Commit them on %s and push it (`git push -u %s %s`) so every clone shares the setup.", dev, config.Git.Remote, dev),
+				fmt.Sprintf("2. Show the user these files%s. Commit them on %s and push it (`git push -u %s %s`) so every clone shares the setup.", templateNote(synced), dev, config.Git.Remote, dev),
 				"3. Run `mem onboard` to build the project context.",
 			)
 			return nil
@@ -95,6 +123,8 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Git.Development, "development", "dev", "Development branch, where day-to-day work happens")
 	cmd.Flags().StringVar(&config.Git.Staging, "staging", "test", "Staging branch, deployed as preview releases")
 	cmd.Flags().StringVar(&config.Git.Production, "production", "main", "Production branch")
+	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills and docs from; repeat for several (later ones win on name clashes)")
+	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to template_source in the user config)")
 	cmd.Flags().BoolVar(&config.Git.Protect, "protect", true, "Install Git hooks that keep staging and production promotion-only (use --protect=false for solo projects)")
 	return cmd
 }
@@ -161,6 +191,13 @@ func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]st
 func refExists(ctx context.Context, root, ref string) bool {
 	_, err := git.Run(ctx, root, "rev-parse", "--verify", "--quiet", ref)
 	return err == nil
+}
+
+func templateNote(res templates.Result) string {
+	if len(res.Paths) == 0 {
+		return ""
+	}
+	return ", including the template items (" + strings.Join(res.Paths, ", ") + ")"
 }
 
 func ensureIgnored(root, entry string) error {

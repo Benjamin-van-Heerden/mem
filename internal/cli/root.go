@@ -42,6 +42,7 @@ func New() *cobra.Command {
 		a.syncCommand(),
 		a.structureCommand(),
 		a.promoteCommand(),
+		a.templateCommand(),
 		a.hookCommand(),
 		a.importCommand(),
 	)
