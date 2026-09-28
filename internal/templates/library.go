@@ -4,9 +4,12 @@ package templates
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -58,7 +61,7 @@ func Open(ctx context.Context, source string, pull bool) (Library, string, error
 	if err != nil {
 		return Library{}, "", err
 	}
-	lib := Library{Source: source, Dir: filepath.Join(cache, "mem", "templates", strings.Trim(unsafe.ReplaceAllString(source, "_"), "_"))}
+	lib := Library{Source: source, Dir: filepath.Join(cache, "mem", "templates", cacheName(source))}
 	netCtx, cancel := context.WithTimeout(ctx, networkTimeout)
 	defer cancel()
 	if _, err := os.Stat(filepath.Join(lib.Dir, ".git")); err != nil {
@@ -78,6 +81,14 @@ func Open(ctx context.Context, source string, pull bool) (Library, string, error
 		}
 	}
 	return lib, "", nil
+}
+
+// cacheName keeps clone paths short (Windows limits path length): the
+// repository name plus a hash of the full source.
+func cacheName(source string) string {
+	base := strings.TrimSuffix(path.Base(strings.ReplaceAll(source, "\\", "/")), ".git")
+	sum := sha256.Sum256([]byte(source))
+	return strings.Trim(unsafe.ReplaceAllString(base, "_"), "_") + "-" + hex.EncodeToString(sum[:4])
 }
 
 // Templates lists the directories that contain a template.toml.
