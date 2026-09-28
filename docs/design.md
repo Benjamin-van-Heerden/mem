@@ -81,7 +81,7 @@ Identity is `git config user.name`, slugified.
   - `spec complete <slug>`: requires all tasks done; tells the agent to verify the Success Criteria against the code, write a log and commit the work; archives the spec
   - `spec abandon <slug> --reason "..."`: archives the spec
 - **Task:** ordered steps within a spec. `task new "title" "description" [--spec]`, `task list [--spec]`, `task complete <slug> "notes" [--spec]`. `--spec` defaults to the user's single active spec. Completion prints remaining tasks and directs the agent to continue.
-- **Todo:** a standalone matter needing attention. `todo new "title" "description"`, `todo list`, `todo show`, `todo claim` (commits and pushes), `todo delete`.
+- **Todo:** open work that is not part of a spec, including blockers and decisions waiting on someone. `todo new "title" "description"`, `todo list`, `todo show`, `todo claim` (commits and pushes), `todo delete` (when done or no longer relevant).
 - **Memory:** a lasting convention in the `AGENTS.md` memories block. `memory set <name> "<instruction>"`, `memory list`, `memory remove <name>`.
 
 Arguments accept a slug or an unambiguous title.
@@ -90,8 +90,8 @@ Arguments accept a slug or an unambiguous title.
 
 Two layers:
 
-1. **Records** hold where planned work stands. Onboard renders the active spec and its pending tasks, so the next session knows what remains without any note.
-2. **Logs** hold the narrative: what was done, what failed, decisions, what comes next. They cover ad hoc work too. `log new [--spec]` creates a templated file for the agent to fill in; logs are written at the end of a session or when context is getting long, with the user's agreement. `log list`, `log show`.
+1. **Records** hold open work: specs with their pending tasks, and todos. Onboard renders them, with each todo's age, and derives release status from Git, so the next session knows what remains without reading any note.
+2. **Logs** are statements of fact about a finished session: goals, what was done, decisions, files affected, failed approaches. They are never updated, so they never carry open work. `log new [--spec]` creates the templated file, lists open todos and prompts the agent to delete the ones the session completed and to record anything left open as todos. `log commit` closes the session: it refuses while placeholders remain, commits the changed `.mem/` records, syncs the branch with its upstream, pushes, and reports uncommitted work outside `.mem/`. Onboard shows the user's latest log in full and lists the other logs of the last 14 days by title. `log list`, `log show`.
 
 ## Structure doc
 

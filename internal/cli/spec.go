@@ -188,7 +188,7 @@ func (a *app) specComplete() *cobra.Command {
 			fmt.Fprintf(out, "Spec: %s\nArchived to: %s\n", s.Meta.Title, p.Rel(s.Dir))
 			output.Instruction(out,
 				"1. Summarize for the user what the spec delivered.",
-				fmt.Sprintf("2. Offer to write a session log: `mem log new --spec %s`.", s.Slug),
+				fmt.Sprintf("2. Offer to close the session: `mem log new --spec %s`, then `mem log commit`.", s.Slug),
 				"3. Commit and push the work together with the .mem/ changes.",
 			)
 			driftNudges(cmd.Context(), out, p)

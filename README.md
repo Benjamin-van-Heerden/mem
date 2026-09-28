@@ -58,7 +58,7 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 
 - **`mem onboard`** starts every session. It fetches and brings the checkout up to date (fast-forwarding, or rebasing unpushed commits, when that is safe), refreshes mem's instructions, and prints the project context for the agent. Anything that needs attention, such as diverged history or unpushed work, is flagged with ⚠️ for the agent to raise with you. `mem sync` does the Git part on demand.
 - **Specs, tasks and todos** track planned work. A spec is written up with the user, broken into ordered tasks and implemented task by task; todos are standalone matters. None of them are needed for ordinary coding.
-- **Work logs** carry context between sessions: what was done, what failed and what comes next. Onboard shows the most recent ones.
+- **Work logs** record what each session did, decided and tried, and are never updated; open work lives in todos. `mem log new` and then `mem log commit` end a session: the log and the other records are committed, the branch is synced and pushed. Onboard shows your latest log and lists other recent ones.
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
 - **Templates** supply memories, skills and docs for a kind of project from a shared Git library. Onboard draws in what is missing and updates what the project has not changed; `mem template promote` sends a project's memory, skill or doc back so similar projects receive it.
 - **The structure doc**, `.mem/structure.md`, is a living map of the codebase that onboard includes. `mem structure` creates it and later lists what has changed since it was last updated; mem warns when it falls behind the code.
