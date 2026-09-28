@@ -20,7 +20,7 @@ func (a *app) templateCommand() *cobra.Command {
 		Short: "Draw memories, skills and docs from a template library, and promote them back",
 		Long:  "A template library is a Git repository with one directory per template (for example nextjs-web/), each holding template.toml, memories/<name>.md, skills/<name>/ and docs/<name>.md. Projects list the templates they use in .mem/config.toml; onboard keeps them in sync.",
 	}
-	cmd.AddCommand(a.templateUse(), a.templateList())
+	cmd.AddCommand(a.templateUse(), a.templateList(), a.templatePromote(), a.templateReset())
 	return cmd
 }
 
@@ -142,11 +142,97 @@ func (a *app) templateList() *cobra.Command {
 				rows = append(rows, []string{st.Item.Kind, st.Item.Name, st.Item.Template, st.State})
 			}
 			table(out, rows)
+			hints := map[string]string{
+				templates.StateLocalEdits: "Local edits can be shared with similar projects: `mem template promote <kind> <name>`.",
+				templates.StateBothEdited: "Items edited on both sides keep their local version until the user decides: `mem template promote <kind> <name>` keeps it, `mem template reset <kind> <name>` takes the template's.",
+				templates.StateDiffers:    "Items that differ but are not tracked: `mem template promote <kind> <name>` keeps the project's version, `mem template reset <kind> <name>` takes the template's.",
+				templates.StateUpdated:    "Template updates arrive at the next `mem onboard`.",
+				templates.StateMissing:    "Missing items arrive at the next `mem onboard`.",
+				templates.StateExcluded:   "Excluded items are listed under [templates] exclude in .mem/config.toml; `mem template reset <kind> <name>` brings one back.",
+			}
+			var notes []string
+			for _, st := range statuses {
+				if hint, ok := hints[st.State]; ok && !slices.Contains(notes, hint) {
+					notes = append(notes, hint)
+				}
+			}
+			if len(notes) > 0 {
+				fmt.Fprintln(out)
+				for _, note := range notes {
+					fmt.Fprintln(out, note)
+				}
+			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&source, "template-source", "", "Git URL of the template library (defaults to the project's, then template_source in the user config)")
 	return cmd
+}
+
+func (a *app) templatePromote() *cobra.Command {
+	var to string
+	cmd := &cobra.Command{
+		Use:   "promote <memory|skill|doc> <name>",
+		Short: "Send a project memory, skill or doc to its template so similar projects receive it",
+		Long:  "Copies the item into the template library, commits and pushes it. Every project that uses the template receives it at its next onboard. Items that did not come from a template go to the project's only template, or to the one named with --to, which is created if it does not exist.",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p, err := a.project(cmd)
+			if err != nil {
+				return err
+			}
+			if p.Config.Templates.Source, err = librarySource("", p.Config.Templates.Source); err != nil {
+				return err
+			}
+			lib, _, err := templates.Open(cmd.Context(), p.Config.Templates.Source, false)
+			if err != nil {
+				return err
+			}
+			res, err := templates.Promote(cmd.Context(), &p, lib, args[0], args[1], to)
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			output.Section(out, fmt.Sprintf("⬆️ PROMOTED: %s %s", args[0], args[1]))
+			for _, line := range res.Lines {
+				fmt.Fprintln(out, line)
+			}
+			output.Instruction(out,
+				fmt.Sprintf("1. Commit %s in this project.", strings.Join(res.Paths, " and ")),
+				"2. Tell the user that every project using the template receives the item at its next `mem onboard`.",
+			)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&to, "to", "", "Template to promote to (needed when the item is not from a template and the project uses several)")
+	return cmd
+}
+
+func (a *app) templateReset() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reset <memory|skill|doc> <name>",
+		Short: "Replace the project's copy of a template item with the template's",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p, err := a.project(cmd)
+			if err != nil {
+				return err
+			}
+			lib, warning, err := openTemplates(cmd.Context(), p, true)
+			if err != nil {
+				return err
+			}
+			res, err := templates.Reset(&p, lib, args[0], args[1])
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			output.Section(out, fmt.Sprintf("↩️ RESET: %s %s", args[0], args[1]))
+			renderTemplateSync(out, warning, res)
+			output.Instruction(out, templateInstructions(res)...)
+			return nil
+		},
+	}
 }
 
 func renderTemplateSync(out io.Writer, warning string, res templates.Result) {

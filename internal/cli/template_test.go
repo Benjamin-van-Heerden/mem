@@ -107,3 +107,35 @@ func TestOnboardDrawsInNewTemplateItemsAndPublishesThem(t *testing.T) {
 		t.Fatalf("onboard did not pull the new doc:\n%s", out)
 	}
 }
+
+func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
+	base, library, _ := templateWorld(t)
+	a := templateProject(t, base, "a", library)
+	b := templateProject(t, base, "b", library)
+
+	mem(t, b, "memory", "set", "testing", "Run focused tests only.")
+	writeFile(t, b, ".agents/skills/deploy/SKILL.md", "Deploy with care.\n")
+	out := mem(t, b, "template", "promote", "memory", "testing")
+	if !strings.Contains(out, "Pushed \"Promote memory testing from b\"") {
+		t.Fatalf("promote output:\n%s", out)
+	}
+	out = mem(t, b, "template", "promote", "skill", "deploy", "--to", "ops")
+	if !strings.Contains(out, "Created the template ops") || !strings.Contains(out, "This project now uses ops.") {
+		t.Fatalf("promote to a new template:\n%s", out)
+	}
+
+	out = mem(t, a, "onboard")
+	if !strings.Contains(out, "Added memory testing from nextjs-web.") {
+		t.Fatalf("the promoted memory did not reach project a:\n%s", out)
+	}
+	if agents, _ := os.ReadFile(filepath.Join(a, "AGENTS.md")); !strings.Contains(string(agents), "## testing\nRun focused tests only.") {
+		t.Fatal("project a's AGENTS.md lacks the promoted memory")
+	}
+	if strings.Contains(out, "deploy") {
+		t.Fatalf("project a received an item from a template it does not use:\n%s", out)
+	}
+
+	if list := mem(t, a, "template", "list"); !strings.Contains(list, "ops") || !strings.Contains(list, "testing           nextjs-web   in sync") {
+		t.Fatalf("template list:\n%s", list)
+	}
+}

@@ -58,15 +58,11 @@ func Sync(p *project.Project, lib Library) (Result, error) {
 		return res, err
 	}
 	res.Lines = append(res.Lines, notes...)
-	lock, err := readLock(p.Root)
+	s, err := load(p)
 	if err != nil {
 		return res, err
 	}
-	agents, err := os.ReadFile(filepath.Join(p.Root, "AGENTS.md"))
-	if err != nil {
-		return res, err
-	}
-	s := &state{p: p, agents: string(agents), lock: lock, res: &res}
+	s.res = &res
 
 	provided := map[string]bool{}
 	for _, item := range items {
@@ -123,15 +119,10 @@ func Status(p *project.Project, lib Library) ([]ItemStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	lock, err := readLock(p.Root)
+	s, err := load(p)
 	if err != nil {
 		return nil, err
 	}
-	agents, err := os.ReadFile(filepath.Join(p.Root, "AGENTS.md"))
-	if err != nil {
-		return nil, err
-	}
-	s := &state{p: p, agents: string(agents), lock: lock, res: &Result{}}
 	var statuses []ItemStatus
 	for _, item := range items {
 		st, _, err := s.classify(item)
@@ -273,16 +264,15 @@ func (s *state) install(item Item) error {
 
 func (s *state) localHash(kind, name string) (string, bool, error) {
 	if kind == Memory {
-		memories, err := agentsmd.Memories(s.agents)
+		memories, err := agentsmdMemories(s.agents)
 		if err != nil {
 			return "", false, err
 		}
-		for _, m := range memories {
-			if m.Name == name {
-				return hashBytes([]byte(m.Body)), true, nil
-			}
+		body, ok := memories[name]
+		if !ok {
+			return "", false, nil
 		}
-		return "", false, nil
+		return hashBytes([]byte(body)), true, nil
 	}
 	path := filepath.Join(s.p.Root, DocPath(name))
 	if kind == Skill {
@@ -293,6 +283,18 @@ func (s *state) localHash(kind, name string) (string, bool, error) {
 	}
 	hash, err := hashPath(path)
 	return hash, err == nil, err
+}
+
+func agentsmdMemories(text string) (map[string]string, error) {
+	memories, err := agentsmd.Memories(text)
+	if err != nil {
+		return nil, err
+	}
+	bodies := map[string]string{}
+	for _, m := range memories {
+		bodies[m.Name] = m.Body
+	}
+	return bodies, nil
 }
 
 func (s *state) save() error {

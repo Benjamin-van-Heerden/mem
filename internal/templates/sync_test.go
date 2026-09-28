@@ -154,3 +154,36 @@ func TestSyncLeavesAnExistingDifferentItemAndFlagsIt(t *testing.T) {
 		t.Fatalf("an existing skill was overwritten or not flagged: %v", res.Lines)
 	}
 }
+
+func TestResetTakesTheTemplateCopyAndLiftsAnExclusion(t *testing.T) {
+	source, _ := library(t, map[string]string{
+		"web/template.toml":        "description = \"Web\"\n",
+		"base/template.toml":       "description = \"Base\"\n",
+		"web/docs/routing.md":      "# Routing\n",
+		"web/skills/lint/SKILL.md": "template lint\n",
+	})
+	p := newProject(t, "base", "web")
+	sync(t, p, source)
+	os.Remove(filepath.Join(p.Root, ".mem/docs/routing.md"))
+	write(t, p.Root, ".agents/skills/lint/SKILL.md", "local lint\n")
+	sync(t, p, source)
+	lib, _, _ := Open(context.Background(), source, false)
+
+	if _, err := Reset(p, lib, Doc, "routing"); err != nil {
+		t.Fatal(err)
+	}
+	if read(t, p.Root, ".mem/docs/routing.md") != "# Routing\n" || slices.Contains(p.Config.Templates.Exclude, "doc:routing") {
+		t.Fatal("reset did not restore an excluded doc")
+	}
+	if _, err := Reset(p, lib, Skill, "lint"); err != nil || read(t, p.Root, ".agents/skills/lint/SKILL.md") != "template lint\n" {
+		t.Fatalf("reset did not replace local edits: %v", err)
+	}
+	if res := sync(t, p, source); len(res.Lines) != 0 {
+		t.Fatalf("items were not in sync after reset: %v", res.Lines)
+	}
+
+	write(t, p.Root, ".mem/docs/untracked.md", "mine\n")
+	if _, err := Promote(context.Background(), p, lib, Doc, "untracked", ""); err == nil || !strings.Contains(err.Error(), "--to") {
+		t.Fatalf("promoting an untracked item with two templates did not ask for --to: %v", err)
+	}
+}
