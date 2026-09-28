@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.3.1. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.4.0. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -13,7 +13,7 @@ mem commands print instructions specific to the current state. Follow them. Use 
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Push at the end of each session together with the work log, after completing a spec, and before a promotion. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` to fetch and update mid-session, for example before starting new work.
+Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Push when the session ends (`mem log commit` does this), after completing a spec, and before a promotion. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` to fetch and update mid-session, for example before starting new work.
 
 ## Specs, Tasks and Todos
 
@@ -39,10 +39,9 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 ## Work Logs
 
-Work logs carry context from one session to the next: what was done, what failed and what comes next.
+A work log records what a session did, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- `mem log new`: create a log for this session and fill it in as instructed.
-- Write a log at the end of a session, or when the session is getting long. Ask the user first.
+- End a session with `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. Ask the user before ending a session.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
