@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
+	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
@@ -326,9 +326,9 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 	if open := work.OpenTodos(todos); len(open) == 0 {
 		fmt.Fprintln(out, "No open todos.")
 	} else {
-		rows := [][]string{{"SLUG", "TITLE"}}
+		rows := [][]string{{"SLUG", "TITLE", "AGE", "CLAIMED BY"}}
 		for _, t := range open {
-			rows = append(rows, []string{t.Slug, t.Meta.Title})
+			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created), orDash(t.Meta.ClaimedBy)})
 		}
 		table(out, rows)
 	}
@@ -337,20 +337,28 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 	if err != nil {
 		return state, err
 	}
-	output.Section(out, "🧾 RECENT WORK LOGS")
-	recent := recentLogs(logs, user)
-	if len(recent) == 0 {
+	output.Section(out, "🧾 WORK LOGS")
+	latest, earlier := recentLogs(logs, user, time.Now())
+	if latest == nil {
 		fmt.Fprintln(out, "No work logs yet.")
+		return state, nil
 	}
-	for _, l := range recent {
-		output.File(out, "🧾 "+l.Name)
-		if l.Meta.User == user {
-			fmt.Fprintln(out, "Your log.")
-		} else {
-			fmt.Fprintf(out, "From %s.\n", l.Meta.User)
+	fmt.Fprintln(out, "Work logs record what past sessions did. They are background: open work is in the specs and todos above.")
+	if len(earlier) > 0 {
+		fmt.Fprintln(out, "\nOther recent logs (read one with `mem log show <log>`):")
+		rows := [][]string{{"DATE", "USER", "TITLE", "LOG"}}
+		for _, l := range earlier {
+			rows = append(rows, []string{strings.SplitN(l.Meta.Created, "T", 2)[0], l.Meta.User, l.Heading(), l.Name})
 		}
-		fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", l.Meta.Created, orDash(l.Meta.Spec), strings.TrimSpace(l.Body))
+		table(out, rows)
 	}
+	output.File(out, "🧾 "+latest.Name)
+	if latest.Meta.User == user {
+		fmt.Fprintln(out, "Your latest log.")
+	} else {
+		fmt.Fprintf(out, "The latest log, from %s.\n", latest.Meta.User)
+	}
+	fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", latest.Meta.Created, orDash(latest.Meta.Spec), strings.TrimSpace(latest.Body))
 	return state, nil
 }
 
@@ -406,27 +414,48 @@ func writeDocs(out io.Writer, p project.Project) error {
 	return nil
 }
 
-// recentLogs picks up to three of the user's latest logs and fills to five with
-// the latest from anyone, oldest first so they read as a timeline.
-func recentLogs(logs []work.Log, user string) []work.Log {
-	var picked []work.Log
-	seen := map[string]bool{}
-	for _, l := range logs {
-		if l.Meta.User == user && len(picked) < 3 {
-			picked = append(picked, l)
-			seen[l.Name] = true
-		}
+const (
+	recentLogDays = 14
+	recentLogMax  = 10
+)
+
+// recentLogs picks the log to show in full (the user's latest, or else the
+// latest from anyone) and the other logs of the last two weeks to list by title.
+func recentLogs(logs []work.Log, user string, now time.Time) (*work.Log, []work.Log) {
+	if len(logs) == 0 {
+		return nil, nil
 	}
-	for _, l := range logs {
-		if len(picked) == 5 {
+	latest := &logs[0]
+	for i := range logs {
+		if logs[i].Meta.User == user {
+			latest = &logs[i]
 			break
 		}
-		if !seen[l.Name] {
-			picked = append(picked, l)
+	}
+	cutoff := now.AddDate(0, 0, -recentLogDays).Format(time.RFC3339)
+	var others []work.Log
+	for _, l := range logs {
+		if l.Name != latest.Name && l.Meta.Created >= cutoff && len(others) < recentLogMax {
+			others = append(others, l)
 		}
 	}
-	sort.Slice(picked, func(i, j int) bool { return picked[i].Meta.Created < picked[j].Meta.Created })
-	return picked
+	return latest, others
+}
+
+// age describes how long ago an RFC 3339 timestamp was, in days.
+func age(timestamp string) string {
+	t, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		return "-"
+	}
+	switch days := int(time.Since(t).Hours() / 24); days {
+	case 0:
+		return "today"
+	case 1:
+		return "1 day"
+	default:
+		return fmt.Sprintf("%d days", days)
+	}
 }
 
 func renderOnboardInstruction(out io.Writer, r converge.Report, state contextState) {
@@ -450,7 +479,7 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	case state.drift.Stale():
 		step("Mention that the codebase structure doc is out of date, and offer to refresh it with `mem structure`.")
 	}
-	step("Summarize the project state: open specs, open todos and what the recent work logs say comes next. Use tables where they help.")
+	step("Summarize the project state from the open specs, open todos and release status. Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
 	step("Ask the user how they would like to proceed.")
 	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.")
 	output.Instruction(out, lines...)

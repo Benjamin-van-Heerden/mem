@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // sharedProject returns a mem project on dev and a teammate's clone of it, sharing a bare remote.
@@ -87,5 +89,34 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	os.Remove(filepath.Join(mine, "scratch.go"))
 	if out := mem(t, mine, "log", "commit"); !strings.Contains(out, "already committed") || !strings.Contains(out, "session is closed: the log is committed and dev matches origin/dev") {
 		t.Fatalf("a clean close was not confirmed:\n%s", out)
+	}
+}
+
+func writeLog(t *testing.T, root, name, user string, created time.Time, title string) {
+	t.Helper()
+	writeFile(t, root, ".mem/logs/"+name+".md", fmt.Sprintf("---\ncreated_at: %q\nuser: %s\n---\n# Work Log - %s\n\nBody of %s.\n", created.Format(time.RFC3339), user, title, title))
+}
+
+func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
+	mine, _ := sharedProject(t)
+	now := time.Now()
+	writeLog(t, mine, "test_user_old", "test_user", now.AddDate(0, 0, -5), "Earlier work")
+	writeLog(t, mine, "test_user_new", "test_user", now.AddDate(0, 0, -1), "Latest work")
+	writeLog(t, mine, "ana_recent", "ana", now.AddDate(0, 0, -3), "Ana's recent work")
+	writeLog(t, mine, "ana_old", "ana", now.AddDate(0, 0, -30), "Ana's old work")
+	writeFile(t, mine, ".mem/todos/benchmark.md", fmt.Sprintf("---\ntitle: Benchmark the parser\nstatus: open\ncreated_at: %q\n---\n\nCompare.\n", now.AddDate(0, 0, -12).Format(time.RFC3339)))
+
+	out := mem(t, mine, "onboard", "--offline")
+	if !strings.Contains(out, "Body of Latest work.") || strings.Contains(out, "Body of Earlier work.") || strings.Contains(out, "Body of Ana's recent work.") {
+		t.Fatalf("only the latest log should be shown in full:\n%s", out)
+	}
+	if !strings.Contains(out, "Earlier work") || !strings.Contains(out, "Ana's recent work") || strings.Contains(out, "Ana's old work") {
+		t.Fatalf("recent logs are not listed as expected:\n%s", out)
+	}
+	if !strings.Contains(out, "12 days") {
+		t.Fatalf("todo age missing:\n%s", out)
+	}
+	if strings.Contains(out, "what the recent work logs say comes next") || !strings.Contains(out, "Work logs are background") {
+		t.Fatalf("the onboard instruction still takes open work from logs:\n%s", out)
 	}
 }
