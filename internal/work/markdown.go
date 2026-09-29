@@ -18,6 +18,11 @@ func ReadMarkdown(path string, meta any) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return parseMarkdown(path, data, meta)
+}
+
+// parseMarkdown decodes the YAML frontmatter of data into meta and returns the body; path is only used in errors.
+func parseMarkdown(path string, data []byte, meta any) (string, error) {
 	text := strings.ReplaceAll(string(data), "\r\n", "\n")
 	rest, ok := strings.CutPrefix(text, "---\n")
 	if !ok {

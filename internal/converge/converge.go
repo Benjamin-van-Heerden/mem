@@ -39,11 +39,15 @@ type Report struct {
 	DevBehind   int
 	Done        []string
 	Nudges      []string
+	// Before and After are the upstream's revisions before and after the fetch;
+	// they differ when others pushed since this checkout last fetched.
+	Before, After string
 }
 
 // Sync fetches, fast-forwards or rebases where that is safe, and reports what remains.
 func Sync(ctx context.Context, p project.Project) Report {
 	remote := p.Config.Git.Remote
+	before := upstreamRevision(ctx, p)
 	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 	_, fetchErr := git.Run(fetchCtx, p.Root, "fetch", "--prune", "--quiet", remote)
@@ -58,6 +62,7 @@ func Sync(ctx context.Context, p project.Project) Report {
 		return r
 	}
 	r.Fetched = true
+	r.Before, r.After = before, upstreamRevision(ctx, p)
 	if r.Branch != "" && r.Upstream != "" && r.Behind > 0 {
 		r = update(ctx, p, r)
 	}
@@ -93,7 +98,7 @@ func update(ctx context.Context, p project.Project, r Report) Report {
 		r.Done = append(r.Done, fmt.Sprintf("Rebased %d local commit(s) onto %s, which had %d new commit(s).", ahead, r.Upstream, behind))
 	}
 	updated := inspect(ctx, p)
-	updated.Fetched, updated.Done, updated.Nudges = r.Fetched, r.Done, r.Nudges
+	updated.Fetched, updated.Done, updated.Nudges, updated.Before, updated.After = r.Fetched, r.Done, r.Nudges, r.Before, r.After
 	return updated
 }
 
@@ -148,11 +153,7 @@ func inspect(ctx context.Context, p project.Project) Report {
 	if r.Branch == "" {
 		return r
 	}
-	if upstream, err := git.Run(ctx, p.Root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); err == nil {
-		r.Upstream = upstream
-	} else if refExists(ctx, p.Root, "refs/remotes/"+remote+"/"+r.Branch) {
-		r.Upstream = remote + "/" + r.Branch
-	}
+	r.Upstream = upstream(ctx, p, r.Branch)
 	if r.Upstream != "" {
 		r.Ahead, r.Behind = counts(ctx, p.Root, r.Upstream)
 	}
@@ -160,6 +161,31 @@ func inspect(ctx context.Context, p project.Project) Report {
 		r.DevAhead, r.DevBehind = counts(ctx, p.Root, r.Development)
 	}
 	return r
+}
+
+// upstream names the branch's remote counterpart: its configured upstream, or else the remote branch of the same name.
+func upstream(ctx context.Context, p project.Project, branch string) string {
+	if name, err := git.Run(ctx, p.Root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); err == nil {
+		return name
+	}
+	if refExists(ctx, p.Root, "refs/remotes/"+p.Config.Git.Remote+"/"+branch) {
+		return p.Config.Git.Remote + "/" + branch
+	}
+	return ""
+}
+
+// upstreamRevision is the commit the current branch's upstream points at, or "" when there is none.
+func upstreamRevision(ctx context.Context, p project.Project) string {
+	branch := git.CurrentBranch(ctx, p.Root)
+	if branch == "" {
+		return ""
+	}
+	name := upstream(ctx, p, branch)
+	if name == "" {
+		return ""
+	}
+	rev, _ := git.Run(ctx, p.Root, "rev-parse", "--verify", "--quiet", name)
+	return rev
 }
 
 func counts(ctx context.Context, root, ref string) (ahead, behind int) {
