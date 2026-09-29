@@ -1,8 +1,9 @@
 ---
 title: mem sync catches up mid-session
-status: draft
+status: active
+assigned_to: benjamin_van_heerden
 created_at: "2026-09-29T14:03:33+02:00"
-updated_at: "2026-09-29T14:03:33+02:00"
+updated_at: "2026-09-29T14:07:01+02:00"
 ---
 
 ## Overview
