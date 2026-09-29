@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
 )
 
 func TestSyncReportsWhatTeammatesPushed(t *testing.T) {
@@ -51,5 +55,25 @@ func TestSyncInstallsAndReportsPromotedTemplateItems(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Fatalf("sync output lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestSyncReportsANewerReleaseWithoutInstallingIt(t *testing.T) {
+	mine, _ := sharedProject(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/latest" {
+			t.Errorf("sync requested %s; it must not download a release", r.URL.Path)
+		}
+		http.Redirect(w, r, "/tag/v0.9.0", http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("MEM_RELEASES_URL", server.URL)
+	version := buildinfo.Version
+	buildinfo.Version = "v0.8.0"
+	t.Cleanup(func() { buildinfo.Version = version })
+
+	out := mem(t, mine, "sync")
+	if !strings.Contains(out, "⚠️ mem v0.9.0 is available (this is v0.8.0)") || !strings.Contains(out, "`mem update`") {
+		t.Fatalf("sync output:\n%s", out)
 	}
 }

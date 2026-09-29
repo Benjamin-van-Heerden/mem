@@ -69,6 +69,19 @@ func autoUpdate(ctx context.Context) (string, bool) {
 	return fmt.Sprintf("⬆️ Updated mem %s → %s. Continuing with the new version.", buildinfo.Version, latest), true
 }
 
+// newerRelease names a newer mem release for mid-session checks, which leave
+// replacing the executable to onboard and `mem update`.
+func newerRelease(ctx context.Context) string {
+	if os.Getenv(selfupdate.SkipEnv) == "1" || !selfupdate.IsRelease(buildinfo.Version) {
+		return ""
+	}
+	latest, err := selfupdate.Latest(ctx)
+	if err != nil || !selfupdate.Newer(buildinfo.Version, latest) {
+		return ""
+	}
+	return fmt.Sprintf("mem %s is available (this is %s). Tell the user; `mem update` installs it, and the next onboard does so automatically.", latest, buildinfo.Version)
+}
+
 // rerun runs the updated executable with this invocation's arguments and exits with its status.
 func rerun(out io.Writer) {
 	exe, _ := selfupdate.Executable()

@@ -85,6 +85,9 @@ func (a *app) catchUp(cmd *cobra.Command) (catchUp, error) {
 		return c, err
 	}
 	c.report = afterUpdates(ctx, c.p, c.report)
+	if line := newerRelease(ctx); line != "" {
+		c.report.Nudges = append(c.report.Nudges, line)
+	}
 	c.incoming = readIncoming(ctx, c.p, c.report)
 	c.after = readKnowledge(c.p)
 	return c, nil
