@@ -82,6 +82,9 @@ func TestLongTitlesGetShortUniqueSlugs(t *testing.T) {
 		{"Strip the log template's guidance comment", "strip_log_templates_guidance_comment"},
 		{"Logs record facts, log commit pushes", "logs_record_facts_log_commit_2"},
 		{"The end", "end"},
+		{"mem sync catches up mid-session", "mem_sync_catches_up_mid_session"},
+		{"Add mem hook compact with a compact digest", "add_mem_hook_compact_digest"},
+		{"Update docs and structure for the sync catch-up", "update_docs_structure_sync_catch_up"},
 	}
 	for _, c := range cases {
 		todo, err := NewTodo(p, c.title, "")

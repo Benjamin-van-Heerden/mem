@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -101,13 +102,22 @@ const maxSlugWords = 5
 
 var fillerWords = map[string]bool{"a": true, "an": true, "the": true, "of": true, "to": true, "into": true, "for": true, "and": true, "or": true, "in": true, "on": true, "with": true, "from": true, "by": true, "at": true}
 
-// recordSlug turns a title into a short slug: filler words dropped, at most maxSlugWords words.
+var titleWords = regexp.MustCompile(`[\s/\\.:,;]+`)
+
+// recordSlug turns a title into a short slug: filler and repeated words dropped, at most
+// maxSlugWords words. A hyphenated word counts as one word so the cap never splits it.
 func recordSlug(title string) string {
-	words := strings.Split(project.Slugify(title), "_")
-	var kept []string
-	for _, w := range words {
-		if !fillerWords[w] {
+	var words, kept []string
+	seen := map[string]bool{}
+	for _, field := range titleWords.Split(title, -1) {
+		w := project.Slugify(field)
+		if w == "" {
+			continue
+		}
+		words = append(words, w)
+		if !fillerWords[w] && !seen[w] {
 			kept = append(kept, w)
+			seen[w] = true
 		}
 	}
 	if len(kept) == 0 {
