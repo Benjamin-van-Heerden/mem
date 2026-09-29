@@ -10,6 +10,7 @@ import (
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
@@ -74,6 +75,9 @@ func (a *app) initCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
+			if _, err := claude.SyncCompactHook(root, true); err != nil {
+				return err
+			}
 			p := project.Project{Root: root, Config: config}
 			hookLines, err := hooks.Sync(cmd.Context(), p)
 			if err != nil {
@@ -94,6 +98,7 @@ func (a *app) initCommand() *cobra.Command {
 			fmt.Fprintln(out, ".mem/config.toml   project configuration")
 			fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
+			fmt.Fprintln(out, claude.SettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}

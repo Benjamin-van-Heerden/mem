@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/importer"
@@ -30,6 +31,9 @@ func (a *app) importCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
+			if _, err := claude.SyncCompactHook(root, true); err != nil {
+				return err
+			}
 			hookLines, err := hooks.Sync(cmd.Context(), sum.Project)
 			if err != nil {
 				return err
@@ -45,6 +49,7 @@ func (a *app) importCommand() *cobra.Command {
 				fmt.Fprintln(out, "Structure doc: codebase_and_structure.md moved to .mem/structure.md")
 			}
 			fmt.Fprintf(out, "Specs: %d open, %d archived\nTodos: %d\nWork logs: %d\n", sum.Specs, sum.Archived, sum.Todos, sum.Logs)
+			fmt.Fprintln(out, "Claude Code: "+claude.SettingsPath+" runs `mem hook compact` after compaction")
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}

@@ -58,3 +58,28 @@ func TestOnboardRestoresTheLocalIgnoreAndPublishesIt(t *testing.T) {
 		t.Fatal("the .gitignore change was not pushed")
 	}
 }
+
+func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
+	mine, _ := sharedProject(t)
+	settings := filepath.Join(mine, ".claude/settings.json")
+	run(t, mine, "rm", "--quiet", ".claude/settings.json")
+	run(t, mine, "commit", "--quiet", "-m", "Drop the Claude settings")
+	run(t, mine, "push", "--quiet")
+
+	out := mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(settings); !strings.Contains(out, "Installed the Claude Code compaction hook") || !strings.Contains(string(data), "mem hook compact") {
+		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
+	}
+	if status := run(t, mine, "status", "--porcelain"); status != "" {
+		t.Fatalf("uncommitted after onboard:\n%s", status)
+	}
+
+	config := filepath.Join(mine, ".mem/config.toml")
+	data, _ := os.ReadFile(config)
+	os.WriteFile(config, append(data, []byte("\n[claude]\ncompact_hook = false\n")...), 0o644)
+	run(t, mine, "commit", "--quiet", "-am", "Turn the compaction hook off")
+	out = mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(settings); !strings.Contains(out, "Removed the Claude Code compaction hook") || strings.Contains(string(data), "mem hook compact") {
+		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
+	}
+}

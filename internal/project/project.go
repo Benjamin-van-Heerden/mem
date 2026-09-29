@@ -22,7 +22,16 @@ type Config struct {
 	Git         GitConfig       `toml:"git"`
 	Structure   StructureConfig `toml:"structure,omitempty"`
 	Templates   TemplatesConfig `toml:"templates,omitempty"`
+	Claude      ClaudeConfig    `toml:"claude,omitempty"`
 }
+
+// ClaudeConfig controls what mem installs for Claude Code.
+type ClaudeConfig struct {
+	// CompactHook turns the post-compaction catch-up hook off when false; unset means on.
+	CompactHook *bool `toml:"compact_hook,omitempty"`
+}
+
+func (c ClaudeConfig) CompactHookEnabled() bool { return c.CompactHook == nil || *c.CompactHook }
 
 type GitConfig struct {
 	Remote      string `toml:"remote"`

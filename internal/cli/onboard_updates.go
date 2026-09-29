@@ -7,6 +7,7 @@ import (
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
@@ -64,6 +65,23 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	if tracked, _ := git.Run(ctx, p.Root, "ls-files", "--", ".mem/local"); tracked != "" {
 		lines = append(lines, "⚠️ Files under .mem/local/ are committed, but they are local to each checkout. Stop tracking them with `git rm -r --cached .mem/local` and commit that.")
+	}
+	settingsStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", claude.SettingsPath)
+	enabled := p.Config.Claude.CompactHookEnabled()
+	switch changed, err := claude.SyncCompactHook(p.Root, enabled); {
+	case err != nil:
+		lines = append(lines, fmt.Sprintf("⚠️ Could not update the Claude Code compaction hook: %v. Tell the user; fix the file, and the next onboard installs the hook.", err))
+	case changed:
+		line := "Installed the Claude Code compaction hook in " + claude.SettingsPath + "."
+		if !enabled {
+			line = "Removed the Claude Code compaction hook from " + claude.SettingsPath + " ([claude] compact_hook = false)."
+		}
+		if settingsStatus != "" {
+			lines = append(lines, line+" It already had uncommitted edits, so commit it together with them.")
+		} else {
+			lines = append(lines, line)
+			publishPaths = append(publishPaths, claude.SettingsPath)
+		}
 	}
 	if len(publishPaths) > 0 {
 		lines = append(lines, publish(ctx, p, "Update mem project files", publishPaths...))
