@@ -47,6 +47,9 @@ staging = "test"
 production = "main"
 protect = true          # install hooks that keep staging and production promotion-only
 
+[claude]
+compact_hook = false    # optional: leave out the Claude Code post-compaction hook
+
 [structure]
 ignore = ["migrations/**"]   # optional extra exclusions from drift detection
 ```
@@ -69,7 +72,9 @@ Identity is `git config user.name`, slugified.
 2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
 3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Memories and skills that changed during this onboard's sync are shown instead, since the running agent loaded the older copies. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
 
-`mem sync` performs step 1 on demand. Other commands print a short divergence nudge when local Git state shows drift.
+`mem sync` is the mid-session catch-up: it performs step 1, syncs template items, and reports what others pushed since the checkout last fetched (their commits; specs, tasks and todos opened, claimed, started or completed; changed memories and skills) and a newer mem release, without replacing the binary. Other commands print a short divergence nudge when local Git state shows drift.
+
+**After compaction.** In Claude Code, a `SessionStart` hook with the `compact` matcher runs `mem hook compact` after every compaction. It performs the same catch-up as `mem sync` and prints a short digest (under ~3 KB) that joins the agent's context next to the compaction summary: branch state and what the sync did, the user's active spec and next task, their claimed todos, incoming changes, changed memories and nudges. It does not restate session progress, the structure doc, docs or logs; compaction keeps those. It never commits or pushes the user's work and exits cleanly on any error. `init`, `import` and onboard keep the entry in `.claude/settings.json`, preserving other settings; `[claude] compact_hook = false` removes it.
 
 **Commit rhythm.** Commit each coherent, working change (typically one per task or fix); `task complete` asks for it. Push at the end of each session with the work log, after completing a spec and before a promotion. Uncommitted work over 15 code files or 800 lines triggers a nudge to commit the finished parts.
 

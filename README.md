@@ -26,7 +26,7 @@ In an existing Git repository:
 mem init
 ```
 
-This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development and installs the Git hooks. Commit the result on the development branch and push it.
+This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds the Claude Code compaction hook to `.claude/settings.json`. Commit the result on the development branch and push it.
 
 Branch names default to `dev`, `test` and `main`:
 
@@ -56,7 +56,7 @@ The import converts config, memories, docs, specs, todos and logs, replaces the 
 
 Agents learn the workflow from the mem block in `AGENTS.md` and from the instructions mem commands print. The main pieces:
 
-- **`mem onboard`** starts every session. It fetches and brings the checkout up to date (fast-forwarding, or rebasing unpushed commits, when that is safe), refreshes mem's instructions, and prints the project context for the agent. Anything that needs attention, such as diverged history or unpushed work, is flagged with ⚠️ for the agent to raise with you. `mem sync` does the Git part on demand.
+- **`mem onboard`** starts every session. It fetches and brings the checkout up to date (fast-forwarding, or rebasing unpushed commits, when that is safe), refreshes mem's instructions, and prints the project context for the agent. Anything that needs attention, such as diverged history or unpushed work, is flagged with ⚠️ for the agent to raise with you. `mem sync` catches up mid-session: the same Git convergence and template sync, plus a report of what teammates pushed since the last fetch. In Claude Code, mem also runs this catch-up after every compaction and adds a short digest to the agent's context (turn it off with `[claude] compact_hook = false` in `.mem/config.toml`).
 - **Specs, tasks and todos** track planned work. A spec is written up with the user, broken into ordered tasks and implemented task by task; todos are standalone matters. None of them are needed for ordinary coding.
 - **Work logs** record what each session did, decided and tried, and are never updated; open work lives in todos. `mem log new` and then `mem log commit` end a session: the log and the other records are committed, the branch is synced and pushed. Onboard shows your latest log and lists other recent ones.
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
