@@ -5,9 +5,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hookCommand is called by the installed Git hooks.
+// hookCommand is called by the installed Git hooks and the Claude Code compaction hook.
 func (a *app) hookCommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "hook", Short: "Checks run by mem's Git hooks", Hidden: true}
+	cmd := &cobra.Command{Use: "hook", Short: "Commands run by mem's Git and Claude Code hooks", Hidden: true}
 	cmd.AddCommand(&cobra.Command{
 		Use:  "pre-push <remote> <url>",
 		Args: cobra.MinimumNArgs(1),
@@ -30,5 +30,6 @@ func (a *app) hookCommand() *cobra.Command {
 			return hooks.PreCommit(cmd.Context(), p)
 		},
 	})
+	cmd.AddCommand(a.compactHookCommand())
 	return cmd
 }
