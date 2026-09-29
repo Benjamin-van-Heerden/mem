@@ -21,24 +21,35 @@ func (a *app) syncCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sync",
 		Short: "Fetch and bring this checkout up to date with the shared codebase",
+		Long:  "Fetches and fast-forwards or safely rebases the current branch, syncs template items, and reports what others pushed since the last fetch: commits, work record changes, and changed memories and skills.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			p, err := a.project(cmd)
+			c, err := a.catchUp(cmd)
 			if err != nil {
 				return err
 			}
-			r := converge.Sync(ctx, p)
 			out := cmd.OutOrStdout()
-			renderReport(out, r, false)
-			in := readIncoming(ctx, p, r)
-			renderIncoming(out, in)
+			renderReport(out, c.report, false)
+			if len(c.templates) > 0 {
+				output.Section(out, "🧩 TEMPLATES")
+				for _, line := range c.templates {
+					fmt.Fprintln(out, line)
+				}
+			}
+			renderIncoming(out, c.incoming)
+			changed := renderKnowledgeChanges(out, c.before, c.after)
 			var lines []string
-			if len(in.commits) > 0 {
+			if len(c.incoming.commits) > 0 {
 				lines = append(lines, "Review the incoming changes above that bear on your current work before continuing.")
 			}
-			if len(r.Nudges) > 0 {
-				lines = append(lines, "Tell the user about each ⚠️ item above.")
+			if changed {
+				lines = append(lines, "Follow the memories under 🧠 CHANGED MEMORIES for the rest of this session, and use the skills under 🛠️ CHANGED SKILLS where they apply.")
+			}
+			if len(c.report.Nudges) > 0 {
+				lines = append(lines, "Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")
+			}
+			if hasWarning(c.templates) {
+				lines = append(lines, "Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
 			}
 			if len(lines) > 0 {
 				output.Instruction(out, lines...)
@@ -46,6 +57,37 @@ func (a *app) syncCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// catchUp is the result of bringing a checkout up to date mid-session.
+type catchUp struct {
+	p             project.Project
+	report        converge.Report
+	templates     []string
+	incoming      incoming
+	before, after knowledge
+}
+
+// catchUp converges Git, syncs template items and collects what changed, for `mem sync` and the compaction hook.
+func (a *app) catchUp(cmd *cobra.Command) (catchUp, error) {
+	ctx := cmd.Context()
+	var c catchUp
+	p, err := a.project(cmd)
+	if err != nil {
+		return c, err
+	}
+	c.before = readKnowledge(p)
+	c.report = converge.Sync(ctx, p)
+	if c.p, err = a.project(cmd); err != nil {
+		return c, err
+	}
+	if c.templates, err = syncTemplates(ctx, &c.p, true); err != nil {
+		return c, err
+	}
+	c.report = afterUpdates(ctx, c.p, c.report)
+	c.incoming = readIncoming(ctx, c.p, c.report)
+	c.after = readKnowledge(c.p)
+	return c, nil
 }
 
 // incoming is what others pushed since this checkout last fetched.
