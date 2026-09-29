@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v mem >/dev/null 2>&1 && mem hook compact || true",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
