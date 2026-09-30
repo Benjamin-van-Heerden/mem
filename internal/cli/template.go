@@ -70,6 +70,13 @@ func (a *app) templateUse() *cobra.Command {
 			output.Section(out, "🧩 TEMPLATE ADDED: "+name)
 			fmt.Fprintf(out, "Library: %s\nTemplates in use: %s\n", p.Config.Templates.Source, strings.Join(p.Config.Templates.Use, ", "))
 			renderTemplateSync(out, warning, res)
+			available, err := lib.Templates()
+			if err != nil {
+				return err
+			}
+			if slices.ContainsFunc(available, func(t templates.Template) bool { return t.Name == name && t.HasSetup }) {
+				fmt.Fprintf(out, "%s has a setup for new projects (%s/setup.md in the library); this project did not run it. Its steps can guide adding what is missing.\n", name, name)
+			}
 			output.Instruction(out, templateInstructions(res, ".mem/config.toml")...)
 			return nil
 		},
@@ -104,13 +111,16 @@ func (a *app) templateList() *cobra.Command {
 			if len(available) == 0 {
 				fmt.Fprintln(out, "\nThe library has no templates yet. A template is a directory with a template.toml; `mem template promote <memory|skill|doc> <name> --to <template>` creates one from a project item.")
 			} else {
-				rows := [][]string{{"TEMPLATE", "USED HERE", "DESCRIPTION"}}
+				rows := [][]string{{"TEMPLATE", "USED HERE", "SETUP", "DESCRIPTION"}}
 				for _, t := range available {
-					used := ""
+					used, setup := "", ""
 					if projectErr == nil && slices.Contains(p.Config.Templates.Use, t.Name) {
 						used = "yes"
 					}
-					rows = append(rows, []string{t.Name, used, t.Description})
+					if t.HasSetup {
+						setup = "yes"
+					}
+					rows = append(rows, []string{t.Name, used, setup, t.Description})
 				}
 				fmt.Fprintln(out)
 				table(out, rows)

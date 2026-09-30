@@ -84,10 +84,20 @@ func (a *app) initCommand() *cobra.Command {
 				return err
 			}
 			var synced templates.Result
+			var setup string
 			if len(templateNames) > 0 {
 				if synced, err = templates.Sync(&p, lib); err != nil {
 					return err
 				}
+				if setup, err = lib.Setup(templateNames); err != nil {
+					return err
+				}
+			}
+			if setup != "" {
+				if err := os.WriteFile(filepath.Join(root, templates.SetupPath), []byte(setup), 0o644); err != nil {
+					return err
+				}
+				synced.Paths = append(synced.Paths, templates.SetupPath)
 			}
 
 			out := cmd.OutOrStdout()
@@ -102,6 +112,9 @@ func (a *app) initCommand() *cobra.Command {
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
+			if setup != "" {
+				fmt.Fprintln(out, templates.SetupPath+"      one-time setup from the template; onboard walks through it until the file is deleted")
+			}
 			if len(templateNames) > 0 {
 				output.Section(out, "🧩 TEMPLATES: "+strings.Join(templateNames, ", "))
 				fmt.Fprintf(out, "Library: %s\n", config.Templates.Source)
@@ -112,10 +125,14 @@ func (a *app) initCommand() *cobra.Command {
 				fmt.Fprintln(out, line)
 			}
 			dev := config.Git.Development
+			onboard := "3. Run `mem onboard` to build the project context."
+			if setup != "" {
+				onboard = "3. Run `mem onboard`: it builds the project context and presents the template's setup, which comes before any other work."
+			}
 			output.Instruction(out,
 				"1. Read AGENTS.md now: it contains the working instructions for this project.",
 				fmt.Sprintf("2. Show the user these files%s. Commit them on %s and push it (`git push -u %s %s`) so every clone shares the setup.", templateNote(synced), dev, config.Git.Remote, dev),
-				"3. Run `mem onboard` to build the project context.",
+				onboard,
 			)
 			return nil
 		},

@@ -142,3 +142,37 @@ func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
 		t.Fatalf("template list:\n%s", list)
 	}
 }
+
+func TestInitInstallsTheTemplateSetupAndTemplateUseDoesNot(t *testing.T) {
+	base, library, libraryWork := templateWorld(t)
+	setup := "# Setup: nextjs-web\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n"
+	writeFile(t, libraryWork, "nextjs-web/setup.md", setup)
+	run(t, libraryWork, "add", "--all")
+	run(t, libraryWork, "commit", "--quiet", "-m", "setup")
+	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
+
+	root := templateProject(t, base, "app", library)
+	if got, err := os.ReadFile(filepath.Join(root, ".mem", "setup.md")); err != nil || string(got) != setup {
+		t.Fatalf(".mem/setup.md = %q, %v", got, err)
+	}
+	if listed := mem(t, root, "template", "list"); !strings.Contains(listed, "SETUP") {
+		t.Fatalf("template list does not show setups:\n%s", listed)
+	}
+
+	remote := filepath.Join(base, "later.git")
+	run(t, base, "init", "--quiet", "--bare", "-b", "main", remote)
+	later := filepath.Join(base, "later")
+	run(t, base, "clone", "--quiet", remote, later)
+	run(t, later, "config", "user.name", "Test User")
+	run(t, later, "config", "user.email", "test@example.com")
+	commit(t, later, "README.md")
+	run(t, later, "push", "--quiet", "origin", "HEAD:main")
+	mem(t, later, "init", "--protect=false")
+	out := mem(t, later, "template", "use", "nextjs-web", "--template-source", library)
+	if _, err := os.Stat(filepath.Join(later, ".mem", "setup.md")); !os.IsNotExist(err) {
+		t.Fatalf("template use installed the setup: %v", err)
+	}
+	if !strings.Contains(out, "nextjs-web has a setup for new projects") {
+		t.Fatalf("template use does not mention the setup:\n%s", out)
+	}
+}
