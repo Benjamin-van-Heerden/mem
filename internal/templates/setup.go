@@ -28,7 +28,8 @@ func (l Library) Setup(names []string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		parts = append(parts, strings.TrimSpace(string(data)))
+		// Git checks the library out with CRLF on Windows; setup files are written with LF everywhere.
+		parts = append(parts, strings.TrimSpace(strings.ReplaceAll(string(data), "\r\n", "\n")))
 	}
 	if len(parts) == 0 {
 		return "", nil

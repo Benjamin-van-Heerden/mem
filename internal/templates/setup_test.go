@@ -13,7 +13,7 @@ func TestSetupJoinsTemplateSetupsInOrderAndSkipsTemplatesWithout(t *testing.T) {
 		"web/setup.md":       "# Setup: web\n\n## [ ] 1. Scaffold\n",
 		"base/template.toml": "description = \"Base\"\n",
 		"auth/template.toml": "description = \"Auth\"\n",
-		"auth/setup.md":      "# Setup: auth\n\n## [ ] 1. Add auth\n\n",
+		"auth/setup.md":      "# Setup: auth\r\n\r\n## [ ] 1. Add auth\r\n\r\n",
 	} {
 		path := filepath.Join(dir, rel)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
