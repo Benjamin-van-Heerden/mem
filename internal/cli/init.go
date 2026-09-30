@@ -145,6 +145,7 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Git.Production, "production", "main", "Production branch")
 	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills and docs from; repeat for several (later ones win on name clashes)")
 	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to "+templates.DefaultSource+")")
+	cmd.Flags().BoolVar(&config.Release.ProductionPR, "production-pr", false, "Release production through a pull request, which mem completes by fast-forward")
 	cmd.Flags().BoolVar(&config.Git.Protect, "protect", true, "Install Git hooks that keep staging and production promotion-only (use --protect=false for solo projects)")
 	return cmd
 }
