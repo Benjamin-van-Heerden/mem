@@ -54,7 +54,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 - **`internal/release`**: `Prepare` (fetch, compute commits, completed specs, divergence and the next date tag `vYYYY.MM.DD.N`), `Execute` (one atomic push of the branch and, for production, an annotated tag kept verbatim with `--cleanup=whitespace`, with `MEM_PROMOTE=1` so the hook allows it), `CurrentStatus` for onboard. `notes.go`: `DraftNotes` (marker line, specs completed, work log titles and their accomplishment headings, commits), `GeneratedMessage` for `mem deploy`, `DraftCommit`.
 - **`internal/github`**: owner/repo from a GitHub remote URL, a token from `GITHUB_TOKEN`, `GH_TOKEN` or `gh auth token`, and the pull request calls promotion needs (create, list open by head prefix, get, reviews, comment, close); `MEM_GITHUB_API` points it at a test server.
 - **`internal/hooks`**: `Sync` installs or removes `pre-push`/`pre-commit` scripts per `protect`, never overwriting non-mem hooks. The scripts run `mem hook <name>` and exit 0 when no mem with hook support is on PATH. `PrePush` and `PreCommit` implement the checks.
-- **`internal/templates`**: `library.go` has `Open` (clone a library URL into `os.UserCacheDir()/mem/templates/<slug>`, `git pull --ff-only` with a 20 s limit; a failed pull is a warning), `Templates` (directories with `template.toml`), `Items` (memories/skills/docs of the used templates, later templates overriding earlier ones) and the `DefaultSource` constant (the mem-templates repository), used when neither `--template-source` nor the project config names a library. `sync.go` has `Sync` and `Status`: `classify` compares project copy, template copy and the `.mem/templates.lock` hash into a state (`StateMissing`, `StateUpdated`, `StateLocalEdits`, `StateBothEdited`, …), and `reconcile` acts on it; installs go to `AGENTS.md` memories, `.agents/skills/<name>` (plus a relative `.claude/skills/<name>` symlink) and `.mem/docs/<name>.md`. `promote.go` has `Promote` (copy into the library clone, commit with the project's Git identity, push) and `Reset`. `setup.go` has `SetupPath` (`.mem/setup.md`), `Library.Setup` (the chosen templates' `setup.md` files joined in order; `Template.HasSetup` marks them) and `SetupProgress` (ticked and total `## [ ]` step headings).
+- **`internal/templates`**: `library.go` has `Open` (clone a library URL into `os.UserCacheDir()/mem/templates/<slug>`, `git pull --ff-only` with a 20 s limit; a failed pull is a warning), `Templates` (directories with `template.toml`), `Items` (memories/skills/docs of the used templates, later templates overriding earlier ones) and the `DefaultSource` constant (the mem-templates repository), used when neither `--template-source` nor the project config names a library. `sync.go` has `Sync` and `Status`: `classify` compares project copy, template copy and the `.mem/templates.lock` hash into a state (`StateMissing`, `StateUpdated`, `StateLocalEdits`, `StateBothEdited`, …), and `reconcile` acts on it; installs go to `AGENTS.md` memories, `.agents/skills/<name>` (plus a relative `.claude/skills/<name>` symlink) and `.mem/docs/<name>.md`. `promote.go` has `Promote` (copy into the library clone, commit with the project's Git identity, push) and `Reset`. `setup.go` has `SetupPath` (`.mem/setup.md`), `Library.Setup` (the chosen templates' `setup.md` files joined in order, CRLF normalised; `Template.HasSetup` marks them) and `SetupProgress` (ticked and total `## [ ]` step headings).
 - **`internal/selfupdate`**: `Latest` reads the tag from the redirect of `<releases>/latest` (`MEM_RELEASES_URL` overrides the base URL), `Newer`/`IsRelease` compare `vX.Y.Z` versions, `Install` downloads `mem_<tag>_<os>_<arch>[.exe]`, verifies it against `checksums.txt` and renames it over the executable.
 - **`internal/runnables`**: `Run` executes each file in `.mem/runnables/` from the repo root in name order, 15 s timeout, output capped at 20,000 bytes.
 - **`internal/importer`**: `Import` converts `.agent_core/` config, memories, docs, specs and tasks, todos, logs, structure doc and old files/tree_dirs/runnables settings; it leaves the originals in place.
@@ -88,24 +88,27 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 ## External Interfaces
 
-- The `git` executable and the configured remote (default `origin`); network access is limited to `git fetch`/`git push`.
+- The `git` executable and the configured remote (default `origin`); network access is otherwise limited to `git fetch`/`git push`, the self-update, and the GitHub API below.
 - The filesystem of the target repository: `.mem/`, `AGENTS.md`, `.gitignore`, `.claude/settings.json` and the Git hooks directory.
 - Claude Code runs `mem hook compact` through the `SessionStart` hook after compaction; its stdout joins the agent's context.
 - `sh` for hooks and runnables.
 - The template library: any Git URL, cloned into the user cache.
 - HTTPS to `github.com/Benjamin-van-Heerden/mem/releases` for the self-update (no API token).
+- GitHub's REST API (`internal/github`), only in projects with `[release] production_pr = true`: promotion pull requests, with a token from `GITHUB_TOKEN`, `GH_TOKEN` or `gh auth token`.
 
 ## Tests and Verification
 
-- Colocated `_test.go` files per package: `agentsmd`, `claude`, `cli` (`init`, `log`, `onboard`, `sync`, `compact` and `template` tests driving `New()` end to end), `converge`, `git`, `hooks`, `importer`, `release`, `selfupdate` (an `httptest` release server), `structure`, `templates`, `work`. There is no `tests/` directory yet.
+- Colocated `_test.go` files per package: `agentsmd`, `claude`, `cli` (`init`, `log`, `onboard`, `onboard_setup`, `sync`, `compact`, `template`, `promote`, `promote_pr` (a fake GitHub API backed by the test's bare repository) and `deploy` tests driving `New()` end to end), `converge`, `git`, `github` (an `httptest` API), `hooks`, `importer`, `release`, `selfupdate` (an `httptest` release server), `structure`, `templates`, `work`. There is no `tests/` directory yet.
 - Tests build throwaway repositories in `t.TempDir()`, often with a bare repository as the remote or template library, and drive the real `git` executable. Tests that touch the user cache set `HOME` (and clear `XDG_CACHE_HOME`) to a temp directory. They must not touch GitHub or need credentials.
-- For end-to-end checks of `init`, `import` or onboard, run `dist/mem-dev` in a disposable repository, never in this checkout.
+- For end-to-end checks of `init`, `import` or onboard, run `dist/mem-dev` in a disposable repository, never in this checkout. Checks against real GitHub use throwaway repositories that are deleted afterwards.
+- CI runs on Windows too, and catches what macOS does not (CRLF checkouts, path lengths): check the run after every push to `dev`, not only before a release.
 
 ## Conventions and Patterns
 
 - stdout is product behavior: use `output.Heading`, `output.Section` and `output.Instruction` for the separator/heading style, and make instructions specific to the current state with concrete commands.
 - Commands return errors to cobra rather than exiting; recoverable problems become ⚠️ lines or instruction text.
 - Git access goes through `git.Run`/`RunEnv`; helpers such as `refExists` are small local functions inside the package that needs them.
-- Record files are Markdown with YAML frontmatter; identifiers are readable slugs (`work.recordSlug`: `project.Slugify` without filler words, at most five words), with ordered task files `NN_<slug>.md`.
+- Record files are Markdown with YAML frontmatter; identifiers are readable slugs (`work.recordSlug`: title split on whitespace and punctuation but not hyphens, filler and repeated words dropped, at most five words), with ordered task files `NN_<slug>.md`.
 - Changes to the managed instructions go into `internal/agentsmd/instructions.md`; the copy in `AGENTS.md` is regenerated.
+- Text read from Git checkouts, such as template library files, may have CRLF line endings on Windows; normalise to LF before writing it into a project.
 - Package doc comments and short function comments explain intent; code otherwise stays uncommented.
