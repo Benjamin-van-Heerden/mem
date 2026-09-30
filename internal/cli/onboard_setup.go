@@ -43,7 +43,7 @@ func setupInstruction(s setupState) string {
 	if s.finished() {
 		return fmt.Sprintf("Every step in %s is ticked: delete the file, commit and push, and tell the user the setup is done.", templates.SetupPath)
 	}
-	return fmt.Sprintf("Setup is pending (%d of %d steps done). Work through %s under 🏗️ SETUP with the user, in order, before anything else: start with the first unticked step now unless the user says otherwise. After each step, when its \"Done when\" holds, tick its box and commit. Stop at steps marked (you) and hand them to the user. When every step is ticked, delete %s, commit and push.", s.done, s.total, templates.SetupPath, templates.SetupPath)
+	return fmt.Sprintf("Setup is pending (%d of %d steps done). Work through %s under 🏗️ SETUP with the user, in order, before anything else: start with the first unticked step now unless the user says otherwise. After each step, when its \"Done when\" holds, tick its box and commit. Steps marked (you) need the user: ask for what the step names, then continue. When every step is ticked, delete %s, commit and push.", s.done, s.total, templates.SetupPath, templates.SetupPath)
 }
 
 // setupDigestLine is the compaction digest's reminder of a pending setup.
