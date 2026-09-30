@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
@@ -16,11 +19,12 @@ import (
 const maxListedCommits = 30
 
 func (a *app) promoteCommand() *cobra.Command {
-	var to, notesFile string
+	var to string
+	var confirm bool
 	cmd := &cobra.Command{
 		Use:   "promote <staging|production>",
 		Short: "Fast-forward staging (a preview release) or production (a release)",
-		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with release notes.",
+		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with release notes: the first run drafts the notes in .mem/local/release-notes.md, and --confirm releases with them.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -57,39 +61,46 @@ func (a *app) promoteCommand() *cobra.Command {
 
 			var notes string
 			if pl.Tag != "" {
-				if notesFile == "" {
+				if !confirm {
+					status, err := writeDraft(ctx, p, pl)
+					if err != nil {
+						return err
+					}
 					renderPlan(out, p, pl)
+					output.Section(out, "📝 RELEASE NOTES")
+					fmt.Fprintf(out, "Draft: %s (%s)\n", release.NotesPath, status)
 					output.Instruction(out,
 						"Nothing has been pushed yet.",
-						fmt.Sprintf("1. Write release notes for %s to a file outside the repository: a short summary of what this release delivers, based on the commits and specs above.", pl.Tag),
-						"2. Show the user the release notes.",
-						"3. Run `mem promote production --notes <file>`.",
+						fmt.Sprintf("1. Turn %s into a short summary of what %s delivers for its users. Keep the first line; drop the commit list unless it helps.", release.NotesPath, pl.Tag),
+						"2. Show the user the notes and ask them to confirm the release.",
+						"3. When they confirm, run `mem promote production --confirm`.",
 					)
 					return nil
 				}
-				data, err := os.ReadFile(notesFile)
-				if err != nil {
+				if notes, err = confirmedNotes(p, pl); err != nil {
 					return err
 				}
-				notes = string(data)
 			}
 			if err := release.Execute(ctx, p, pl, notes); err != nil {
 				return err
+			}
+			if pl.Tag != "" {
+				os.Remove(filepath.Join(p.Root, release.NotesPath))
 			}
 			renderPlan(out, p, pl)
 			output.Section(out, "✅ PROMOTED")
 			if pl.Tag != "" {
 				fmt.Fprintf(out, "Released %s: %s/%s is now at %s, tagged with the release notes.\n", pl.Tag, remote, pl.Branch, pl.To[:7])
-				output.Instruction(out, "Tell the user the release is out and CI will deploy it. Check the deployment before reporting it as live.")
+				output.Instruction(out, "Tell the user the release is out. Where CI deploys production, check the deployment before reporting it as live.")
 			} else {
 				fmt.Fprintf(out, "%s/%s is now at %s.\n", remote, pl.Branch, pl.To[:7])
-				output.Instruction(out, "Tell the user the preview release is out and CI will deploy it. Once the preview checks out, release it with `mem promote production`.")
+				output.Instruction(out, "Tell the user staging is updated. If this project deploys staging, check the preview before releasing; release with `mem promote production` when the user asks for it.")
 			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&to, "to", "", "Promote staging only up to this development commit")
-	cmd.Flags().StringVar(&notesFile, "notes", "", "File with the release notes for a production release")
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Release production with the reviewed notes in "+release.NotesPath)
 	return cmd
 }
 
@@ -143,4 +154,41 @@ func divergedError(p project.Project, pl release.Plan) error {
 		steps += " and `mem promote production`"
 	}
 	return fmt.Errorf("%s/%s has %d commit(s) that are not on %s, so it cannot be fast-forwarded:\n%s\nTell the user. To bring them back into the shared history, run %s", g.Remote, pl.Branch, len(pl.Diverged), pl.Source, strings.Join(list, "\n"), steps)
+}
+
+// writeDraft writes the release notes draft for pl, keeping a draft already written for the same commit so
+// edits survive a re-run. It returns what it did, for the output.
+func writeDraft(ctx context.Context, p project.Project, pl release.Plan) (string, error) {
+	path := filepath.Join(p.Root, release.NotesPath)
+	status := "drafted"
+	if data, err := os.ReadFile(path); err == nil {
+		commit, _ := release.DraftCommit(string(data))
+		if commit == pl.To {
+			return "kept: it was written for this release", nil
+		}
+		status = "drafted again: the previous draft was for another commit"
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	return status, os.WriteFile(path, []byte(release.DraftNotes(ctx, p, pl)), 0o644)
+}
+
+// confirmedNotes reads the reviewed draft, refusing one that is missing, empty or written for another commit.
+func confirmedNotes(p project.Project, pl release.Plan) (string, error) {
+	data, err := os.ReadFile(filepath.Join(p.Root, release.NotesPath))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("there are no release notes to confirm; run `mem promote production` first to draft them")
+	}
+	if err != nil {
+		return "", err
+	}
+	commit, notes := release.DraftCommit(string(data))
+	if commit != "" && commit != pl.To {
+		return "", fmt.Errorf("the release notes were drafted for %s, but production would now move to %s; run `mem promote production` to draft them again", commit[:7], pl.To[:7])
+	}
+	if notes == "" {
+		return "", fmt.Errorf("%s is empty; write the release notes, or run `mem promote production` to draft them again", release.NotesPath)
+	}
+	return notes, nil
 }
