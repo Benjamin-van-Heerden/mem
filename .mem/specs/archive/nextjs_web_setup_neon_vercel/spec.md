@@ -1,9 +1,10 @@
 ---
 title: nextjs-web setup with Neon, Vercel and RBAC
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-09-30T13:30:00+02:00"
-updated_at: "2026-09-30T13:28:13+02:00"
+updated_at: "2026-09-30T23:39:24+02:00"
+completed_at: "2026-09-30T23:39:24+02:00"
 ---
 
 ## Overview
