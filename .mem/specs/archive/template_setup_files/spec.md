@@ -1,9 +1,10 @@
 ---
 title: Template setup files
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-09-30T11:54:52+02:00"
-updated_at: "2026-09-30T11:56:41+02:00"
+updated_at: "2026-09-30T13:24:06+02:00"
+completed_at: "2026-09-30T13:24:06+02:00"
 ---
 
 ## Overview
