@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.5.0. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.6.2. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -64,10 +64,11 @@ Use project memories rather than external memory tools.
 Nothing deploys from the development branch. Releases move the staging and production branches forward along the development history, and CI deploys them.
 
 - When the user asks for a preview release: `mem promote staging`. Use `--to <commit>` to leave out unfinished work.
-- When the user asks for a release: `mem promote production`, then follow its instructions for the release notes.
+- When the user asks for a release: `mem promote production`, then follow its instructions: refine the drafted release notes, show them to the user, and release with `--confirm` once they agree. Some projects release through a pull request; complete it only when the user says it is approved.
 - A full deployment means both, in that order.
+- `mem deploy` releases everything at once without notes or review. It is the user's command: never run it unless the user explicitly asks you to run `mem deploy`.
 
-Staging and production only move through `mem promote`. Never commit on them or push to them directly.
+Staging and production only move through `mem promote` and `mem deploy`. Never commit on them or push to them directly.
 
 ## Working Guidelines
 
