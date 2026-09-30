@@ -1,8 +1,9 @@
 ---
-title: "Release flow: light staging, documented production, mem deploy, optional PRs"
-status: draft
+title: 'Release flow: light staging, documented production, mem deploy, optional PRs'
+status: active
+assigned_to: benjamin_van_heerden
 created_at: "2026-10-01T09:00:00+02:00"
-updated_at: "2026-10-01T09:00:00+02:00"
+updated_at: "2026-10-01T00:10:35+02:00"
 ---
 
 ## Overview
