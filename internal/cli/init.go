@@ -138,9 +138,6 @@ func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]st
 	if g.Development == g.Staging || g.Staging == g.Production || g.Development == g.Production {
 		return nil, errors.New("the development, staging and production branches must have different names")
 	}
-	if !refExists(ctx, root, "HEAD") {
-		return nil, errors.New("this repository has no commits yet; make a first commit, then run `mem init`")
-	}
 	_, err := git.Run(ctx, root, "remote", "get-url", g.Remote)
 	hasRemote := err == nil
 	if hasRemote {
@@ -148,8 +145,14 @@ func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]st
 			return nil, fmt.Errorf("could not fetch %s: %w", g.Remote, err)
 		}
 	}
-	order := []string{g.Production, g.Staging, g.Development}
 	var lines []string
+	if !refExists(ctx, root, "HEAD") && !(hasRemote && refExists(ctx, root, "refs/remotes/"+g.Remote+"/"+g.Production)) {
+		if err := firstCommit(ctx, root, g.Production); err != nil {
+			return nil, err
+		}
+		lines = append(lines, fmt.Sprintf("Created an empty first commit on %s", g.Production))
+	}
+	order := []string{g.Production, g.Staging, g.Development}
 	for i, branch := range order {
 		switch {
 		case refExists(ctx, root, "refs/heads/"+branch):
@@ -189,6 +192,27 @@ func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]st
 		}
 	}
 	return lines, nil
+}
+
+// firstCommit gives a repository without commits, such as a fresh clone of an empty
+// GitHub repository, an empty commit on the production branch. It is built from the
+// empty tree so files the user already staged stay staged and out of the commit.
+func firstCommit(ctx context.Context, root, production string) error {
+	emptyIndex := filepath.Join(os.TempDir(), fmt.Sprintf("mem-empty-index-%d", os.Getpid()))
+	defer os.Remove(emptyIndex)
+	tree, err := git.RunEnv(ctx, root, []string{"GIT_INDEX_FILE=" + emptyIndex}, "write-tree")
+	if err != nil {
+		return err
+	}
+	sha, err := git.Run(ctx, root, "commit-tree", strings.TrimSpace(tree), "-m", "Initial commit")
+	if err != nil {
+		return fmt.Errorf("could not create the first commit (is git's user.name and user.email set?): %w", err)
+	}
+	if _, err := git.Run(ctx, root, "update-ref", "refs/heads/"+production, strings.TrimSpace(sha)); err != nil {
+		return err
+	}
+	_, err = git.Run(ctx, root, "symbolic-ref", "HEAD", "refs/heads/"+production)
+	return err
 }
 
 func refExists(ctx context.Context, root, ref string) bool {
