@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -149,28 +148,13 @@ func nextTag(ctx context.Context, root string) (string, error) {
 	return prefix + strconv.Itoa(next), nil
 }
 
-// completedSpecs finds specs archived as completed within the promoted range.
+// completedSpecs lists the slugs of specs archived as completed within the promoted range.
 func completedSpecs(ctx context.Context, root, from, to string) []string {
-	args := []string{"ls-tree", "-r", "--name-only", to, "--", ".mem/specs/archive"}
-	if from != "" {
-		args = []string{"diff", "--name-only", "--diff-filter=A", from, to, "--", ".mem/specs/archive"}
+	var slugs []string
+	for _, s := range specSummaries(ctx, root, from, to) {
+		slugs = append(slugs, s.Slug)
 	}
-	out, err := git.Run(ctx, root, args...)
-	if err != nil {
-		return nil
-	}
-	var specs []string
-	for _, file := range strings.Split(out, "\n") {
-		if path.Base(file) != "spec.md" {
-			continue
-		}
-		content, err := git.Run(ctx, root, "show", to+":"+file)
-		if err != nil || !strings.Contains(content, "\nstatus: completed\n") {
-			continue
-		}
-		specs = append(specs, path.Base(path.Dir(file)))
-	}
-	return specs
+	return slugs
 }
 
 func commits(ctx context.Context, root, rangeSpec string) ([]Commit, error) {
