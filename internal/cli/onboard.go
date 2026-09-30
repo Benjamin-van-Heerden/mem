@@ -153,6 +153,7 @@ type contextState struct {
 	drift            structure.Drift
 	templateWarnings bool
 	knowledgeChanged bool
+	setup            setupState
 }
 
 func renderReleases(out io.Writer, p project.Project, st release.Status) {
@@ -175,7 +176,13 @@ func renderReleases(out io.Writer, p project.Project, st release.Status) {
 // writeContext renders the structure doc, docs, runnable output and work state.
 func writeContext(ctx context.Context, out io.Writer, p project.Project, user string) (contextState, error) {
 	var state contextState
-	var err error
+	setup, setupNow, err := readSetup(p)
+	if err != nil {
+		return state, err
+	}
+	if state.setup = setupNow; setupNow.present {
+		writeSetupSection(out, setup, setupNow)
+	}
 	if state.drift, err = writeStructure(ctx, out, p); err != nil {
 		return state, err
 	}
@@ -361,6 +368,13 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	}
 	if state.templateWarnings {
 		step("Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
+	}
+	if state.setup.present {
+		step(setupInstruction(state.setup))
+		if !state.setup.finished() {
+			output.Instruction(out, lines...)
+			return
+		}
 	}
 	if state.active != nil {
 		step(fmt.Sprintf("Summarize where your active spec %s stands and name its next pending task.", state.active.Slug))

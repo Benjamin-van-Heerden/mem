@@ -7,6 +7,7 @@ import (
 
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/templates"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
 )
@@ -62,6 +63,11 @@ func writeDigest(out io.Writer, c catchUp, user string) {
 		fmt.Fprintln(out, "✔ "+line)
 	}
 	writeWorkDigest(out, c.p, user)
+	// The digest never fails, so an unreadable setup file only loses the reminder.
+	_, setup, _ := readSetup(c.p)
+	if setup.present {
+		fmt.Fprintln(out, setupDigestLine(setup))
+	}
 
 	in := c.incoming
 	if len(in.commits) > 0 {
@@ -93,6 +99,9 @@ func writeDigest(out io.Writer, c catchUp, user string) {
 	}
 
 	lines := []string{"Continue with the work in progress from the compaction summary."}
+	if setup.present {
+		lines = append(lines, "Continue the setup in "+templates.SetupPath+".")
+	}
 	if len(in.commits) > 0 {
 		lines = append(lines, "Check whether the incoming changes above bear on it.")
 	}
