@@ -80,6 +80,8 @@ func (a *app) logNew() *cobra.Command {
 				step(fmt.Sprintf("The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))
 			case drift.Missing:
 				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
+			case !drift.Editing && len(drift.Changes) > 0:
+				step(fmt.Sprintf("Code changed since the codebase structure doc was last updated: %s. Where this session's changes alter what %s describes (modules, entry points, data flow, commands, external services, conventions), update those sections now; it is committed with the log. Leave it alone if nothing it describes changed.", changedFiles(drift), structure.RelPath))
 			}
 			step("Run `mem log commit` to close the session: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
 			output.Instruction(out, lines...)
@@ -253,4 +255,18 @@ func (a *app) logShow() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// changedFiles names the changed code files for an instruction, capped so the line stays readable.
+func changedFiles(d structure.Drift) string {
+	const shown = 8
+	var names []string
+	for i, c := range d.Changes {
+		if i == shown {
+			names = append(names, fmt.Sprintf("and %d more (`mem structure` lists them)", len(d.Changes)-shown))
+			break
+		}
+		names = append(names, c.Path)
+	}
+	return strings.Join(names, ", ")
 }

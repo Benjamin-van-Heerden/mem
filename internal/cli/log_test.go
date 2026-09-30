@@ -120,3 +120,21 @@ func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
 		t.Fatalf("the onboard instruction still takes open work from logs:\n%s", out)
 	}
 }
+
+func TestLogNewAsksToUpdateTheStructureDocAfterAnyCodeChange(t *testing.T) {
+	mine, _ := sharedProject(t)
+	writeFile(t, mine, ".mem/structure.md", "# Structure\n\nThe app is main.go.\n")
+	writeFile(t, mine, "main.go", "package main\n")
+	run(t, mine, "add", "--all")
+	run(t, mine, "commit", "--quiet", "-m", "Add the structure doc")
+
+	if out := mem(t, mine, "log", "new"); strings.Contains(out, "structure doc") {
+		t.Fatalf("log new mentions the structure doc without code changes:\n%s", out)
+	}
+	writeFile(t, mine, "server.go", "package main\n\nfunc serve() {}\n")
+	run(t, mine, "add", "server.go")
+	run(t, mine, "commit", "--quiet", "-m", "Add a server")
+	if out := mem(t, mine, "log", "new"); !strings.Contains(out, "Code changed since the codebase structure doc was last updated: server.go.") {
+		t.Fatalf("log new does not ask about the structure doc:\n%s", out)
+	}
+}
