@@ -38,7 +38,7 @@ func TestProductionReleaseDraftsNotesAndReleasesThemOnConfirm(t *testing.T) {
 
 	mem(t, mine, "promote", "production", "--confirm")
 	tag := run(t, mine, "describe", "--tags", "--abbrev=0", "origin/main")
-	if notes := run(t, mine, "for-each-ref", "--format=%(contents)", "refs/tags/"+tag); !strings.Contains(notes, "reviewed by the user") || strings.Contains(notes, "<!--") {
+	if notes := run(t, mine, "for-each-ref", "--format=%(contents)", "refs/tags/"+tag); !strings.Contains(notes, "# Release notes\n\nThe first release, reviewed by the user.") || strings.Contains(notes, "<!--") {
 		t.Fatalf("tag notes = %q", notes)
 	}
 	if _, err := os.Stat(draft); !os.IsNotExist(err) {

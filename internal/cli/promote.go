@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/github"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
@@ -36,11 +37,20 @@ func (a *app) promoteCommand() *cobra.Command {
 			if stage == "production" && to != "" {
 				return fmt.Errorf("production always moves to what staging previewed; to release less, promote staging --to <commit> first")
 			}
+			out := cmd.OutOrStdout()
+			var gh *github.Client
+			if stage == "production" && p.Config.Release.ProductionPR {
+				if gh, err = githubClient(ctx, p); err != nil {
+					return err
+				}
+				if handled, err := promotionPR(ctx, out, p, gh, confirm); handled || err != nil {
+					return err
+				}
+			}
 			pl, err := release.Prepare(ctx, p, stage, to)
 			if err != nil {
 				return err
 			}
-			out := cmd.OutOrStdout()
 			remote := p.Config.Git.Remote
 			switch {
 			case pl.UpToDate && to != "":
@@ -73,12 +83,15 @@ func (a *app) promoteCommand() *cobra.Command {
 						"Nothing has been pushed yet.",
 						fmt.Sprintf("1. Turn %s into a short summary of what %s delivers for its users. Keep the first line; drop the commit list unless it helps.", release.NotesPath, pl.Tag),
 						"2. Show the user the notes and ask them to confirm the release.",
-						"3. When they confirm, run `mem promote production --confirm`.",
+						confirmStep(gh != nil),
 					)
 					return nil
 				}
 				if notes, err = confirmedNotes(p, pl); err != nil {
 					return err
+				}
+				if gh != nil {
+					return openPromotionPR(ctx, out, p, gh, pl, notes)
 				}
 			}
 			if err := release.Execute(ctx, p, pl, notes); err != nil {
@@ -191,4 +204,11 @@ func confirmedNotes(p project.Project, pl release.Plan) (string, error) {
 		return "", fmt.Errorf("%s is empty; write the release notes, or run `mem promote production` to draft them again", release.NotesPath)
 	}
 	return notes, nil
+}
+
+func confirmStep(pullRequest bool) string {
+	if pullRequest {
+		return "3. When they confirm, run `mem promote production --confirm`. This project releases through a pull request: it opens one with these notes for review."
+	}
+	return "3. When they confirm, run `mem promote production --confirm`."
 }

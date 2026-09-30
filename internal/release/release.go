@@ -115,7 +115,8 @@ func Execute(ctx context.Context, p project.Project, pl Plan, notes string) erro
 		if strings.TrimSpace(notes) == "" {
 			return errors.New("production releases need release notes")
 		}
-		if _, err := git.Run(ctx, p.Root, "tag", "--annotate", pl.Tag, pl.To, "--message", notes); err != nil {
+		// Release notes are Markdown: the default cleanup would strip their "#" headings as comments.
+		if _, err := git.Run(ctx, p.Root, "tag", "--annotate", "--cleanup=whitespace", pl.Tag, pl.To, "--message", notes); err != nil {
 			return err
 		}
 		refs = append(refs, "refs/tags/"+pl.Tag)
