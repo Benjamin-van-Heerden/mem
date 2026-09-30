@@ -42,6 +42,7 @@ type Library struct {
 type Template struct {
 	Name        string
 	Description string
+	HasSetup    bool
 }
 
 // Item is one memory, skill or doc provided by a template.
@@ -118,7 +119,8 @@ func (l Library) Templates() ([]Template, error) {
 		if err := toml.Unmarshal(data, &meta); err != nil {
 			return nil, fmt.Errorf("invalid %s/template.toml: %w", e.Name(), err)
 		}
-		templates = append(templates, Template{Name: e.Name(), Description: meta.Description})
+		_, err = os.Stat(filepath.Join(l.Dir, e.Name(), setupFile))
+		templates = append(templates, Template{Name: e.Name(), Description: meta.Description, HasSetup: err == nil})
 	}
 	return templates, nil
 }
