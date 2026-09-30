@@ -3,3 +3,4 @@ old/
 /docs/roadmap.md
 /.mem/local/
 .cache/
+.DS_Store
