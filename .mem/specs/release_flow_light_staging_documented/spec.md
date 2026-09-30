@@ -56,7 +56,7 @@ The three-branch model (development, staging, production), fast-forward only, st
 ### `mem deploy` (`internal/cli/deploy.go`, new)
 
 - Promotes staging to the development branch's upstream head, then production to staging, each as a direct fast-forward, and tags production with `GeneratedMessage`. It prints the same plans as promote and one summary. It does nothing more when a hop is already current.
-- In a repository with `production_pr = true` it promotes staging and then refuses the production hop, pointing at `mem promote production` (open question below).
+- In a repository with `production_pr = true` it fails before moving anything, pointing at `mem promote production`. A hidden `--force` flag (not in `--help`, AGENTS.md or any instruction) overrides the requirement for the user.
 - It works for a human at a terminal: no agent instruction is required to finish, and its stdout reads as a report.
 
 ### Instructions and docs
@@ -71,7 +71,7 @@ The three-branch model (development, staging, production), fast-forward only, st
 
 ## Success Criteria
 
-- `mem deploy` in a disposable repository with a bare remote moves staging and production to the development head in one run, tags production with a generated message, and needs no further command; in a `production_pr` repository it moves staging only and explains why.
+- `mem deploy` in a disposable repository with a bare remote moves staging and production to the development head in one run, tags production with a generated message, and needs no further command; in a `production_pr` repository it fails without moving anything, and `--force` (hidden from `--help`) deploys anyway.
 - `mem promote production` writes `.mem/local/release-notes.md` with the completed specs, work log titles and commits of the range; a re-run keeps an edited draft for the same commit and replaces one for another commit; `--confirm` tags with the draft's content and deletes it; `--confirm` without a valid draft refuses.
 - `mem promote staging` is unchanged apart from its closing wording.
 - In a `production_pr` repository (tests against an `httptest` GitHub API and a bare remote): `--confirm` pushes a snapshot branch and creates a PR with the notes; a second `--confirm` while it is open completes it by fast-forward, tags, and deletes the snapshot branch; "changes requested" refuses; a missing token errors only there.
@@ -81,6 +81,6 @@ The three-branch model (development, staging, production), fast-forward only, st
 ## Notes
 
 - User decisions (2026-10-01): keep staging (for eventual preview deployments; one code path); `mem deploy` runs the whole sequence and agents need explicit consent to run it; staging promotions are light, production promotions careful and documented when agents do them; some repositories must require PRs into production; do not rely on `gh` being logged in; PRs must not create merge commits.
-- Open question for the user: in a `production_pr` repository, should `mem deploy` refuse the production hop (current plan) or open the PR itself?
+- Decided (2026-10-01): in a `production_pr` repository `mem deploy` fails up front; a hidden `--force` overrides it. GitHub marking a fast-forwarded PR as merged is believed to work and is tested in task 5.
 - Todo `promote_staging_wording_when_staging` is covered by the staging wording change: "Staging is at <sha>. Check the preview if this project deploys staging; release with `mem promote production`." Delete the todo when done.
 - Every GitHub merge method (merge commit, squash, rebase) rewrites or adds commits, which is why mem completes promotion PRs itself.
