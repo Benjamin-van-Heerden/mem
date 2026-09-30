@@ -1,8 +1,13 @@
 ---
 title: End-to-end run with real Neon, Vercel and GitHub
-status: todo
+status: completed
 created_at: "2026-09-30T13:26:00+02:00"
-updated_at: "2026-09-30T13:26:00+02:00"
+updated_at: "2026-09-30T23:39:16+02:00"
+completed_at: "2026-09-30T23:39:16+02:00"
 ---
 
 Ask the user first: this creates a throwaway GitHub repository, Neon project and Vercel project. The user approved (2026-09-30) creating throwaway resources and asked for a representative test: create the empty GitHub repository and clone it, then spawn a subagent with only the repository path and a vague request ("I want to start a new web app here with mem's nextjs-web template") and no knowledge of this spec. The subagent drives mem init and .mem/setup.md itself; this session plays the user, answering its questions and (you) steps via SendMessage, without steering. Record every place it stalls or goes wrong, and fix setup.md, the skills or mem accordingly. Record each created resource in the scratchpad teardown list, and tear everything down afterwards (GitHub repo, Neon project, Vercel project, local clones). Then ask the user to review and push mem-templates.
+
+## Completion Notes
+
+A fresh general-purpose subagent, given only the empty repo path, the mem dev-build shim, the local template source and 'start a new web app with mem's nextjs-web template', ran mem init (first commit in the empty repo) and followed .mem/setup.md; this session played the user (super admin details, branding: Delta, sharp, Plex Serif/Mono, rust, dark, hatch; moved the repo to Yhat-Git-Org when Vercel's GitHub app lacked access to the personal account; chose a regenerated production password). Result: Delta deployed at mem-e2e-webapp.vercel.app via three mem promote releases, production super-admin sign-in verified through the auth API; steps 1-5 and 7-10 ticked, 6/11/12 left for the user's eyes by design. 20 findings; fixed in mem-templates (pushed, 8e98d87..233d221 range incl. 55dc4fc, c6f28ae, 1b4686e and the fixes): doubled replacer in the .env snippet, framework: nextjs in vercel.json (404s otherwise), user-set production SUPER_ADMIN_PASSWORD (--sensitive, cannot be read back), org repo / git connect error, bun run smoke (tested pass and fail), README if/then, font snippet with Plex weights, truthful migration output (tested on a fresh Neon branch), sslmode verify-full transform (warning gone), notes on blocked install scripts, tooltip hint, VERCEL_OIDC_TOKEN, forbidden 200, production account creation as (you). mem: onboard asks for (you) steps; todo promote_staging_wording_when_staging. The subagent was denied reading the local password and asked this session to sign in instead; declined and surfaced to the user. Torn down: Vercel project, both Neon projects, the GitHub repo, local clones and credential files, the local-source template cache.
