@@ -23,6 +23,13 @@ type Config struct {
 	Structure   StructureConfig `toml:"structure,omitempty"`
 	Templates   TemplatesConfig `toml:"templates,omitempty"`
 	Claude      ClaudeConfig    `toml:"claude,omitempty"`
+	Release     ReleaseConfig   `toml:"release,omitempty"`
+}
+
+// ReleaseConfig sets how production releases are made.
+type ReleaseConfig struct {
+	// ProductionPR makes production releases go through a pull request, which mem completes by fast-forward.
+	ProductionPR bool `toml:"production_pr,omitempty"`
 }
 
 // ClaudeConfig controls what mem installs for Claude Code.
