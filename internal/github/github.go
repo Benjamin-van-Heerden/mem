@@ -140,7 +140,9 @@ func (c *Client) Close(ctx context.Context, number int) error {
 	return c.do(ctx, http.MethodPatch, c.path(fmt.Sprintf("pulls/%d", number)), map[string]string{"state": "closed"}, nil)
 }
 
-func (c *Client) path(rest string) string { return fmt.Sprintf("%s/repos/%s/%s/%s", c.api, c.owner, c.repo, rest) }
+func (c *Client) path(rest string) string {
+	return fmt.Sprintf("%s/repos/%s/%s/%s", c.api, c.owner, c.repo, rest)
+}
 
 func (c *Client) do(ctx context.Context, method, target string, body, result any) error {
 	var payload io.Reader

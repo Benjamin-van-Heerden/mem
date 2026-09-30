@@ -48,6 +48,9 @@ staging = "test"
 production = "main"
 protect = true          # install hooks that keep staging and production promotion-only
 
+[release]
+production_pr = true    # optional: release production through a pull request
+
 [claude]
 compact_hook = false    # optional: leave out the Claude Code post-compaction hook
 
@@ -125,7 +128,9 @@ Three branch roles, named per project (defaults `dev`, `test`, `main`):
 Staging and production only ever fast-forward to commits that already exist on development, so there is exactly one history and nothing reaches production without having been previewed.
 
 - `mem promote staging [--to <commit>]` fast-forwards staging to `origin/<development>`, or to an earlier development commit to leave unfinished work out.
-- `mem promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and asks for release notes; `--notes <file>` then pushes production together with an annotated date tag (`v2026.09.24.1`) carrying the notes, atomically.
+- `mem promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and drafts release notes in `.mem/local/release-notes.md` from the specs completed, the work logs written and the commits in the range; the draft is marked with the commit it describes and kept across re-runs for that commit. After the user has seen the refined notes, `--confirm` pushes production together with an annotated date tag (`v2026.09.24.1`) carrying them, atomically, and removes the draft.
+- `mem deploy` is the user's one-step release: it pushes unpushed development commits, fast-forwards staging and then production, and tags production with a generated summary instead of notes. Its output is a report, not agent instructions. Agents are instructed never to run it unless the user explicitly asks.
+- With `[release] production_pr = true` (`mem init --production-pr`), production releases go through a pull request: `--confirm` pushes a snapshot branch `promotion/<production>/<timestamp>` at the release commit and opens a pull request with the notes. Once it is approved, `mem promote production --confirm` fast-forwards production to the pull request's head and tags it with the pull request's description; GitHub marks the pull request merged without a new commit, and mem deletes the snapshot branch (closing the pull request with a comment if GitHub did not mark it merged). Changes requested stop the release. GitHub's merge buttons are not used, because every merge method adds or rewrites commits. GitHub access comes from `GITHUB_TOKEN`, `GH_TOKEN` or `gh auth token`, and is only needed in these projects. `mem deploy` refuses them.
 - In a repository without commits, such as a fresh clone of an empty GitHub repository, `mem init` first makes an empty commit on the production branch, built from the empty tree so anything already staged stays staged.
 - `mem init` creates missing branches in promotion order: staging from production, development from staging, tracking the remote's copy where one exists. It publishes any branch the remote lacks and switches to development.
 - If staging or production has commits that are not on development (a hotfix or a web-UI merge), promotion stops and prints the commands to merge them back into development.
