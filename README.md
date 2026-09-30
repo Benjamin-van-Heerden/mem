@@ -44,6 +44,8 @@ mem init --template nextjs-web
 
 Templates come from [mem-templates](https://github.com/Benjamin-van-Heerden/mem-templates) unless `--template-source <git url>` names another library; the project remembers its library. `mem template use <name>` adds a template to an existing project.
 
+A template can carry a one-time setup, such as scaffolding the app. `mem init` puts it in `.mem/setup.md`, and the agent works through it, step by step with you, before anything else; deleting the file ends the setup. Starting a new app is then: create an empty repository, clone it, and run `mem init --template <name>` in it (mem makes the first commit when there is none).
+
 A project that uses the Python coding harness (`.agent_core/`) is converted instead:
 
 ```sh
@@ -60,7 +62,7 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 - **Specs, tasks and todos** track planned work. A spec is written up with the user, broken into ordered tasks and implemented task by task; todos are standalone matters. None of them are needed for ordinary coding.
 - **Work logs** record what each session did, decided and tried, and are never updated; open work lives in todos. `mem log new` and then `mem log commit` end a session: the log and the other records are committed, the branch is synced and pushed. Onboard shows your latest log and lists other recent ones.
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
-- **Templates** supply memories, skills and docs for a kind of project from a shared Git library. Onboard draws in what is missing and updates what the project has not changed; `mem template promote` sends a project's memory, skill or doc back so similar projects receive it.
+- **Templates** supply memories, skills and docs for a kind of project from a shared Git library, and optionally a one-time setup for new projects. Onboard draws in what is missing and updates what the project has not changed; `mem template promote` sends a project's memory, skill or doc back so similar projects receive it.
 - **The structure doc**, `.mem/structure.md`, is a living map of the codebase that onboard includes. `mem structure` creates it and later lists what has changed since it was last updated; mem warns when it falls behind the code.
 
 ## Releases
@@ -86,6 +88,7 @@ AGENTS.md                  mem block, your content, project memories
   todos/<slug>.md
   logs/<user>_<date>_<time>.md
   templates.lock           template items and the content they last shared with their template
+  setup.md                 one-time template setup, deleted when it is done
   local/                   ignored; generated onboard output
 .agents/skills/<name>/     skills; linked from .claude/skills/<name>
 ```

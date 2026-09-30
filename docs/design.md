@@ -31,6 +31,7 @@ AGENTS.md                           managed <mem> block, <memories> block, user 
   todos/<slug>.md
   logs/<user>_<YYYYMMDD>_<HHMMSS>.md
   templates.lock                    template items and the content they last shared with their template
+  setup.md                          one-time template setup, present until it is finished
 .agents/skills/<name>/              skills, from templates or the project; linked from .claude/skills/<name>
   local/                            ignored; generated onboard output
 ```
@@ -125,6 +126,7 @@ Staging and production only ever fast-forward to commits that already exist on d
 
 - `mem promote staging [--to <commit>]` fast-forwards staging to `origin/<development>`, or to an earlier development commit to leave unfinished work out.
 - `mem promote production` fast-forwards production to `origin/<staging>`. The first run prints what will ship (commits, authors, specs completed in the range, specs still in progress) and asks for release notes; `--notes <file>` then pushes production together with an annotated date tag (`v2026.09.24.1`) carrying the notes, atomically.
+- In a repository without commits, such as a fresh clone of an empty GitHub repository, `mem init` first makes an empty commit on the production branch, built from the empty tree so anything already staged stays staged.
 - `mem init` creates missing branches in promotion order: staging from production, development from staging, tracking the remote's copy where one exists. It publishes any branch the remote lacks and switches to development.
 - If staging or production has commits that are not on development (a hotfix or a web-UI merge), promotion stops and prints the commands to merge them back into development.
 - Onboard shows release status: the latest production tag and how far staging and development are ahead.
@@ -147,7 +149,9 @@ exclude = ["skill:old-guide"]     # opt-outs, written by mem
 - `.mem/templates.lock` records, per item, the content it last shared with its template. Onboard compares project copy, template copy and that record: it adds missing items, updates items the project has not edited, reports local-only edits as promotion candidates, flags items edited on both sides, keeps items a template no longer provides, and turns a deleted item into an `exclude` entry. It never deletes project files, and it publishes its changes unless those paths already had uncommitted edits.
 - `mem template promote <memory|skill|doc> <name> [--to <template>]` copies a project item into its template, commits and pushes the library, so every project using the template receives it at its next onboard. Promoting to a template that does not exist creates it.
 - `mem template reset <kind> <name>` takes the template's copy, and brings back an excluded item.
-- `mem template list` shows the library's templates and the state of each of the project's template items.
+- `mem template list` shows the library's templates, which of them have a setup, and the state of each of the project's template items.
+
+**Setup.** A template may also have `setup.md` at its root: a one-time setup for new projects, written as ordered steps with checkbox headings (`## [ ] 1. Scaffold the app`), each ending in a "Done when" line; steps that need the user (accounts, secrets, choices) are marked `(you)` and come last. `mem init --template` joins the setups of the chosen templates, in order, into `.mem/setup.md`. The file is the setup's only state: while it exists, onboard shows it first under 🏗️ SETUP with its progress and makes working through it, ticking and committing step by step, the session's first instruction, and the compaction digest reminds the agent of it. When every step is ticked, the agent deletes the file. Setup is not a template item: it is never synced, locked or excluded, and `mem template use` does not install it on an existing project; it only mentions that the template has one.
 
 Framework guides belong in templates as skills rather than docs: docs are printed in full at every onboard, skills load when they are relevant.
 
