@@ -247,12 +247,41 @@ func renderTemplateSync(out io.Writer, warning string, res templates.Result) {
 
 // templateInstructions tells the agent what to do with a sync's changes.
 func templateInstructions(res templates.Result, extra ...string) []string {
-	paths := append(extra, res.Paths...)
+	paths := append(extra, describePaths(res.Paths)...)
 	lines := []string{fmt.Sprintf("1. Show the user what changed (%s), then commit it.", strings.Join(slices.Compact(paths), ", "))}
 	if slices.ContainsFunc(res.Lines, func(l string) bool { return strings.HasPrefix(l, "⚠️") }) {
 		lines = append(lines, "2. Tell the user about each ⚠️ item above and settle it with them.")
 	}
 	return lines
+}
+
+// describePaths keeps instructions readable when a template brings many skills: skill
+// directories and their .claude links are named by directory with a count.
+func describePaths(paths []string) []string {
+	groups := []struct{ dir, noun string }{{".agents/skills/", "skill"}, {".claude/skills/", "link"}}
+	counts := make([]int, len(groups))
+	var out []string
+	for _, path := range paths {
+		grouped := false
+		for i, g := range groups {
+			if strings.HasPrefix(path, g.dir) {
+				counts[i]++
+				grouped = true
+			}
+		}
+		if !grouped {
+			out = append(out, path)
+		}
+	}
+	for i, g := range groups {
+		switch {
+		case counts[i] == 1:
+			out = append(out, fmt.Sprintf("%s (1 %s)", g.dir, g.noun))
+		case counts[i] > 1:
+			out = append(out, fmt.Sprintf("%s (%d %ss)", g.dir, counts[i], g.noun))
+		}
+	}
+	return out
 }
 
 // openTemplates opens the project's library for a sync, or explains why it cannot.

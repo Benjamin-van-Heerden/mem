@@ -241,7 +241,7 @@ func templateNote(res templates.Result) string {
 	if len(res.Paths) == 0 {
 		return ""
 	}
-	return ", including the template items (" + strings.Join(res.Paths, ", ") + ")"
+	return ", including the template items (" + strings.Join(describePaths(res.Paths), ", ") + ")"
 }
 
 // ensureIgnored adds entry to .gitignore unless a line already matches it, and reports whether it did.
