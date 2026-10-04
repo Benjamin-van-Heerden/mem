@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,26 @@ func TestCommitPathsCommitsOnlyGivenPathsAndPushes(t *testing.T) {
 	}
 	if status := mustRun(t, repo, "status", "--porcelain"); !strings.Contains(status, "M  code.go") {
 		t.Fatalf("unrelated staged change was disturbed: %q", status)
+	}
+}
+
+func TestPushReportsARemoteThatMovedOnInOneLine(t *testing.T) {
+	base := t.TempDir()
+	remote, repo, other := filepath.Join(base, "remote.git"), filepath.Join(base, "repo"), filepath.Join(base, "other")
+	mustRun(t, base, "init", "--quiet", "--bare", "-b", "dev", remote)
+	for _, dir := range []string{repo, other} {
+		mustRun(t, base, "clone", "--quiet", remote, dir)
+		mustRun(t, dir, "config", "user.name", "Test")
+		mustRun(t, dir, "config", "user.email", "test@example.com")
+		mustRun(t, dir, "commit", "--quiet", "--allow-empty", "-m", "from "+filepath.Base(dir))
+	}
+	mustRun(t, other, "push", "--quiet", "-u", "origin", "dev")
+	mustRun(t, repo, "fetch", "--quiet")
+	mustRun(t, repo, "branch", "--quiet", "--set-upstream-to", "origin/dev")
+
+	err := Push(context.Background(), repo)
+	if !errors.Is(err, ErrPush) || err.Error() != "the remote has commits this checkout does not have yet" {
+		t.Fatalf("Push error = %v", err)
 	}
 }
 

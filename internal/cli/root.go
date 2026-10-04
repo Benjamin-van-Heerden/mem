@@ -64,7 +64,7 @@ func publish(ctx context.Context, p project.Project, message string, paths ...st
 	pushed, err := git.CommitPaths(ctx, p.Root, message, paths...)
 	switch {
 	case errors.Is(err, git.ErrPush):
-		return fmt.Sprintf("⚠️ Committed %q, but the push failed (%v). Tell the user that teammates will not see it until it is pushed; run `git push` once the remote is reachable.", message, err)
+		return fmt.Sprintf("⚠️ Committed %q, but the push failed (%v). Run `mem sync`, which brings in what others pushed and pushes this; tell the user if it still fails.", message, err)
 	case err != nil:
 		return fmt.Sprintf("⚠️ Saved locally but could not commit (%v). Tell the user; commit %s together with the next commit.", err, strings.Join(paths, ", "))
 	case pushed:

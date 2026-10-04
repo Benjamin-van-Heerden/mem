@@ -70,13 +70,22 @@ func Push(ctx context.Context, root string) error {
 	pushCtx, cancel := context.WithTimeout(ctx, PushTimeout)
 	defer cancel()
 	if _, err := Run(pushCtx, root, "push", "--quiet"); err != nil {
-		if pushCtx.Err() != nil {
+		switch {
+		case pushCtx.Err() != nil:
 			err = fmt.Errorf("no response from the remote within %s", PushTimeout)
+		case strings.Contains(err.Error(), "(fetch first)") || strings.Contains(err.Error(), "(non-fast-forward)"):
+			err = errors.New("the remote has commits this checkout does not have yet")
 		}
-		return fmt.Errorf("%w: %v", ErrPush, err)
+		return pushError{err}
 	}
 	return nil
 }
+
+// pushError matches ErrPush and reads as its cause alone.
+type pushError struct{ cause error }
+
+func (e pushError) Error() string        { return e.cause.Error() }
+func (e pushError) Is(target error) bool { return target == ErrPush }
 
 // CommitPaths commits only the given paths, then pushes when the branch has an
 // upstream. A failed or timed-out push wraps ErrPush; the commit is kept.
