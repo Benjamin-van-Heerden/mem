@@ -93,7 +93,7 @@ func DraftCommit(draft string) (commit, notes string) {
 	return m[1], strings.TrimSpace(draft[len(m[0]):])
 }
 
-// specSummaries finds specs archived as completed within the range, with their title and first overview sentence.
+// specSummaries finds specs archived as completed within the range, with their title and first overview sentence (when it stands on its own).
 func specSummaries(ctx context.Context, root, from, to string) []specSummary {
 	var specs []specSummary
 	for _, file := range addedFiles(ctx, root, from, to, ".mem/specs/archive") {
@@ -183,7 +183,11 @@ func firstSentence(text string) string {
 	paragraph, _, _ := strings.Cut(strings.TrimSpace(text), "\n\n")
 	paragraph = strings.Join(strings.Fields(paragraph), " ")
 	if i := strings.Index(paragraph, ". "); i >= 0 {
-		return paragraph[:i+1]
+		paragraph = paragraph[:i+1]
+	}
+	// A sentence ending in a colon introduces a list and reads as a fragment on its own.
+	if strings.HasSuffix(paragraph, ":") {
+		return ""
 	}
 	return paragraph
 }
