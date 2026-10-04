@@ -14,9 +14,9 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 - `promote staging|production` with date tags, drafted release notes confirmed with `--confirm`, optional production pull requests completed by fast-forward (`[release] production_pr`), `deploy` for one-step releases, and the `pre-push`/`pre-commit` hooks.
 - Templates: `init --template`, `template use|list|promote|reset`, and template sync at onboard with `.mem/templates.lock`; one-time template setups installed by `init` to `.mem/setup.md` and led by onboard and the compaction digest until the file is deleted.
 - Self-update: onboard installs a newer release automatically; `mem update` on demand.
-- Releases: v0.2.0 is published with binaries for Linux, macOS and Windows, built by GoReleaser from semver tags.
+- Releases: published on GitHub with binaries for Linux, macOS and Windows, built by GoReleaser from semver tags.
 
-Tested with disposable repositories and bare remotes; CI runs on Linux, macOS and Windows. mem manages its own source repository. praxis-app has been imported; its commit is pending review.
+Tested with disposable repositories and bare remotes; CI runs on Linux, macOS and Windows. mem manages its own source repository and praxis-app. The importer has been run end to end on a copy of Urbion-AI (22 specs, 8 todos, 120 logs from a year of harness use).
 
 ## Planned
 
