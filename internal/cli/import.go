@@ -54,8 +54,13 @@ func (a *app) importCommand() *cobra.Command {
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}
-			if line := sharedSettingsIgnored(cmd.Context(), root); line != "" {
-				sum.Notes = append(sum.Notes, line)
+			if removed, err := removeClaudeLink(root); err != nil {
+				return err
+			} else if removed {
+				sum.Notes = append(sum.Notes, claudeLinkRemoved)
+			}
+			if settingsIgnored(cmd.Context(), root) {
+				sum.Notes = append(sum.Notes, sharedSettingsWarning)
 			}
 			for _, line := range append(hookLines, sum.Notes...) {
 				fmt.Fprintln(out, line)
@@ -74,10 +79,10 @@ func (a *app) importCommand() *cobra.Command {
 	return cmd
 }
 
-// sharedSettingsIgnored warns when .gitignore keeps .claude/settings.json, and with it mem's compaction hook, from teammates.
-func sharedSettingsIgnored(ctx context.Context, root string) string {
-	if _, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", claude.SettingsPath); err != nil {
-		return ""
-	}
-	return fmt.Sprintf("⚠️ .gitignore ignores %s, so the compaction hook stays on this machine. Tell the user; to share it with teammates, ignore only .claude/settings.local.json (Claude Code's personal settings) and commit %s.", claude.SettingsPath, claude.SettingsPath)
+// settingsIgnored reports whether .gitignore keeps .claude/settings.json, and with it mem's compaction hook, out of Git.
+func settingsIgnored(ctx context.Context, root string) bool {
+	_, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", claude.SettingsPath)
+	return err == nil
 }
+
+const sharedSettingsWarning = "⚠️ .gitignore ignores " + claude.SettingsPath + ", so it is not shared. Each checkout's onboard still installs the compaction hook, but other project settings stay local. Tell the user; Claude Code's convention is to ignore only .claude/settings.local.json (personal settings) and commit " + claude.SettingsPath + "."

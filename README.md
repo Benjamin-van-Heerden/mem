@@ -26,7 +26,7 @@ In an existing Git repository:
 mem init
 ```
 
-This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds the Claude Code compaction hook to `.claude/settings.json`. Commit the result on the development branch and push it.
+This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds the Claude Code compaction hook to `.claude/settings.json`. A `CLAUDE.md` that only links to `AGENTS.md` is removed, since Claude Code reads `AGENTS.md` itself. Commit the result on the development branch and push it.
 
 Branch names default to `dev`, `test` and `main`:
 

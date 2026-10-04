@@ -76,9 +76,12 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 		if !enabled {
 			line = "Removed the Claude Code compaction hook from " + claude.SettingsPath + " ([claude] compact_hook = false)."
 		}
-		if settingsStatus != "" {
+		switch {
+		case settingsIgnored(ctx, p.Root):
+			lines = append(lines, line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs it in every checkout.")
+		case settingsStatus != "":
 			lines = append(lines, line+" It already had uncommitted edits, so commit it together with them.")
-		} else {
+		default:
 			lines = append(lines, line)
 			publishPaths = append(publishPaths, claude.SettingsPath)
 		}

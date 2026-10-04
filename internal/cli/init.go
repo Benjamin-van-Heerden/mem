@@ -78,6 +78,10 @@ func (a *app) initCommand() *cobra.Command {
 			if _, err := claude.SyncCompactHook(root, true); err != nil {
 				return err
 			}
+			removed, err := removeClaudeLink(root)
+			if err != nil {
+				return err
+			}
 			p := project.Project{Root: root, Config: config}
 			hookLines, err := hooks.Sync(cmd.Context(), p)
 			if err != nil {
@@ -112,8 +116,11 @@ func (a *app) initCommand() *cobra.Command {
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
-			if line := sharedSettingsIgnored(cmd.Context(), root); line != "" {
-				fmt.Fprintln(out, line)
+			if removed {
+				fmt.Fprintln(out, claudeLinkRemoved)
+			}
+			if settingsIgnored(cmd.Context(), root) {
+				fmt.Fprintln(out, sharedSettingsWarning)
 			}
 			if setup != "" {
 				fmt.Fprintln(out, templates.SetupPath+"      one-time setup from the template; onboard walks through it until the file is deleted")

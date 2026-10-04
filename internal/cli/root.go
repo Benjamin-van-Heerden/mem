@@ -97,6 +97,25 @@ func writeAgents(p project.Project, text string) error {
 	return os.WriteFile(filepath.Join(p.Root, "AGENTS.md"), []byte(text), 0o644)
 }
 
+// removeClaudeLink deletes a CLAUDE.md that is only a link to AGENTS.md. Claude Code reads AGENTS.md itself, so the
+// link is one more file to keep. A CLAUDE.md with its own content is left alone.
+func removeClaudeLink(root string) (bool, error) {
+	path := filepath.Join(root, "CLAUDE.md")
+	target, err := os.Readlink(path)
+	if err != nil {
+		return false, nil
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(root, target)
+	}
+	if filepath.Clean(target) != filepath.Join(root, "AGENTS.md") {
+		return false, nil
+	}
+	return true, os.Remove(path)
+}
+
+const claudeLinkRemoved = "Removed CLAUDE.md, a link to AGENTS.md: Claude Code reads AGENTS.md itself."
+
 func versionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",

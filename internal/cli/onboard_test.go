@@ -83,3 +83,38 @@ func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
 		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
 	}
 }
+
+func TestOnboardInstallsTheCompactionHookWhereClaudeSettingsAreIgnored(t *testing.T) {
+	mine, _ := sharedProject(t)
+	run(t, mine, "rm", "--quiet", ".claude/settings.json")
+	writeFile(t, mine, ".gitignore", "/.mem/local/\n.claude/\n")
+	run(t, mine, "commit", "--quiet", "-am", "Ignore Claude settings")
+	run(t, mine, "push", "--quiet")
+
+	out := mem(t, mine, "onboard")
+	data, _ := os.ReadFile(filepath.Join(mine, ".claude/settings.json"))
+	if !strings.Contains(string(data), "mem hook compact") || !strings.Contains(out, "it stays on this machine") || strings.Contains(out, "could not commit") {
+		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
+	}
+}
+
+func TestInitRemovesACLAUDELinkButKeepsItsOwnFile(t *testing.T) {
+	for _, own := range []bool{false, true} {
+		base := t.TempDir()
+		t.Setenv("HOME", filepath.Join(base, "home"))
+		repo := filepath.Join(base, "repo")
+		run(t, base, "init", "--quiet", "-b", "main", repo)
+		writeFile(t, repo, "AGENTS.md", "# Notes\n")
+		if own {
+			writeFile(t, repo, "CLAUDE.md", "# Claude notes\n")
+		} else if err := os.Symlink("AGENTS.md", filepath.Join(repo, "CLAUDE.md")); err != nil {
+			t.Skip("symlinks unavailable:", err)
+		}
+		commit(t, repo, "README.md")
+		mem(t, repo, "init", "--protect=false")
+		_, err := os.Lstat(filepath.Join(repo, "CLAUDE.md"))
+		if own == (err != nil) {
+			t.Fatalf("own CLAUDE.md=%v: CLAUDE.md exists=%v", own, err == nil)
+		}
+	}
+}
