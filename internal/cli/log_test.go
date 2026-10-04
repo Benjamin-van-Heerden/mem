@@ -120,3 +120,14 @@ func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
 		t.Fatalf("the onboard instruction still takes open work from logs:\n%s", out)
 	}
 }
+
+func TestClaimedTodosStayVisibleInOnboardAndLogNew(t *testing.T) {
+	mine, _ := sharedProject(t)
+	writeFile(t, mine, ".mem/todos/benchmark.md", "---\ntitle: Benchmark the parser\nstatus: claimed\ncreated_at: \"2026-09-01T10:00:00+02:00\"\nclaimed_by: ana\nclaimed_at: \"2026-09-02T10:00:00+02:00\"\n---\n\nCompare.\n")
+	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Benchmark the parser") || !strings.Contains(out, "ana") {
+		t.Fatalf("onboard leaves out the claimed todo:\n%s", out)
+	}
+	if out := mem(t, mine, "log", "new"); !strings.Contains(out, "- Benchmark the parser (benchmark), claimed by ana") {
+		t.Fatalf("log new leaves out the claimed todo:\n%s", out)
+	}
+}

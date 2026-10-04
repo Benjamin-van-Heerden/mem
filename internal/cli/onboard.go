@@ -222,11 +222,11 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 		return state, err
 	}
 	output.Section(out, "📌 OPEN TODOS")
-	if open := work.OpenTodos(todos); len(open) == 0 {
+	if len(todos) == 0 {
 		fmt.Fprintln(out, "No open todos.")
 	} else {
 		rows := [][]string{{"SLUG", "TITLE", "AGE", "CLAIMED BY"}}
-		for _, t := range open {
+		for _, t := range todos {
 			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created), orDash(t.Meta.ClaimedBy)})
 		}
 		table(out, rows)
