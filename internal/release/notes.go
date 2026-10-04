@@ -6,6 +6,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -96,12 +97,13 @@ func DraftCommit(draft string) (commit, notes string) {
 // specSummaries finds specs archived as completed within the range, with their title and first overview sentence (when it stands on its own).
 func specSummaries(ctx context.Context, root, from, to string) []specSummary {
 	var specs []specSummary
+	earlier := predates(ctx, root, from)
 	for _, file := range addedFiles(ctx, root, from, to, ".mem/specs/archive") {
 		if path.Base(file) != "spec.md" {
 			continue
 		}
 		content, err := git.Run(ctx, root, "show", to+":"+file)
-		if err != nil || !strings.Contains(content, "\nstatus: completed\n") {
+		if err != nil || !strings.Contains(content, "\nstatus: completed\n") || earlier(frontmatterValue(content, "completed_at")) {
 			continue
 		}
 		slug := path.Base(path.Dir(file))
@@ -117,9 +119,10 @@ func specSummaries(ctx context.Context, root, from, to string) []specSummary {
 // logSummaries lists the work logs added within the range, with the headings under "What Was Accomplished".
 func logSummaries(ctx context.Context, root, from, to string) []logSummary {
 	var logs []logSummary
+	earlier := predates(ctx, root, from)
 	for _, file := range addedFiles(ctx, root, from, to, ".mem/logs") {
 		content, err := git.Run(ctx, root, "show", to+":"+file)
-		if err != nil {
+		if err != nil || earlier(frontmatterValue(content, "created_at")) {
 			continue
 		}
 		title := ""
@@ -141,6 +144,21 @@ func logSummaries(ctx context.Context, root, from, to string) []logSummary {
 		logs = append(logs, logSummary{Title: title, Sections: sections})
 	}
 	return logs
+}
+
+// predates reports whether a record's timestamp lies before the range's first commit. Records added in the range
+// with such timestamps came with imported history, such as a migration from the Python harness, not with this release.
+func predates(ctx context.Context, root, from string) func(stamp string) bool {
+	start := time.Time{}
+	if from != "" {
+		if out, err := git.Run(ctx, root, "show", "-s", "--format=%cI", from); err == nil {
+			start, _ = time.Parse(time.RFC3339, out)
+		}
+	}
+	return func(stamp string) bool {
+		t, err := time.Parse(time.RFC3339, stamp)
+		return err == nil && !start.IsZero() && t.Before(start)
+	}
 }
 
 // addedFiles lists files under dir added between from and to (everything under dir at to when from is empty).

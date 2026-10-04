@@ -22,6 +22,8 @@ func TestDraftNotesDescribeTheReleaseFromSpecsLogsAndCommits(t *testing.T) {
 
 	write(t, p.Root, ".mem/specs/archive/login/spec.md", "---\ntitle: Password login\nstatus: completed\n---\n\n## Overview\n\nUsers sign in with email and password. Sessions last a week.\n\n## Goals\n\n- x\n")
 	write(t, p.Root, ".mem/specs/archive/sessions/spec.md", "---\ntitle: Session handling\nstatus: completed\n---\n\n## Overview\n\nSessions are reworked around how they are used:\n\n- one\n- two\n")
+	write(t, p.Root, ".mem/specs/archive/imported/spec.md", "---\ntitle: Imported history\nstatus: completed\ncompleted_at: \"2025-10-09T00:00:00+02:00\"\n---\n\n## Overview\n\nOld.\n")
+	write(t, p.Root, ".mem/logs/tester_20251009_120000.md", "---\ncreated_at: \"2025-10-09T12:00:00+02:00\"\nuser: tester\n---\n\n# Work Log - Imported session\n")
 	write(t, p.Root, ".mem/specs/archive/dropped/spec.md", "---\ntitle: Dropped idea\nstatus: abandoned\n---\n\n## Overview\n\nNo.\n")
 	write(t, p.Root, ".mem/logs/tester_20261001_120000.md", "---\nuser: tester\n---\n\n# Work Log - Login and sessions\n\n## Overarching Goals\n\nx\n\n## What Was Accomplished\n\n### Login form\n\ntext\n\n### Session cookies\n\ntext\n\n## Decisions\n\n### Not a section\n")
 	run(t, p.Root, "add", ".")
@@ -45,7 +47,7 @@ func TestDraftNotesDescribeTheReleaseFromSpecsLogsAndCommits(t *testing.T) {
 			t.Fatalf("draft lacks %q:\n%s", want, draft)
 		}
 	}
-	if strings.Contains(draft, "Dropped idea") || strings.Contains(draft, "Not a section") || strings.Contains(draft, "- one (Test)") {
+	if strings.Contains(draft, "Dropped idea") || strings.Contains(draft, "Imported") || strings.Contains(draft, "Not a section") || strings.Contains(draft, "- one (Test)") {
 		t.Fatalf("draft includes what is outside the release:\n%s", draft)
 	}
 	commit, notes := DraftCommit(draft)
