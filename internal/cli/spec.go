@@ -144,7 +144,7 @@ func (a *app) specStart() *cobra.Command {
 			}
 			output.Instruction(out,
 				fmt.Sprintf("Implement the pending tasks in order, starting with %s (%s).", pending[0].Meta.Title, pending[0].Slug),
-				"After each task, record it with `mem task complete <task> \"what was done and how it was verified\"` and continue with the next one.",
+				"After each task, commit its code, then record it with `mem task complete <task> \"what was done and how it was verified\"`, which commits the record and pushes, and continue with the next one.",
 			)
 			return nil
 		},
@@ -154,7 +154,7 @@ func (a *app) specStart() *cobra.Command {
 func (a *app) specComplete() *cobra.Command {
 	return &cobra.Command{
 		Use:   "complete <spec>",
-		Short: "Mark a spec completed and archive it",
+		Short: "Mark a spec completed, archive it, commit that, sync and push",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -179,6 +179,7 @@ func (a *app) specComplete() *cobra.Command {
 				}
 				return fmt.Errorf("spec %s still has pending tasks: %s; complete them first", s.Slug, strings.Join(names, ", "))
 			}
+			active := p.Rel(s.Dir)
 			s, err = work.ArchiveSpec(p, s, work.SpecCompleted, "")
 			if err != nil {
 				return err
@@ -186,12 +187,15 @@ func (a *app) specComplete() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "✅ SPEC COMPLETED")
 			fmt.Fprintf(out, "Spec: %s\nArchived to: %s\n", s.Meta.Title, p.Rel(s.Dir))
-			output.Instruction(out,
+			nudges := commitRecord(cmd.Context(), out, p, "Complete spec "+s.Slug, active, p.Rel(s.Dir))
+			lines, err := a.share(cmd, nudges)
+			if err != nil {
+				return err
+			}
+			output.Instruction(out, append(lines,
 				"1. Summarize for the user what the spec delivered.",
 				fmt.Sprintf("2. Offer to close the session: `mem log new --spec %s`, then `mem log commit`.", s.Slug),
-				"3. Commit and push the work together with the .mem/ changes.",
-			)
-			driftNudges(cmd.Context(), out, p)
+			)...)
 			return nil
 		},
 	}

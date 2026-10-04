@@ -133,8 +133,31 @@ func standingNudges(r Report, behindAction string) []string {
 	return nudges
 }
 
-// Unpushed describes local commits that are not on the upstream yet. Mid-session
-// checks leave it out: the commit rhythm pushes at session and spec boundaries.
+// Push pushes the branch after a catch-up that left it ahead of its upstream and not behind, and reports the
+// outcome in place of the unpushed nudge. Staging and production only move through promotion, so they are never pushed.
+func Push(ctx context.Context, p project.Project, r Report) Report {
+	if !r.Fetched || r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 || r.Branch == r.Staging || r.Branch == r.Production {
+		return r
+	}
+	stale := Unpushed(r)
+	nudges := r.Nudges[:0:0]
+	for _, line := range r.Nudges {
+		if line != stale {
+			nudges = append(nudges, line)
+		}
+	}
+	if err := git.Push(ctx, p.Root); err != nil {
+		nudges = append(nudges, fmt.Sprintf("Pushing %s failed (%v). Tell the user; teammates will not see these commits until `git push` succeeds.", r.Branch, err))
+	} else {
+		r.Done = append(r.Done, fmt.Sprintf("Pushed %d commit(s) to %s.", r.Ahead, r.Upstream))
+		r.Ahead = 0
+	}
+	r.Nudges = nudges
+	return r
+}
+
+// Unpushed describes local commits that are not on the upstream yet. Checks that
+// do not fetch leave it out: `mem sync` and record completion push after a fetch.
 func Unpushed(r Report) string {
 	if r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 {
 		return ""

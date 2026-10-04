@@ -113,7 +113,8 @@ func (a *app) taskComplete() *cobra.Command {
 	var specRef string
 	cmd := &cobra.Command{
 		Use:   "complete <task> <notes>",
-		Short: "Mark a task completed with notes on what was done",
+		Short: "Mark a task completed, commit its record, sync and push",
+		Long:  "Marks the task completed with notes on what was done and commits its spec's record. Commit the task's code first: the record is committed on its own, then the branch is brought up to date with its upstream and pushed, as `mem sync` does.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -142,6 +143,7 @@ func (a *app) taskComplete() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "✅ TASK COMPLETED")
 			fmt.Fprintf(out, "Task: %s (%s)\nSpec: %s — %d of %d tasks done\n", t.Meta.Title, t.Slug, s.Slug, len(tasks)-len(pending), len(tasks))
+			nudges := commitRecord(cmd.Context(), out, p, "Complete task "+t.Slug, p.Rel(s.Dir))
 			if len(pending) > 0 {
 				fmt.Fprintln(out, "\nRemaining:")
 				for _, r := range pending {
@@ -150,20 +152,21 @@ func (a *app) taskComplete() *cobra.Command {
 				next := pending[0]
 				output.Section(out, "➡️ NEXT TASK: "+next.Meta.Title)
 				fmt.Fprintln(out, strings.TrimSpace(next.Body))
-				output.Instruction(out,
-					fmt.Sprintf("1. Commit this task's changes now with a descriptive message, together with its updated record %s.", p.Rel(t.Path)),
-					fmt.Sprintf("2. Continue with the next task, %s (%s), described above. The spec with its full context: `mem spec show %s`.", next.Meta.Title, next.Slug, s.Slug),
-				)
-				driftNudges(cmd.Context(), out, p)
+			}
+			lines, err := a.share(cmd, nudges)
+			if err != nil {
+				return err
+			}
+			if len(pending) > 0 {
+				next := pending[0]
+				output.Instruction(out, append(lines, fmt.Sprintf("Continue with the next task, %s (%s), described above. The spec with its full context: `mem spec show %s`.", next.Meta.Title, next.Slug, s.Slug))...)
 				return nil
 			}
-			output.Instruction(out,
+			output.Instruction(out, append(lines,
 				"All tasks are done.",
-				fmt.Sprintf("1. Commit this task's changes now with a descriptive message, together with its updated record %s.", p.Rel(t.Path)),
-				fmt.Sprintf("2. Check every Success Criterion in %s against the actual code and fix any gaps.", p.Rel(s.Path())),
-				fmt.Sprintf("3. Run `mem spec complete %s`.", s.Slug),
-			)
-			driftNudges(cmd.Context(), out, p)
+				fmt.Sprintf("1. Check every Success Criterion in %s against the actual code and fix any gaps.", p.Rel(s.Path())),
+				fmt.Sprintf("2. Run `mem spec complete %s`.", s.Slug),
+			)...)
 			return nil
 		},
 	}

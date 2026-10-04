@@ -178,25 +178,8 @@ func (a *app) logCommit() *cobra.Command {
 				fmt.Fprintln(out, "The .mem/ records were already committed.")
 			}
 
-			r := converge.Sync(ctx, p)
-			if r.Upstream != "" && r.Ahead > 0 && r.Behind == 0 {
-				if err := git.Push(ctx, p.Root); err != nil {
-					warnings = append(warnings, fmt.Sprintf("Pushing %s failed (%v). Tell the user; teammates will not see this session's work until `git push` succeeds.", r.Branch, err))
-				} else {
-					r.Done = append(r.Done, fmt.Sprintf("Pushed %d commit(s) to %s.", r.Ahead, r.Upstream))
-				}
-			}
-			final := converge.Local(ctx, p)
-			final.Fetched, final.FetchError, final.Done = r.Fetched, r.FetchError, r.Done
-			final.Nudges = warnings
-			for _, line := range r.Nudges {
-				if line != converge.Unpushed(r) {
-					final.Nudges = append(final.Nudges, line)
-				}
-			}
-			if line := converge.Unpushed(final); line != "" {
-				final.Nudges = append(final.Nudges, line)
-			}
+			final := converge.Push(ctx, p, converge.Sync(ctx, p))
+			final.Nudges = append(warnings, final.Nudges...)
 			if n := uncommittedOutsideMem(ctx, p.Root); n > 0 {
 				final.Dirty = true
 				final.Nudges = append(final.Nudges, fmt.Sprintf("The session ends with uncommitted work in %d file(s) outside .mem/ (`git status`). Commit it now if it is finished, or tell the user why it stays uncommitted.", n))
@@ -218,19 +201,29 @@ func (a *app) logCommit() *cobra.Command {
 
 // uncommittedOutsideMem counts changed and untracked files outside .mem/, ignoring .DS_Store.
 func uncommittedOutsideMem(ctx context.Context, root string) int {
-	status, _ := git.Run(ctx, root, "status", "--porcelain", "--untracked-files=all")
 	n := 0
+	for _, file := range uncommittedFiles(ctx, root) {
+		if !strings.HasPrefix(file, ".mem/") {
+			n++
+		}
+	}
+	return n
+}
+
+// uncommittedFiles lists changed and untracked files, ignoring .DS_Store.
+func uncommittedFiles(ctx context.Context, root string) []string {
+	status, _ := git.Run(ctx, root, "status", "--porcelain", "--untracked-files=all")
+	var files []string
 	for _, line := range strings.Split(status, "\n") {
 		if len(line) < 4 {
 			continue
 		}
 		file := strings.Trim(line[3:], "\"")
-		if strings.HasPrefix(file, ".mem/") || path.Base(file) == ".DS_Store" {
-			continue
+		if path.Base(file) != ".DS_Store" {
+			files = append(files, file)
 		}
-		n++
 	}
-	return n
+	return files
 }
 
 func (a *app) logShow() *cobra.Command {

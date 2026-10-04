@@ -48,6 +48,22 @@ func TestSyncFastForwardsCleanCheckout(t *testing.T) {
 	}
 }
 
+func TestPushPublishesCommitsRebasedOntoIncomingWork(t *testing.T) {
+	other, p := clones(t)
+	pushChange(t, other, "theirs.txt", "theirs\n")
+	write(t, p.Root, "mine.txt", "mine\n")
+	run(t, p.Root, "add", ".")
+	run(t, p.Root, "commit", "--quiet", "-m", "mine")
+	ctx := context.Background()
+	r := Push(ctx, p, Sync(ctx, p))
+	if r.Ahead != 0 || len(r.Nudges) != 0 || !strings.Contains(strings.Join(r.Done, "\n"), "Pushed 1 commit(s) to origin/dev.") {
+		t.Fatalf("report = %+v", r)
+	}
+	if remote := run(t, p.Root, "rev-parse", "origin/dev"); remote != run(t, p.Root, "rev-parse", "HEAD") {
+		t.Fatalf("origin/dev is %s, not HEAD", remote)
+	}
+}
+
 func TestSyncRebasesUnpushedCommitsOntoIncomingWork(t *testing.T) {
 	other, p := clones(t)
 	pushChange(t, other, "theirs.txt", "theirs\n")

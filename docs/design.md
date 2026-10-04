@@ -69,27 +69,27 @@ Identity is `git config user.name`, slugified.
    | Up to date | Nothing |
    | Behind | Fast-forward. Works with uncommitted changes unless incoming commits touch the same files. |
    | Unpushed local commits and remote moved | Clean tree: rebase onto upstream. Conflict: abort and instruct the agent to raise it with the user. |
-   | Ahead only | Nudge to push at the next sensible point |
+   | Ahead only | Nudge to push at the next sensible point; `mem sync`, record completion and `log commit` push |
    | Uncommitted changes block convergence | Nudge: commit, then `mem sync` |
    | Not on the development branch | Report lag behind `origin/<development>`; nudge to integrate soon |
 
 2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
 3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Memories and skills that changed during this onboard's sync are shown instead, since the running agent loaded the older copies. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
 
-`mem sync` is the mid-session catch-up: it performs step 1, syncs template items, and reports what others pushed since the checkout last fetched (their commits; specs, tasks and todos opened, claimed, started or completed; changed memories and skills) and a newer mem release, without replacing the binary. Other commands print a short divergence nudge when local Git state shows drift.
+`mem sync` is the mid-session catch-up: it performs step 1, pushes when the branch is then ahead and not behind (never staging or production), syncs template items, and reports what others pushed since the checkout last fetched (their commits; specs, tasks and todos opened, claimed, started or completed; changed memories and skills) and a newer mem release, without replacing the binary. Other commands print a short divergence nudge when local Git state shows drift.
 
 **After compaction.** In Claude Code, a `SessionStart` hook with the `compact` matcher runs `mem hook compact` after every compaction. It performs the same catch-up as `mem sync` and prints a short digest (under ~3 KB) that joins the agent's context next to the compaction summary: branch state and what the sync did, the user's active spec and next task, their claimed todos, incoming changes, changed memories and nudges. It does not restate session progress, the structure doc, docs or logs; compaction keeps those. It never commits or pushes the user's work and exits cleanly on any error. `init`, `import` and onboard keep the entry in `.claude/settings.json`, preserving other settings; `[claude] compact_hook = false` removes it.
 
-**Commit rhythm.** Commit each coherent, working change (typically one per task or fix); `task complete` asks for it. Push at the end of each session with the work log, after completing a spec and before a promotion. Uncommitted work over 15 code files or 800 lines triggers a nudge to commit the finished parts.
+**Commit rhythm.** Commit each coherent, working change (typically one per task or fix). The agent commits a task's code first; `task complete` and `spec complete` then commit their record on their own, run the `mem sync` catch-up and push, warning when other changes stay uncommitted. `log commit` pushes at the end of each session, and `mem sync` pushes mid-session, for example before a promotion. Uncommitted work over 15 code files or 800 lines triggers a nudge to commit the finished parts.
 
 ## Work records
 
 - **Spec:** larger planned work. Statuses `draft → active → completed | abandoned`. Body template: Overview, Goals, Technical Approach, Success Criteria, Notes.
   - `spec new "title"`, `spec list`, `spec show <slug>`
   - `spec start <slug>`: assigns the current user and marks it active; commits and pushes the change
-  - `spec complete <slug>`: requires all tasks done; tells the agent to verify the Success Criteria against the code, write a log and commit the work; archives the spec
+  - `spec complete <slug>`: requires all tasks done; archives the spec, commits the archive, syncs and pushes; tells the agent to summarize the spec and offer a log (the Success Criteria are checked before, at the last `task complete`)
   - `spec abandon <slug> --reason "..."`: archives the spec
-- **Task:** ordered steps within a spec. `task new "title" "description" [--spec]`, `task list [--spec]`, `task complete <slug> "notes" [--spec]`. `--spec` defaults to the user's single active spec. Completion prints remaining tasks and directs the agent to continue.
+- **Task:** ordered steps within a spec. `task new "title" "description" [--spec]`, `task list [--spec]`, `task complete <slug> "notes" [--spec]`. `--spec` defaults to the user's single active spec. Completion commits the spec's record (`Complete task <slug>`), syncs and pushes, then prints remaining tasks and directs the agent to continue.
 - **Todo:** open work that is not part of a spec, including blockers and decisions waiting on someone. `todo new "title" "description"`, `todo list`, `todo show`, `todo claim` (commits and pushes), `todo delete` (when done or no longer relevant).
 - **Memory:** a lasting convention in the `AGENTS.md` memories block. `memory set <name> "<instruction>"`, `memory list`, `memory remove <name>`.
 
