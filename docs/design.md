@@ -168,4 +168,4 @@ Framework guides belong in templates as skills rather than docs: docs are printe
 
 ## Import
 
-`mem import agent-core` converts a Python coding-harness project: config, memories, docs, specs and tasks, todos, logs and its structure doc map almost directly onto this layout. The original `.agent_core/` is left in place for the user to remove.
+`mem import agent-core` converts a Python coding-harness project: config, memories, docs, specs and tasks, todos, logs and its structure doc map almost directly onto this layout. Logs get a `# Work Log - <title>` heading where the harness wrote a plain title line or none, and records keep their GitHub issue links. The original `.agent_core/` is left in place for the user to remove, along with references to it in docs and scripts; the import's instructions cover both. Release notes leave out imported records, since their timestamps predate the release range.

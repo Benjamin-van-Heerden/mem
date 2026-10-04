@@ -112,6 +112,9 @@ func (a *app) initCommand() *cobra.Command {
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
+			if line := sharedSettingsIgnored(cmd.Context(), root); line != "" {
+				fmt.Fprintln(out, line)
+			}
 			if setup != "" {
 				fmt.Fprintln(out, templates.SetupPath+"      one-time setup from the template; onboard walks through it until the file is deleted")
 			}

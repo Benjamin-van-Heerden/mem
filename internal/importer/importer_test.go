@@ -23,8 +23,12 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 		".agent_core/specs/login/tasks/01_form.md":             "---\ntitle: Form\nstatus: completed\ncreated_at: '2026-05-27T09:36:56'\nupdated_at: '2026-05-27T09:36:56'\ncompleted_at: '2026-05-27T10:00:00'\n---\nBuild it.\n",
 		".agent_core/specs/completed/auth/spec.md":             "---\ntitle: Auth\nstatus: completed\ncreated_at: '2026-05-01T09:00:00'\nupdated_at: '2026-05-02T09:00:00'\ncompleted_at: '2026-05-02T09:00:00'\n---\nDone.\n",
 		".agent_core/specs/completed/auth/handoff.md":          "Extra file.\n",
-		".agent_core/todos/email.md":                           "---\ntitle: Email\nstatus: claimed\ncreated_at: '2026-07-06T13:16:26.321585'\nclaimed_by: octocat\nclaimed_at: '2026-07-07T10:00:00'\n---\nSend email.\n",
-		".agent_core/logs/octo_cat_20260910_094413_session.md": "---\ncreated_at: '2026-09-10T09:44:13.513279'\nusername: octo_cat\nspec_slug: login\n---\nWork Log - Test\n",
+		".agent_core/specs/abandoned/sso/spec.md":              "---\ntitle: SSO\nstatus: abandoned\n---\nDropped.\n",
+		".agent_core/todos/docs.md":                            "---\ntitle: Docs\nstatus: open\ncreated_at: '2026-07-06T13:16:26'\n---\nWrite docs.\n",
+		".agent_core/todos/claimed/email.md":                   "---\ntitle: Email\nstatus: claimed\nissue_id: 30\nissue_url: https://github.com/o/r/issues/30\ncreated_at: '2026-07-06T13:16:26.321585'\nclaimed_by: octocat\nclaimed_at: '2026-07-07T10:00:00'\n---\nSend email.\n",
+		".agent_core/logs/octo_cat_20260910_094413_session.md": "---\ncreated_at: '2026-09-10T09:44:13.513279'\nusername: octo_cat\nspec_slug: login\n---\nWork Log - Test\n\n## Overarching Goals\n\nTest.\n",
+		".agent_core/logs/octo_cat_20250926_133200_session.md": "---\ncreated_at: '2025-09-26T13:32:00'\nusername: octo_cat\n---\n# Overarching Goals\nGoals.\n\n# What Was Accomplished\n\n## Queue\n```sh\n# a shell comment\n```\n",
+		".agent_core/logs/octo_cat_20251106_110500_session.md": "---\ncreated_at: '2025-11-06T11:05:00'\nusername: octo_cat\n---\n# Work Log - Credentials\n\n## Overarching Goals\n",
 	}
 	for rel, content := range files {
 		path := filepath.Join(root, rel)
@@ -68,11 +72,24 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(auth.Dir, "handoff.md")); err != nil {
 		t.Fatal("extra spec file not copied")
 	}
-	if todo, err := work.FindTodo(p, "email"); err != nil || todo.Meta.ClaimedBy != "octo_cat" {
+	if sso, err := work.FindSpec(p, "sso"); err != nil || sso.Meta.Status != work.SpecAbandoned || !sso.Archived() {
+		t.Fatalf("sso spec = %+v, %v", sso.Meta, err)
+	}
+	if todo, err := work.FindTodo(p, "email"); err != nil || todo.Meta.ClaimedBy != "octo_cat" || strings.TrimSpace(todo.Body) != "Send email.\n\nGitHub issue: https://github.com/o/r/issues/30" {
 		t.Fatalf("todo = %+v, %v", todo.Meta, err)
 	}
-	if log, err := work.FindLog(p, "octo_cat_20260910_094413"); err != nil || log.Meta.Spec != "login" {
-		t.Fatalf("log = %+v, %v", log.Meta, err)
+	if todo, err := work.FindTodo(p, "docs"); err != nil || todo.Meta.Status != work.TodoOpen {
+		t.Fatalf("open todo = %+v, %v", todo.Meta, err)
+	}
+	if log, err := work.FindLog(p, "octo_cat_20260910_094413"); err != nil || log.Meta.Spec != "login" || log.Heading() != "Test" {
+		t.Fatalf("log = %+v, %q, %v", log.Meta, log.Heading(), err)
+	}
+	if log, _ := work.FindLog(p, "octo_cat_20251106_110500"); log.Heading() != "Credentials" {
+		t.Fatalf("titled log heading = %q", log.Heading())
+	}
+	early, _ := work.FindLog(p, "octo_cat_20250926_133200")
+	if early.Heading() != "Session of 2025-09-26" || !strings.Contains(early.Body, "\n## What Was Accomplished\n\n### Queue\n```sh\n# a shell comment\n```") {
+		t.Fatalf("untitled log not normalised:\n%s", early.Body)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".mem", "structure.md")); err != nil {
 		t.Fatal("structure doc not moved")

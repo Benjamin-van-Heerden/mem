@@ -21,6 +21,11 @@ import (
 
 const Source = ".agent_core"
 
+// placeholderDescription is the harness's default project description, which nobody filled in.
+const placeholderDescription = "Add your project description here."
+
+var heading = regexp.MustCompile(`^#{1,5} `)
+
 type legacyConfig struct {
 	Project struct {
 		Name        string `toml:"name"`
@@ -78,7 +83,7 @@ func Import(root, version string) (Summary, error) {
 	config := project.Config{
 		Schema:      project.Schema,
 		Name:        orDefault(legacy.Project.Name, filepath.Base(root)),
-		Description: strings.Join(strings.Fields(legacy.Project.Description), " "),
+		Description: strings.TrimPrefix(strings.Join(strings.Fields(legacy.Project.Description), " "), placeholderDescription),
 		Git: project.GitConfig{
 			Remote:      "origin",
 			Development: orDefault(legacy.Branches.Dev, "dev"),
@@ -169,7 +174,7 @@ func convertDocs(p project.Project, dir string, sum *Summary) error {
 
 func convertSpecs(p project.Project, dir string, users map[string]string, sum *Summary) error {
 	var specDirs []string
-	for _, pattern := range []string{"*/spec.md", "completed/*/spec.md"} {
+	for _, pattern := range []string{"*/spec.md", "completed/*/spec.md", "abandoned/*/spec.md"} {
 		matches, _ := filepath.Glob(filepath.Join(dir, pattern))
 		specDirs = append(specDirs, matches...)
 	}
@@ -199,7 +204,7 @@ func convertSpecs(p project.Project, dir string, users map[string]string, sum *S
 		if err := copyDir(filepath.Dir(specFile), target); err != nil {
 			return err
 		}
-		if err := work.WriteMarkdown(filepath.Join(target, "spec.md"), spec, body); err != nil {
+		if err := work.WriteMarkdown(filepath.Join(target, "spec.md"), spec, withIssue(body, meta)); err != nil {
 			return err
 		}
 		tasks, _ := filepath.Glob(filepath.Join(target, "tasks", "*.md"))
@@ -223,7 +228,8 @@ func convertSpecs(p project.Project, dir string, users map[string]string, sum *S
 
 func convertTodos(p project.Project, dir string, users map[string]string, sum *Summary) error {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
-	for _, file := range files {
+	claimed, _ := filepath.Glob(filepath.Join(dir, "claimed", "*.md"))
+	for _, file := range append(files, claimed...) {
 		var meta map[string]any
 		body, err := work.ReadMarkdown(file, &meta)
 		if err != nil {
@@ -235,7 +241,7 @@ func convertTodos(p project.Project, dir string, users map[string]string, sum *S
 			todo.ClaimedBy = user(str(meta["claimed_by"]), users)
 			todo.ClaimedAt = timestamp(meta["claimed_at"])
 		}
-		if err := work.WriteMarkdown(p.Path("todos", filepath.Base(file)), todo, body); err != nil {
+		if err := work.WriteMarkdown(p.Path("todos", filepath.Base(file)), todo, withIssue(body, meta)); err != nil {
 			return err
 		}
 		sum.Todos++
@@ -253,12 +259,53 @@ func convertLogs(p project.Project, dir string, sum *Summary) error {
 		}
 		log := work.LogMeta{Created: timestamp(meta["created_at"]), User: str(meta["username"]), Spec: str(meta["spec_slug"])}
 		name := strings.TrimSuffix(strings.TrimSuffix(filepath.Base(file), ".md"), "_session") + ".md"
-		if err := work.WriteMarkdown(p.Path("logs", name), log, body); err != nil {
+		if err := work.WriteMarkdown(p.Path("logs", name), log, titledLog(body, log.Created)); err != nil {
 			return err
 		}
 		sum.Logs++
 	}
 	return nil
+}
+
+// withIssue keeps the link to the GitHub issue the harness mirrored a record to; mem does not mirror records.
+func withIssue(body string, meta map[string]any) string {
+	url := str(meta["issue_url"])
+	if url == "" {
+		return body
+	}
+	return strings.TrimSpace(body) + "\n\nGitHub issue: " + url
+}
+
+// titledLog gives an imported log the `# Work Log - <title>` heading mem reads its title from. Later harness
+// versions wrote the title as a plain line; early ones had none and used top-level headings for sections, which
+// move down a level under a title naming the session's date.
+func titledLog(body, created string) string {
+	lines := strings.Split(strings.TrimSpace(body), "\n")
+	switch {
+	case strings.HasPrefix(lines[0], "# Work Log - "):
+		return body
+	case strings.HasPrefix(lines[0], "Work Log - "):
+		lines[0] = "# " + lines[0]
+		return strings.Join(lines, "\n")
+	}
+	var headings []int
+	topLevel, fenced := false, false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			fenced = !fenced
+		}
+		if !fenced && heading.MatchString(line) {
+			headings = append(headings, i)
+			topLevel = topLevel || strings.HasPrefix(line, "# ")
+		}
+	}
+	if topLevel {
+		for _, i := range headings {
+			lines[i] = "#" + lines[i]
+		}
+	}
+	date, _, _ := strings.Cut(created, "T")
+	return "# Work Log - Session of " + date + "\n\n" + strings.Join(lines, "\n")
 }
 
 // convertOnboardConfig turns the old [[files]], [[tree_dirs]] and [[runnables]] into runnables.

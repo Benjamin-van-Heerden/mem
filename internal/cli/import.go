@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -53,18 +54,30 @@ func (a *app) importCommand() *cobra.Command {
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}
+			if line := sharedSettingsIgnored(cmd.Context(), root); line != "" {
+				sum.Notes = append(sum.Notes, line)
+			}
 			for _, line := range append(hookLines, sum.Notes...) {
 				fmt.Fprintln(out, line)
 			}
 			output.Instruction(out,
 				"Nothing was committed, and .agent_core/ is still in place.",
 				"1. Show the user the result: `git status`, AGENTS.md and .mem/.",
-				"2. Once the user is happy, remove the old harness with `git rm -r -q .agent_core`, and drop its entries from .gitignore.",
-				fmt.Sprintf("3. Commit everything on %s and push it.", g.Development),
-				"4. Run `mem onboard`.",
+				"2. Once the user is happy, remove the old harness: `git rm -r -q .agent_core`, then `rm -rf .agent_core` for the ignored files it leaves behind. Drop its entries from .gitignore.",
+				"3. Find what still refers to the old harness (`git grep -n -e agent_core -e harness/main.py -- ':!.mem'`), such as setup docs, scripts and CI, and update it with the user to use mem.",
+				fmt.Sprintf("4. Commit everything on %s and push it.", g.Development),
+				"5. Run `mem onboard`.",
 			)
 			return nil
 		},
 	})
 	return cmd
+}
+
+// sharedSettingsIgnored warns when .gitignore keeps .claude/settings.json, and with it mem's compaction hook, from teammates.
+func sharedSettingsIgnored(ctx context.Context, root string) string {
+	if _, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", claude.SettingsPath); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("⚠️ .gitignore ignores %s, so the compaction hook stays on this machine. Tell the user; to share it with teammates, ignore only .claude/settings.local.json (Claude Code's personal settings) and commit %s.", claude.SettingsPath, claude.SettingsPath)
 }
