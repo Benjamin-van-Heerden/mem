@@ -65,14 +65,22 @@ func (a *app) importCommand() *cobra.Command {
 			for _, line := range append(hookLines, sum.Notes...) {
 				fmt.Fprintln(out, line)
 			}
-			output.Instruction(out,
-				"Nothing was committed, and .agent_core/ is still in place.",
-				"1. Show the user the result: `git status`, AGENTS.md and .mem/.",
-				"2. Once the user is happy, remove the old harness: `git rm -r -q .agent_core`, then `rm -rf .agent_core` for the ignored files it leaves behind. Drop its entries from .gitignore.",
-				"3. Find what still refers to the old harness (`git grep -n -e agent_core -e harness/main.py -- ':!.mem'`), such as setup docs, scripts and CI, and update it with the user to use mem.",
-				fmt.Sprintf("4. Commit everything on %s and push it.", g.Development),
-				"5. Run `mem onboard`.",
-			)
+			if sum.NextSteps != "" {
+				output.Section(out, "🔜 WHAT COMES NEXT, FROM THE LATEST LOG")
+				fmt.Fprintf(out, "The import removed the \"What Comes Next\" sections from the logs; mem logs record facts and open work lives in todos. This is the one from %s:\n\n%s\n", sum.LatestLog, sum.NextSteps)
+			}
+			var lines []string
+			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines), text)) }
+			lines = append(lines, "Nothing was committed, and .agent_core/ is still in place.")
+			step("Show the user the result: `git status`, AGENTS.md and .mem/.")
+			if sum.NextSteps != "" {
+				step("Go through the items under 🔜 WHAT COMES NEXT with the user. Much of it is usually done by now; record what is still open as todos (`mem todo new \"<title>\" \"<description>\"`). Do the same for the imported todos: check them against the code and delete the ones that are done (`mem todo delete <todo>`).")
+			}
+			step("Once the user is happy, remove the old harness: `git rm -r -q .agent_core`, then `rm -rf .agent_core` for the ignored files it leaves behind. Drop its entries from .gitignore.")
+			step("Find what still refers to the old harness (`git grep -n -e agent_core -e harness/main.py -- ':!.mem'`), such as setup docs, scripts and CI, and update it with the user to use mem.")
+			step(fmt.Sprintf("Commit everything on %s and push it.", g.Development))
+			step("Run `mem onboard`.")
+			output.Instruction(out, lines...)
 			return nil
 		},
 	})

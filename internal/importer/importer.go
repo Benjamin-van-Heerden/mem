@@ -62,6 +62,9 @@ type Summary struct {
 	Logs      int
 	Runnables []string
 	Notes     []string
+	// NextSteps is the "What Comes Next" section of the newest log, LatestLog. The import removes these sections
+	// from every log, so what is still open there has to become todos.
+	LatestLog, NextSteps string
 }
 
 // Import writes the mem configuration, AGENTS.md and work records converted from .agent_core/.
@@ -251,6 +254,7 @@ func convertTodos(p project.Project, dir string, users map[string]string, sum *S
 
 func convertLogs(p project.Project, dir string, sum *Summary) error {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+	var latest time.Time
 	for _, file := range files {
 		var meta map[string]any
 		body, err := work.ReadMarkdown(file, &meta)
@@ -259,12 +263,42 @@ func convertLogs(p project.Project, dir string, sum *Summary) error {
 		}
 		log := work.LogMeta{Created: timestamp(meta["created_at"]), User: str(meta["username"]), Spec: str(meta["spec_slug"])}
 		name := strings.TrimSuffix(strings.TrimSuffix(filepath.Base(file), ".md"), "_session") + ".md"
-		if err := work.WriteMarkdown(p.Path("logs", name), log, titledLog(body, log.Created)); err != nil {
+		body, next := withoutNextSteps(titledLog(body, log.Created))
+		if err := work.WriteMarkdown(p.Path("logs", name), log, body); err != nil {
 			return err
+		}
+		if created, err := time.Parse(time.RFC3339, log.Created); err == nil && created.After(latest) {
+			latest, sum.LatestLog, sum.NextSteps = created, strings.TrimSuffix(name, ".md"), next
 		}
 		sum.Logs++
 	}
 	return nil
+}
+
+// withoutNextSteps takes the harness's "What Comes Next" section out of a log and returns it separately. mem logs
+// hold facts only: a list of next steps is never updated, so it reads as pending work long after it is done.
+func withoutNextSteps(body string) (rest, next string) {
+	lines := strings.Split(body, "\n")
+	start, end, fenced := -1, len(lines), false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			fenced = !fenced
+		}
+		if fenced {
+			continue
+		}
+		if start < 0 && strings.HasPrefix(line, "## What Comes Next") {
+			start = i
+		} else if start >= 0 && (strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "# ")) {
+			end = i
+			break
+		}
+	}
+	if start < 0 {
+		return body, ""
+	}
+	next = strings.TrimSpace(strings.Join(lines[start+1:end], "\n"))
+	return strings.TrimSpace(strings.Join(append(lines[:start:start], lines[end:]...), "\n")), next
 }
 
 // withIssue keeps the link to the GitHub issue the harness mirrored a record to; mem does not mirror records.
