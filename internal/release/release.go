@@ -82,7 +82,8 @@ func Prepare(ctx context.Context, p project.Project, stage, to string) (Plan, er
 				pl.BehindStage = true
 				return pl, nil
 			}
-			pl.Diverged, err = commits(ctx, p.Root, sourceTip+".."+pl.From)
+			// Merges count here: a stage branch whose only extra commit is a merge has still diverged.
+			pl.Diverged, err = commits(ctx, p.Root, sourceTip+".."+pl.From, true)
 			return pl, err
 		}
 	}
@@ -90,7 +91,7 @@ func Prepare(ctx context.Context, p project.Project, stage, to string) (Plan, er
 	if pl.From != "" {
 		rangeSpec = pl.From + ".." + pl.To
 	}
-	if pl.Commits, err = commits(ctx, p.Root, rangeSpec); err != nil {
+	if pl.Commits, err = commits(ctx, p.Root, rangeSpec, false); err != nil {
 		return pl, err
 	}
 	pl.Specs = completedSpecs(ctx, p.Root, pl.From, pl.To)
@@ -123,7 +124,8 @@ func Execute(ctx context.Context, p project.Project, pl Plan, notes string) erro
 	}
 	pushCtx, cancel := context.WithTimeout(ctx, networkTimeout)
 	defer cancel()
-	args := append([]string{"push", "--atomic", "--quiet", "--force-with-lease=refs/heads/" + pl.Branch + ":" + pl.From, p.Config.Git.Remote}, refs...)
+	// Never forced: a stage branch only fast-forwards, and a branch someone else moved meanwhile rejects the push.
+	args := append([]string{"push", "--atomic", "--quiet", p.Config.Git.Remote}, refs...)
 	if _, err := git.RunEnv(pushCtx, p.Root, []string{PromoteEnv + "=1"}, args...); err != nil {
 		if pl.Tag != "" {
 			git.Run(ctx, p.Root, "tag", "--delete", pl.Tag)
@@ -158,8 +160,12 @@ func completedSpecs(ctx context.Context, root, from, to string) []string {
 	return slugs
 }
 
-func commits(ctx context.Context, root, rangeSpec string) ([]Commit, error) {
-	out, err := git.Run(ctx, root, "log", "--no-merges", "--format=%h%x09%an%x09%s", rangeSpec)
+func commits(ctx context.Context, root, rangeSpec string, merges bool) ([]Commit, error) {
+	args := []string{"log", "--format=%h%x09%an%x09%s", rangeSpec}
+	if !merges {
+		args = append(args, "--no-merges")
+	}
+	out, err := git.Run(ctx, root, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -186,11 +192,15 @@ type Status struct {
 	TagAge       string
 	StagingAhead int
 	DevAhead     int
-	Missing      []string
+	// StagingOutside and ProductionOutside count commits on those branches that development lacks, such as a
+	// change merged into production directly. Promotion cannot fast-forward past them.
+	StagingOutside    int
+	ProductionOutside int
+	Missing           []string
 }
 
-// CurrentStatus reports the latest production tag and how far staging and
-// development are ahead, from the remote-tracking refs of the last fetch.
+// CurrentStatus reports the latest production tag, how far staging and development are ahead, and commits on
+// staging or production outside development, from the remote-tracking refs of the last fetch.
 func CurrentStatus(ctx context.Context, p project.Project) Status {
 	g := p.Config.Git
 	var st Status
@@ -204,6 +214,8 @@ func CurrentStatus(ctx context.Context, p project.Project) Status {
 	}
 	st.StagingAhead = count(ctx, p.Root, remoteRef(p, g.Production)+".."+remoteRef(p, g.Staging))
 	st.DevAhead = count(ctx, p.Root, remoteRef(p, g.Staging)+".."+remoteRef(p, g.Development))
+	st.StagingOutside = count(ctx, p.Root, remoteRef(p, g.Development)+".."+remoteRef(p, g.Staging))
+	st.ProductionOutside = count(ctx, p.Root, remoteRef(p, g.Development)+".."+remoteRef(p, g.Production))
 	if tag, err := git.Run(ctx, p.Root, "describe", "--tags", "--abbrev=0", "--match", "v*", remoteRef(p, g.Production)); err == nil {
 		st.Tag = tag
 		st.TagAge, _ = git.Run(ctx, p.Root, "for-each-ref", "--format=%(creatordate:relative)", "refs/tags/"+tag)

@@ -91,6 +91,39 @@ func TestPromotionStopsWhenStageHasCommitsOutsideDevelopment(t *testing.T) {
 	}
 }
 
+func TestPromotionStopsWhenStageHasOnlyAMergeOutsideDevelopment(t *testing.T) {
+	ctx := context.Background()
+	p := setup(t)
+	pl, _ := Prepare(ctx, p, "staging", "")
+	if err := Execute(ctx, p, pl, ""); err != nil {
+		t.Fatal(err)
+	}
+	run(t, p.Root, "push", "--quiet", "origin", "origin/test:refs/heads/main")
+	commit(t, p.Root, "merged")
+	run(t, p.Root, "push", "--quiet")
+	run(t, p.Root, "switch", "--quiet", "-c", "staging", "origin/test")
+	run(t, p.Root, "merge", "--quiet", "--no-ff", "--no-edit", "dev")
+	run(t, p.Root, "push", "--quiet", "origin", "staging:test")
+	run(t, p.Root, "switch", "--quiet", "dev")
+	commit(t, p.Root, "three")
+	run(t, p.Root, "push", "--quiet")
+	before := run(t, p.Root, "rev-parse", "origin/test")
+
+	pl, err := Prepare(ctx, p, "staging", "")
+	if err != nil || len(pl.Diverged) != 1 {
+		t.Fatalf("diverged plan = %+v, %v", pl, err)
+	}
+	if st := CurrentStatus(ctx, p); st.StagingOutside != 1 || st.ProductionOutside != 0 {
+		t.Fatalf("status = %+v", st)
+	}
+	if err := Execute(ctx, p, pl, ""); err == nil {
+		t.Fatal("diverged promotion executed")
+	}
+	if after := run(t, p.Root, "rev-parse", "origin/test"); after != before {
+		t.Fatalf("test moved from %s to %s", before, after)
+	}
+}
+
 func commit(t *testing.T, root, name string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(root, name+".txt"), []byte(name), 0o644); err != nil {

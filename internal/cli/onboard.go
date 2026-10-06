@@ -171,6 +171,14 @@ func renderReleases(out io.Writer, p project.Project, st release.Status) {
 	}
 	fmt.Fprintf(out, "Staging (%s): %d commit(s) ahead of production\n", g.Staging, st.StagingAhead)
 	fmt.Fprintf(out, "Development (%s): %d commit(s) ahead of staging\n", g.Development, st.DevAhead)
+	for _, b := range []struct {
+		name    string
+		outside int
+	}{{g.Staging, st.StagingOutside}, {g.Production, st.ProductionOutside}} {
+		if b.outside > 0 {
+			fmt.Fprintf(out, "⚠️ %s/%s has %d commit(s) that are not on %s, so promotion cannot fast-forward it. Tell the user; bring them into %s with `git merge --no-ff --no-edit %s/%s` on %s, then push.\n", g.Remote, b.name, b.outside, g.Development, g.Development, g.Remote, b.name, g.Development)
+		}
+	}
 }
 
 // writeContext renders the structure doc, docs, runnable output and work state.
