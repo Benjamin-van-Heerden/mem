@@ -58,16 +58,6 @@ func Todos(p project.Project) ([]Todo, error) {
 	return todos, nil
 }
 
-func OpenTodos(todos []Todo) []Todo {
-	var open []Todo
-	for _, t := range todos {
-		if t.Meta.Status == TodoOpen {
-			open = append(open, t)
-		}
-	}
-	return open
-}
-
 func FindTodo(p project.Project, ref string) (Todo, error) {
 	todos, err := Todos(p)
 	if err != nil {

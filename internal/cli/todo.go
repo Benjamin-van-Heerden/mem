@@ -43,8 +43,7 @@ func (a *app) todoNew() *cobra.Command {
 }
 
 func (a *app) todoList() *cobra.Command {
-	var all bool
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "list",
 		Short: "List open todos",
 		Args:  cobra.NoArgs,
@@ -56,9 +55,6 @@ func (a *app) todoList() *cobra.Command {
 			todos, err := work.Todos(p)
 			if err != nil {
 				return err
-			}
-			if !all {
-				todos = work.OpenTodos(todos)
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📌 TODOS")
@@ -74,8 +70,6 @@ func (a *app) todoList() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&all, "all", false, "Include claimed todos")
-	return cmd
 }
 
 func (a *app) todoShow() *cobra.Command {
