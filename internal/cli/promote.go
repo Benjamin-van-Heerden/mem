@@ -25,7 +25,7 @@ func (a *app) promoteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "promote <staging|production>",
 		Short: "Fast-forward staging (a preview release) or production (a release)",
-		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with release notes: the first run drafts the notes in .mem/local/release-notes.md, and --confirm releases with them.",
+		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with a summary of the release. Projects with [release] notes = true in .mem/config.toml release with written notes instead: the first run drafts them in .mem/local/release-notes.md, and --confirm releases with them.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -71,24 +71,28 @@ func (a *app) promoteCommand() *cobra.Command {
 
 			var notes string
 			if pl.Tag != "" {
-				if !confirm {
-					status, err := writeDraft(ctx, p, pl)
-					if err != nil {
+				if p.Config.Release.Notes {
+					if !confirm {
+						status, err := writeDraft(ctx, p, pl)
+						if err != nil {
+							return err
+						}
+						renderPlan(out, p, pl)
+						output.Section(out, "📝 RELEASE NOTES")
+						fmt.Fprintf(out, "Draft: %s (%s)\n", release.NotesPath, status)
+						output.Instruction(out,
+							"Nothing has been pushed yet.",
+							fmt.Sprintf("1. Turn %s into a short summary of what %s delivers for its users. Keep the first line; drop the commit list unless it helps.", release.NotesPath, pl.Tag),
+							"2. Show the user the notes and ask them to confirm the release.",
+							confirmStep(gh != nil),
+						)
+						return nil
+					}
+					if notes, err = confirmedNotes(p, pl); err != nil {
 						return err
 					}
-					renderPlan(out, p, pl)
-					output.Section(out, "📝 RELEASE NOTES")
-					fmt.Fprintf(out, "Draft: %s (%s)\n", release.NotesPath, status)
-					output.Instruction(out,
-						"Nothing has been pushed yet.",
-						fmt.Sprintf("1. Turn %s into a short summary of what %s delivers for its users. Keep the first line; drop the commit list unless it helps.", release.NotesPath, pl.Tag),
-						"2. Show the user the notes and ask them to confirm the release.",
-						confirmStep(gh != nil),
-					)
-					return nil
-				}
-				if notes, err = confirmedNotes(p, pl); err != nil {
-					return err
+				} else {
+					notes = release.GeneratedMessage(ctx, p, pl)
 				}
 				if gh != nil {
 					return openPromotionPR(ctx, out, p, gh, pl, notes)
@@ -103,7 +107,11 @@ func (a *app) promoteCommand() *cobra.Command {
 			renderPlan(out, p, pl)
 			output.Section(out, "✅ PROMOTED")
 			if pl.Tag != "" {
-				fmt.Fprintf(out, "Released %s: %s/%s is now at %s, tagged with the release notes.\n", pl.Tag, remote, pl.Branch, pl.To[:7])
+				tagged := "a summary of its specs and commits"
+				if p.Config.Release.Notes {
+					tagged = "the release notes"
+				}
+				fmt.Fprintf(out, "Released %s: %s/%s is now at %s, tagged with %s.\n", pl.Tag, remote, pl.Branch, pl.To[:7], tagged)
 				output.Instruction(out, "Tell the user the release is out. Where CI deploys production, check the deployment before reporting it as live.")
 			} else {
 				fmt.Fprintf(out, "%s/%s is now at %s.\n", remote, pl.Branch, pl.To[:7])
@@ -113,7 +121,7 @@ func (a *app) promoteCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&to, "to", "", "Promote staging only up to this development commit")
-	cmd.Flags().BoolVar(&confirm, "confirm", false, "Release production with the reviewed notes in "+release.NotesPath)
+	cmd.Flags().BoolVar(&confirm, "confirm", false, "Release production with the reviewed notes in "+release.NotesPath+", or complete an approved release pull request")
 	return cmd
 }
 

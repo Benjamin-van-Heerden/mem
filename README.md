@@ -71,11 +71,11 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 dev ──mem promote staging──▶ test ──mem promote production──▶ main
 ```
 
-Work lands on the development branch, which does not deploy. `mem promote staging` fast-forwards staging for a preview release (`--to <commit>` leaves unfinished work out). `mem promote production` fast-forwards production to exactly what staging previewed and tags it (`v2026.09.24.1`) with release notes: mem drafts them from the specs, work logs and commits since the last release, the agent refines them and shows you, and `--confirm` releases. Staging and production never get commits of their own, so there is always a single history. CI deploys staging and production on push.
+Work lands on the development branch, which does not deploy. `mem promote staging` fast-forwards staging for a preview release (`--to <commit>` leaves unfinished work out). `mem promote production` fast-forwards production to exactly what staging previewed and tags it (`v2026.09.24.1`) with a summary of the specs and commits it ships. Projects that publish release notes set `[release] notes = true` (or `mem init --release-notes`): mem then drafts notes from the specs, work logs and commits since the last release, the agent refines them and shows you, and `--confirm` releases. Staging and production never get commits of their own, so there is always a single history. CI deploys staging and production on push.
 
 `mem deploy` is for you: it pushes development and moves staging and production to it in one go, tagged with a generated summary, no notes and no questions. Agents only run it when you explicitly ask.
 
-Projects that want review before production set `[release] production_pr = true` (or `mem init --production-pr`). A production release then opens a pull request with the notes; once it is approved, `mem promote production --confirm` fast-forwards production to it, so history stays linear and GitHub shows the pull request as merged. This needs a GitHub token (`GITHUB_TOKEN`, `GH_TOKEN` or a logged-in `gh`), and `mem deploy` refuses such projects.
+Projects that want review before production set `[release] production_pr = true` (or `mem init --production-pr`). A production release then opens a pull request with the notes or summary; once it is approved, `mem promote production --confirm` fast-forwards production to it, so history stays linear and GitHub shows the pull request as merged. This needs a GitHub token (`GITHUB_TOKEN`, `GH_TOKEN` or a logged-in `gh`), and `mem deploy` refuses such projects.
 
 The hooks refuse direct pushes to staging and production and commits made on them, pointing to `mem promote` instead.
 

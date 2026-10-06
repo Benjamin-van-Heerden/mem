@@ -30,6 +30,9 @@ type Config struct {
 type ReleaseConfig struct {
 	// ProductionPR makes production releases go through a pull request, which mem completes by fast-forward.
 	ProductionPR bool `toml:"production_pr,omitempty"`
+	// Notes makes production releases wait for release notes the agent drafts and the user confirms. Without
+	// them, a release is tagged with a generated summary of its specs and commits.
+	Notes bool `toml:"notes,omitempty"`
 }
 
 // ClaudeConfig controls what mem installs for Claude Code.

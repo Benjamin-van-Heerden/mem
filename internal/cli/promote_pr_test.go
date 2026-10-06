@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -85,11 +83,7 @@ func TestProductionReleasesThroughAPullRequestCompletedByFastForward(t *testing.
 	mergeWait = 0
 	run(t, mine, "config", "remote.origin.url", "https://github.com/acme/app.git")
 	run(t, mine, "config", "url."+bare+".insteadOf", "https://github.com/acme/app.git")
-	config := filepath.Join(mine, ".mem", "config.toml")
-	data, _ := os.ReadFile(config)
-	os.WriteFile(config, append(data, []byte("\n[release]\nproduction_pr = true\n")...), 0o644)
-	run(t, mine, "commit", "--quiet", "-am", "Release production through pull requests")
-	run(t, mine, "push", "--quiet")
+	releaseConfig(t, mine, "production_pr = true\nnotes = true")
 	mem(t, mine, "promote", "staging")
 
 	if out := mem(t, mine, "promote", "production"); !strings.Contains(out, "opens one with these notes for review") {

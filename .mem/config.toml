@@ -8,3 +8,6 @@ development = 'dev'
 staging = 'test'
 production = 'main'
 protect = true
+
+[release]
+notes = true
