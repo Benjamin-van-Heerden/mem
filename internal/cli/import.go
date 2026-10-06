@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
 	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
@@ -29,6 +30,9 @@ func (a *app) importCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if _, err := agentsmd.WriteGuide(root); err != nil {
+				return err
+			}
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
@@ -51,6 +55,7 @@ func (a *app) importCommand() *cobra.Command {
 			}
 			fmt.Fprintf(out, "Specs: %d open, %d archived\nTodos: %d\nWork logs: %d\n", sum.Specs, sum.Archived, sum.Todos, sum.Logs)
 			fmt.Fprintln(out, "Claude Code: "+claude.SettingsPath+" runs `mem hook compact` after compaction")
+			fmt.Fprintln(out, "Install guide: "+agentsmd.GuidePath+", for teammates and agents without mem")
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}

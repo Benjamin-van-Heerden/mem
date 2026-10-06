@@ -59,6 +59,29 @@ func TestOnboardRestoresTheLocalIgnoreAndPublishesIt(t *testing.T) {
 	}
 }
 
+func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
+	mine, teammate := sharedProject(t)
+	if _, err := os.Stat(filepath.Join(mine, ".mem", "install.md")); err != nil {
+		t.Fatalf("init did not write the install guide: %v", err)
+	}
+	run(t, mine, "rm", "--quiet", ".mem/install.md")
+	run(t, mine, "commit", "--quiet", "-m", "A project from before the install guide")
+	run(t, mine, "push", "--quiet")
+
+	if out := mem(t, mine, "onboard"); !strings.Contains(out, "Updated .mem/install.md") {
+		t.Fatalf("onboard output:\n%s", out)
+	}
+	run(t, teammate, "pull", "--quiet")
+	guide, err := os.ReadFile(filepath.Join(teammate, ".mem", "install.md"))
+	if err != nil || !strings.Contains(string(guide), "releases/download/$tag") {
+		t.Fatalf("teammate's install guide = %q, %v", guide, err)
+	}
+	agents, _ := os.ReadFile(filepath.Join(teammate, "AGENTS.md"))
+	if !strings.Contains(string(agents), "read `.mem/install.md`") {
+		t.Fatal("AGENTS.md does not point to the install guide")
+	}
+}
+
 func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
 	mine, _ := sharedProject(t)
 	settings := filepath.Join(mine, ".claude/settings.json")

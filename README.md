@@ -14,6 +14,8 @@ go install github.com/Benjamin-van-Heerden/mem/cmd/mem@latest
 
 This puts `mem` in Go's binary directory (`~/go/bin` by default), which must be on your PATH. Without Go, download the binary for your platform from the [latest release](https://github.com/Benjamin-van-Heerden/mem/releases/latest), make it executable and move it to a directory on your PATH as `mem`.
 
+Every mem project also carries these steps in `.mem/install.md`, and its `AGENTS.md` tells agents to follow them when `mem` is not found, so a teammate or a cloud agent without mem installs it before working.
+
 `mem version` shows the installed version. Release builds keep themselves current: onboard installs a newer release when there is one, and `mem update` does so on demand (`MEM_NO_UPDATE=1` turns the automatic update off).
 
 Releases are published by pushing a `vX.Y.Z` tag to GitHub.
@@ -85,6 +87,7 @@ The hooks refuse direct pushes to staging and production and commits made on the
 AGENTS.md                  mem block, your content, project memories
 .mem/
   config.toml
+  install.md               how to install mem; AGENTS.md points here when mem is missing
   structure.md             codebase and structure map
   docs/*.md                documents included in onboard
   runnables/*              executables whose output is included in onboard

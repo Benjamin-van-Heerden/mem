@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,6 +13,26 @@ import (
 
 //go:embed instructions.md
 var instructions string
+
+//go:embed install.md
+var installGuide string
+
+// GuidePath is the install guide the managed block points agents to when mem is not installed. It lives in the
+// project, not AGENTS.md, so a teammate without mem has it as soon as they pull.
+const GuidePath = ".mem/install.md"
+
+// WriteGuide writes the install guide shipped in this executable into the project at root, reporting whether the
+// file changed.
+func WriteGuide(root string) (bool, error) {
+	path := filepath.Join(root, filepath.FromSlash(GuidePath))
+	if current, err := os.ReadFile(path); err == nil && string(current) == installGuide {
+		return false, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, err
+	}
+	return true, os.WriteFile(path, []byte(installGuide), 0o644)
+}
 
 const (
 	blockOpen     = "<mem>"

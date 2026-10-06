@@ -72,6 +72,9 @@ func (a *app) initCommand() *cobra.Command {
 			if err := os.WriteFile(agentsPath, []byte(agents), 0o644); err != nil {
 				return err
 			}
+			if _, err := agentsmd.WriteGuide(root); err != nil {
+				return err
+			}
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
@@ -110,6 +113,7 @@ func (a *app) initCommand() *cobra.Command {
 			fmt.Fprintf(out, "Branches: %s → %s → %s (remote %s)\n", config.Git.Development, config.Git.Staging, config.Git.Production, config.Git.Remote)
 			output.Section(out, "📄 FILES")
 			fmt.Fprintln(out, ".mem/config.toml   project configuration")
+			fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for teammates and agents without it")
 			fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
 			fmt.Fprintln(out, claude.SettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")

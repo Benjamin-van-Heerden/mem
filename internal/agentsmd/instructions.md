@@ -6,6 +6,8 @@
 
 Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and release status. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
 
+If `mem` is not installed (the command is not found), read `.mem/install.md`, follow it, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
+
 Don't rerun onboard later in the session unless the user asks.
 
 mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details.

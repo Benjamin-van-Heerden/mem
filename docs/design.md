@@ -22,6 +22,7 @@ Audience: solo developers and small teams in daily contact. mem guides and nudge
 AGENTS.md                           managed <mem> block, <memories> block, user content
 .mem/
   config.toml
+  install.md                        install guide, written by mem; AGENTS.md points here when mem is missing
   structure.md                      living codebase and structure map
   docs/*.md                         project documents, included in onboard
   runnables/*                       executables whose stdout is included in onboard
