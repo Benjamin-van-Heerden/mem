@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.6.2. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.7.1. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -13,7 +13,7 @@ mem commands print instructions specific to the current state. Follow them. Use 
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Push when the session ends (`mem log commit` does this), after completing a spec, and before a promotion. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` to fetch and update mid-session, for example before starting new work.
+Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work or a promotion.
 
 ## Specs, Tasks and Todos
 
@@ -24,8 +24,8 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
 - `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that.
-- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task, then continue with the next one without waiting for approval.
-- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code.
+- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task once its code is committed. It commits the record, syncs and pushes. Then continue with the next task without waiting for approval.
+- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
 `--spec` can be omitted when exactly one active spec is assigned to you. Refer to specs, tasks and todos by slug or by title.
