@@ -15,18 +15,19 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	files := map[string]string{
 		"AGENTS.md":                                            "# Team notes\n\n<core_instructions>\nold harness text\n</core_instructions>\n\nKeep this footer.\n",
 		".agent_core/config.toml":                              "[project]\nname = \"demo\"\ndescription = \"\"\"\nA demo\nproject.\n\"\"\"\n\n[[files]]\npath = \"docs/arch.md\"\ndescription = \"Architecture\"\n\n[branches]\ndev = \"development\"\ntest = \"test\"\nmain = \"production\"\n",
-		".agent_core/user_mappings.toml":                       "[octocat]\nname = \"Octo Cat\"\nemail = \"o@x\"\n",
+		".agent_core/user_mappings.toml":                       "[OctoCat]\nname = \"Octo Cat\"\nemail = \"o@x\"\n",
 		".agent_core/memories/style.md":                        "---\ntitle: Style\n---\nUse tabs.\n\n## Detail\nAlways.\n",
 		".agent_core/docs/codebase_and_structure.md":           "# Codebase\n",
 		".agent_core/docs/idea.md":                             "# Idea\n",
-		".agent_core/specs/login/spec.md":                      "---\ntitle: Login\nstatus: todo\nassigned_to: octocat\ncreated_at: '2026-05-27T09:36:56.756450'\nupdated_at: '2026-05-27T09:36:56.756450'\n---\n## Overview\nLogin.\n",
+		".agent_core/docs/coding_general.md":                   "# General Principles\n",
+		".agent_core/specs/login/spec.md":                      "---\ntitle: Login\nstatus: todo\nassigned_to: OctoCat\ncreated_at: '2026-05-27T09:36:56.756450'\nupdated_at: '2026-05-27T09:36:56.756450'\n---\n## Overview\nLogin.\n",
 		".agent_core/specs/login/tasks/01_form.md":             "---\ntitle: Form\nstatus: completed\ncreated_at: '2026-05-27T09:36:56'\nupdated_at: '2026-05-27T09:36:56'\ncompleted_at: '2026-05-27T10:00:00'\n---\nBuild it.\n",
 		".agent_core/specs/completed/auth/spec.md":             "---\ntitle: Auth\nstatus: completed\ncreated_at: '2026-05-01T09:00:00'\nupdated_at: '2026-05-02T09:00:00'\ncompleted_at: '2026-05-02T09:00:00'\n---\nDone.\n",
 		".agent_core/specs/completed/auth/handoff.md":          "Extra file.\n",
 		".agent_core/specs/abandoned/sso/spec.md":              "---\ntitle: SSO\nstatus: abandoned\n---\nDropped.\n",
 		".agent_core/todos/docs.md":                            "---\ntitle: Docs\nstatus: open\ncreated_at: '2026-07-06T13:16:26'\n---\nWrite docs.\n",
 		".agent_core/todos/claimed/email.md":                   "---\ntitle: Email\nstatus: claimed\nissue_id: 30\nissue_url: https://github.com/o/r/issues/30\ncreated_at: '2026-07-06T13:16:26.321585'\nclaimed_by: octocat\nclaimed_at: '2026-07-07T10:00:00'\n---\nSend email.\n",
-		".agent_core/logs/octo_cat_20260910_094413_session.md": "---\ncreated_at: '2026-09-10T09:44:13.513279'\nusername: octo_cat\nspec_slug: login\n---\nWork Log - Test\n\n## Overarching Goals\n\nTest.\n\n## What Comes Next\n\n- Ship it.\n\n## Errors and Barriers\n\nNone.\n",
+		".agent_core/logs/octocat_20260910_094413_session.md":  "---\ncreated_at: '2026-09-10T09:44:13.513279'\nusername: octocat\nspec_slug: login\n---\nWork Log - Test\n\n## Overarching Goals\n\nTest.\n\n## What Comes Next\n\n- Ship it.\n\n## Errors and Barriers\n\nNone.\n",
 		".agent_core/logs/octo_cat_20250926_133200_session.md": "---\ncreated_at: '2025-09-26T13:32:00'\nusername: octo_cat\n---\n# Overarching Goals\nGoals.\n\n# What Was Accomplished\n\n## Queue\n```sh\n# a shell comment\n```\n\n# What Comes Next\n```sh\n# run this next\n```\n- Later.\n",
 		".agent_core/logs/octo_cat_20251106_110500_session.md": "---\ncreated_at: '2025-11-06T11:05:00'\nusername: octo_cat\n---\n# Work Log - Credentials\n\n## Overarching Goals\n",
 	}
@@ -82,7 +83,7 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 		t.Fatalf("open todo = %+v, %v", todo.Meta, err)
 	}
 	latest, err := work.FindLog(p, "octo_cat_20260910_094413")
-	if err != nil || latest.Meta.Spec != "login" || latest.Heading() != "Test" {
+	if err != nil || latest.Meta.User != "octo_cat" || latest.Meta.Spec != "login" || latest.Heading() != "Test" {
 		t.Fatalf("log = %+v, %q, %v", latest.Meta, latest.Heading(), err)
 	}
 	if strings.Contains(latest.Body, "What Comes Next") || !strings.Contains(latest.Body, "## Errors and Barriers\n\nNone.") {
@@ -100,6 +101,9 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".mem", "structure.md")); err != nil {
 		t.Fatal("structure doc not moved")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".mem", "docs", "coding_general.md")); !os.IsNotExist(err) || sum.Docs != 1 {
+		t.Fatalf("retired harness doc imported: docs = %d, %v", sum.Docs, err)
 	}
 	if len(sum.Runnables) != 1 {
 		t.Fatalf("runnables = %v", sum.Runnables)

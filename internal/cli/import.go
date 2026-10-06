@@ -74,12 +74,18 @@ func (a *app) importCommand() *cobra.Command {
 			lines = append(lines, "Nothing was committed, and .agent_core/ is still in place.")
 			step("Show the user the result: `git status`, AGENTS.md and .mem/.")
 			if sum.NextSteps != "" {
-				step("Go through the items under 🔜 WHAT COMES NEXT with the user. Much of it is usually done by now; record what is still open as todos (`mem todo new \"<title>\" \"<description>\"`). Do the same for the imported todos: check them against the code and delete the ones that are done (`mem todo delete <todo>`).")
+				step("Go through the items under 🔜 WHAT COMES NEXT with the user. Much of it is usually done by now; record what is still open as todos (`mem todo new \"<title>\" \"<description>\"`).")
+			}
+			if sum.Todos > 0 {
+				step("Check the imported todos against the code with the user and delete the ones that are done (`mem todo delete <todo>`).")
 			}
 			step("Once the user is happy, remove the old harness: `git rm -r -q .agent_core`, then `rm -rf .agent_core` for the ignored files it leaves behind. Drop its entries from .gitignore.")
 			step("Find what still refers to the old harness (`git grep -n -e agent_core -e harness/main.py -- ':!.mem'`), such as setup docs, scripts and CI, and update it with the user to use mem.")
 			step(fmt.Sprintf("Commit everything on %s and push it.", g.Development))
 			step("Run `mem onboard`.")
+			if sum.Specs > 0 {
+				step("Check the open specs against the code with the user. Complete the ones whose work is done with `mem spec complete <spec>`; it commits and pushes, so do this only now.")
+			}
 			output.Instruction(out, lines...)
 			return nil
 		},

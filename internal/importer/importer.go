@@ -24,6 +24,10 @@ const Source = ".agent_core"
 // placeholderDescription is the harness's default project description, which nobody filled in.
 const placeholderDescription = "Add your project description here."
 
+// retiredDocs are stock docs of earlier harness versions. A harness update replaced them with the general principles
+// in its AGENTS.md block, which the mem block carries on, so importing them would duplicate older guidance.
+var retiredDocs = map[string]bool{"coding_general.md": true, "coding_testing.md": true}
+
 var heading = regexp.MustCompile(`^#{1,5} `)
 
 type legacyConfig struct {
@@ -112,7 +116,7 @@ func Import(root, version string) (Summary, error) {
 	if err := convertTodos(p, filepath.Join(old, "todos"), users, &sum); err != nil {
 		return sum, err
 	}
-	if err := convertLogs(p, filepath.Join(old, "logs"), &sum); err != nil {
+	if err := convertLogs(p, filepath.Join(old, "logs"), users, &sum); err != nil {
 		return sum, err
 	}
 	if err := convertOnboardConfig(p, legacy, &sum); err != nil {
@@ -161,6 +165,10 @@ func convertAgents(root, version, memoriesDir string, sum *Summary) (string, err
 func convertDocs(p project.Project, dir string, sum *Summary) error {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
 	for _, file := range files {
+		if retiredDocs[filepath.Base(file)] {
+			sum.Notes = append(sum.Notes, fmt.Sprintf("Left out %s: the general principles in the mem block replace it.", filepath.Base(file)))
+			continue
+		}
 		target := p.Path("docs", filepath.Base(file))
 		if filepath.Base(file) == "codebase_and_structure.md" {
 			target = p.Path("structure.md")
@@ -252,7 +260,7 @@ func convertTodos(p project.Project, dir string, users map[string]string, sum *S
 	return nil
 }
 
-func convertLogs(p project.Project, dir string, sum *Summary) error {
+func convertLogs(p project.Project, dir string, users map[string]string, sum *Summary) error {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
 	var latest time.Time
 	for _, file := range files {
@@ -261,8 +269,12 @@ func convertLogs(p project.Project, dir string, sum *Summary) error {
 		if err != nil {
 			return err
 		}
-		log := work.LogMeta{Created: timestamp(meta["created_at"]), User: str(meta["username"]), Spec: str(meta["spec_slug"])}
+		username := str(meta["username"])
+		log := work.LogMeta{Created: timestamp(meta["created_at"]), User: user(username, users), Spec: str(meta["spec_slug"])}
 		name := strings.TrimSuffix(strings.TrimSuffix(filepath.Base(file), ".md"), "_session") + ".md"
+		if rest, ok := strings.CutPrefix(name, username+"_"); ok && username != "" {
+			name = log.User + "_" + rest
+		}
 		body, next := withoutNextSteps(titledLog(body, log.Created))
 		if err := work.WriteMarkdown(p.Path("logs", name), log, body); err != nil {
 			return err
@@ -391,7 +403,8 @@ func specStatus(old, assigned string) string {
 	return work.SpecDraft
 }
 
-// userMappings maps GitHub usernames to mem identities (slugified Git names).
+// userMappings maps GitHub usernames to mem identities (slugified Git names). GitHub usernames are case-insensitive,
+// and the harness wrote them lowercased into log usernames, so keys are lowercased.
 func userMappings(path string) map[string]string {
 	users := map[string]string{}
 	data, err := os.ReadFile(path)
@@ -403,14 +416,14 @@ func userMappings(path string) map[string]string {
 	}
 	if toml.Unmarshal(data, &mappings) == nil {
 		for github, m := range mappings {
-			users[github] = project.Slugify(m.Name)
+			users[strings.ToLower(github)] = project.Slugify(m.Name)
 		}
 	}
 	return users
 }
 
 func user(name string, users map[string]string) string {
-	if mapped, ok := users[name]; ok {
+	if mapped, ok := users[strings.ToLower(name)]; ok {
 		return mapped
 	}
 	return project.Slugify(name)
