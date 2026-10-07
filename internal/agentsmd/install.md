@@ -13,6 +13,8 @@ This project uses mem, a command-line tool that builds context for coding agents
 
 ## 1. Install
 
+On Windows, use the PowerShell steps, also when your shell is Git Bash (as in Claude Code on Windows): the macOS and Linux steps would fetch the wrong binary there and change a PATH that only Git Bash reads. From Git Bash, put the PowerShell commands of steps 1 and 2 in one `.ps1` file and run it with `powershell -NoProfile -ExecutionPolicy Bypass -File <file>`.
+
 ### macOS and Linux
 
 With Go installed (`go version`), install it and note the directory it went to:
@@ -44,15 +46,19 @@ rm -rf "$tmp"
 
 ### Windows (PowerShell)
 
+The first two lines keep Windows PowerShell 5.1, the version built into Windows, from failing on older TLS defaults or crawling through downloads with its progress bar; PowerShell 7 accepts them too.
+
 ```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = 'SilentlyContinue'
 $tag = (Invoke-RestMethod https://api.github.com/repos/Benjamin-van-Heerden/mem/releases/latest).tag_name
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 $name = "mem_${tag}_windows_$arch.exe"
 $base = "https://github.com/Benjamin-van-Heerden/mem/releases/download/$tag"
 $dir = "$env:LOCALAPPDATA\Programs\mem"
 New-Item -ItemType Directory -Force $dir | Out-Null
-Invoke-WebRequest "$base/$name" -OutFile "$dir\mem.exe"
-Invoke-WebRequest "$base/checksums.txt" -OutFile "$dir\checksums.txt"
+Invoke-WebRequest -UseBasicParsing "$base/$name" -OutFile "$dir\mem.exe"
+Invoke-WebRequest -UseBasicParsing "$base/checksums.txt" -OutFile "$dir\checksums.txt"
 $expected = (Select-String -Path "$dir\checksums.txt" -Pattern " $name$").Line.Split(' ')[0]
 Remove-Item "$dir\checksums.txt"
 if ((Get-FileHash "$dir\mem.exe" -Algorithm SHA256).Hash -ne $expected) { Remove-Item "$dir\mem.exe"; throw "mem.exe does not match the release checksum" }

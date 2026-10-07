@@ -24,6 +24,6 @@ Tested with disposable repositories and bare remotes; CI runs on Linux, macOS an
 
 ## Known limits
 
-- Hooks and runnables rely on `sh` and executable bits, the compaction hook's command assumes bash (Claude Code falls back to PowerShell on Windows without Git Bash), and template skills are linked into `.claude/skills` with symlinks; Windows behavior is untested.
+- Hooks and runnables rely on `sh` and executable bits, the compaction hook's command assumes bash (Claude Code falls back to PowerShell on Windows without Git Bash), and template skills are linked into `.claude/skills` with symlinks, and the PowerShell steps in `.mem/install.md` (also the route from Git Bash) have not been run; Windows is supported tentatively and its behavior is untested.
 - `git push --no-verify` and merges made in a Git host's web UI bypass the hooks. Promotion detects the resulting divergence and prints the recovery steps.
 - Work logs imported from the Python harness are interpreted in the importing machine's local time zone.
