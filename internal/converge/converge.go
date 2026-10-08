@@ -42,6 +42,8 @@ type Report struct {
 	// Before and After are the upstream's revisions before and after the fetch;
 	// they differ when others pushed since this checkout last fetched.
 	Before, After string
+	// devHandled records that followDevelopment already acted on or reported the branch's drift from development.
+	devHandled bool
 }
 
 // Sync fetches, fast-forwards or rebases where that is safe, and reports what remains.
@@ -63,8 +65,13 @@ func Sync(ctx context.Context, p project.Project) Report {
 	}
 	r.Fetched = true
 	r.Before, r.After = before, upstreamRevision(ctx, p)
-	if r.Branch != "" && r.Upstream != "" && r.Behind > 0 {
+	// A rewritten upstream can leave the branch only ahead, holding commits the rewrite dropped; catching up then
+	// keeps a later push from restoring them.
+	if r.Branch != "" && r.Upstream != "" && (r.Behind > 0 || rewritten(ctx, p.Root, r)) {
 		r = update(ctx, p, r)
+	}
+	if feature(r) && r.DevBehind > 0 {
+		r = followDevelopment(ctx, p, r)
 	}
 	r.Nudges = append(r.Nudges, standingNudges(r, "")...)
 	return r
@@ -90,7 +97,12 @@ func update(ctx context.Context, p project.Project, r Report) Report {
 		r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)) and uncommitted changes prevent rebasing. Tell the user; commit the work in progress, then run `mem sync`.", r.Branch, r.Upstream, ahead, behind))
 		return r
 	default:
-		if _, err := git.Run(ctx, p.Root, "rebase", "--quiet", r.Upstream); err != nil {
+		args := []string{"rebase", "--quiet", r.Upstream}
+		if rewritten(ctx, p.Root, r) {
+			// Replay only the commits made here since the old upstream, not the old upstream's own commits.
+			args = []string{"rebase", "--quiet", "--fork-point", r.Upstream}
+		}
+		if _, err := git.Run(ctx, p.Root, args...); err != nil {
 			git.Run(ctx, p.Root, "rebase", "--abort")
 			r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)). Rebasing hit conflicts, so it was aborted and nothing changed. Tell the user and resolve it together: `git rebase %s`, fix the conflicts, `git rebase --continue`.", r.Branch, r.Upstream, ahead, behind, r.Upstream))
 			return r
@@ -125,7 +137,7 @@ func standingNudges(r Report, behindAction string) []string {
 	if r.Branch == r.Staging || r.Branch == r.Production {
 		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `mem promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
 	}
-	if r.Branch != dev && r.DevBehind > 0 {
+	if r.Branch != dev && r.DevBehind > 0 && !r.devHandled {
 		nudges = append(nudges, fmt.Sprintf("You are on %s, not the development branch %s, and it is %d commit(s) behind %s. Tell the user this branch is drifting from the shared codebase; bring %s into it soon and merge it back into %s as early as possible.", r.Branch, dev, r.DevBehind, r.Development, r.Development, dev))
 	} else if r.Branch != dev && r.DevAhead > 0 {
 		nudges = append(nudges, fmt.Sprintf("You are on %s, which has %d commit(s) not yet in %s. Tell the user; merge it into %s soon so everyone works on the same code.", r.Branch, r.DevAhead, dev, dev))

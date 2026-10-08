@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
@@ -192,10 +193,15 @@ func (a *app) specComplete() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			output.Instruction(out, append(lines,
+			steps := append(lines,
 				"1. Summarize for the user what the spec delivered.",
 				fmt.Sprintf("2. A completed spec is a checkpoint: write a work log for it now (`mem log new --spec %s`, then `mem log commit`).", s.Slug),
-			)...)
+			)
+			if branch, dev := git.CurrentBranch(cmd.Context(), p.Root), p.Config.Git.Development; branch != "" && branch != dev {
+				// mem keeps the branch rebased onto development, so merging it back is a fast-forward.
+				steps = append(steps, fmt.Sprintf("3. The spec was built on %s. Merge it into %s now, with the user's agreement: `git switch %s`, `mem sync`, `git merge --ff-only %s`, `git push`. If the fast-forward is refused, switch back to %s, run `mem sync` to rebase it onto %s, and merge again.", branch, dev, dev, branch, branch, dev))
+			}
+			output.Instruction(out, steps...)
 			return nil
 		},
 	}

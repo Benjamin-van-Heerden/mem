@@ -70,9 +70,11 @@ Identity is `git config user.name`, slugified.
    | Up to date | Nothing |
    | Behind | Fast-forward. Works with uncommitted changes unless incoming commits touch the same files. |
    | Unpushed local commits and remote moved | Clean tree: rebase onto upstream. Conflict: abort and instruct the agent to raise it with the user. |
+   | Upstream rewritten (force-pushed elsewhere) | Rebase with `--fork-point`, replaying only the commits made here, so commits the rewrite dropped do not come back. |
    | Ahead only | Nudge to push at the next sensible point; `mem sync`, record completion and `log commit` push |
    | Uncommitted changes block convergence | Nudge: commit, then `mem sync` |
-   | Not on the development branch | Report lag behind `origin/<development>`; nudge to integrate soon |
+   | Feature branch, development moved on | Clean tree: rebase onto `origin/<development>` and say to run the tests. Already pushed with only the user's commits on its remote copy: force-push with a lease pinned to the fetched commit. Commits by others: nudge, never rewrite. Conflict: abort and name the files. Development, staging and production are never rebased or force-pushed. |
+   | Feature branch ahead of development | Nudge to merge it back soon; completing a spec on it instructs merging now (a fast-forward, since it follows development) |
 
 2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
 3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Memories and skills that changed during this onboard's sync are shown instead, since the running agent loaded the older copies. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
