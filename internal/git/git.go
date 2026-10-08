@@ -73,6 +73,15 @@ func Commit(ctx context.Context, root, message string, paths ...string) error {
 	return err
 }
 
+// CommitAll commits every change in the working tree, new files included and ignored files excepted.
+func CommitAll(ctx context.Context, root, message string) error {
+	if _, err := Run(ctx, root, "add", "--all"); err != nil {
+		return err
+	}
+	_, err := Run(ctx, root, "commit", "--quiet", "-m", message)
+	return err
+}
+
 // Push pushes the current branch to its upstream within PushTimeout. Failures wrap ErrPush.
 func Push(ctx context.Context, root string) error {
 	pushCtx, cancel := context.WithTimeout(ctx, PushTimeout)

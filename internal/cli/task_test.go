@@ -15,10 +15,10 @@ func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
 	commit(t, teammate, "theirs.go")
 	run(t, teammate, "push", "--quiet")
 
-	commit(t, mine, "index.go")
-	writeFile(t, mine, "scratch.go", "package scratch\n")
-	out := mem(t, mine, "task", "complete", "index", "Built and tested.")
-	for _, want := range []string{"Committed: Complete task index", "✔ Rebased 2 local commit(s) onto origin/dev", "✔ Pushed 2 commit(s) to origin/dev.", "📥 INCOMING", "Test: theirs.go", "⚠️ 1 file(s) remain uncommitted", "Continue with the next task now, without waiting for approval: Query (query)"} {
+	writeFile(t, mine, "index.go", "package index\n")
+	writeFile(t, mine, "index_test.go", "package index\n")
+	out := mem(t, mine, "task", "complete", "index", "Built the index; go test passes.")
+	for _, want := range []string{"Committed: Index (every change in the working tree, with the task record)", "✔ Rebased 1 local commit(s) onto origin/dev", "✔ Pushed 1 commit(s) to origin/dev.", "📥 INCOMING", "Test: theirs.go", "Continue with the next task now, without waiting for approval: Query (query)"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("task complete output lacks %q:\n%s", want, out)
 		}
@@ -29,8 +29,16 @@ func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
 	if run(t, mine, "rev-parse", "HEAD") != run(t, mine, "rev-parse", "origin/dev") {
 		t.Fatal("task complete did not push")
 	}
+	if status := run(t, mine, "status", "--porcelain"); status != "" {
+		t.Fatalf("task complete left work uncommitted:\n%s", status)
+	}
+	if message := run(t, mine, "log", "-1", "--format=%B"); message != "Index\n\nBuilt the index; go test passes.\n\nMem-Task: search/index" {
+		t.Fatalf("task commit message = %q", message)
+	}
+	if files := run(t, mine, "show", "--name-only", "--format=", "HEAD"); !strings.Contains(files, "index.go") || !strings.Contains(files, "index_test.go") || !strings.Contains(files, ".mem/specs/search/tasks/01_index.md") {
+		t.Fatalf("the task commit lacks the work or the record:\n%s", files)
+	}
 
-	commit(t, mine, "scratch.go")
 	mem(t, mine, "task", "complete", "query", "Answered.")
 	out = mem(t, mine, "spec", "complete", "search")
 	if !strings.Contains(out, "Committed: Complete spec search") || !strings.Contains(out, "✔ Pushed 1 commit(s) to origin/dev.") {

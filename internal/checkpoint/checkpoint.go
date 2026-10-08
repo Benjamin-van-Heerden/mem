@@ -25,13 +25,17 @@ const (
 // ProjectFilesCommit is the subject of the commit in which onboard publishes mem's own project files; it is not work.
 const ProjectFilesCommit = "Update mem project files"
 
-// completions are the subjects of mem's task and spec completion commits. A completion note records what was done
-// and how it was verified, so it resets the count like a work log.
+// TaskTrailer marks the commit `mem task complete` makes. Its completion note records what was done and how it
+// was verified, so it resets the count like a work log.
+const TaskTrailer = "Mem-Task:"
+
+// completions are the subjects of mem's record-only completion commits: spec completion, and task completion
+// before task commits carried the work and TaskTrailer.
 var completions = []string{"Complete task ", "Complete spec "}
 
 type commit struct {
-	email, subject string
-	files          []string
+	email, subject, task string
+	files                []string
 	// setsUp marks the commit that added .mem/config.toml.
 	setsUp bool
 }
@@ -56,6 +60,9 @@ func (c commit) checkpoint(user, email string) bool {
 		return true
 	}
 	if strings.EqualFold(c.email, email) {
+		if c.task != "" {
+			return true
+		}
 		for _, prefix := range completions {
 			if strings.HasPrefix(c.subject, prefix) {
 				return true
@@ -72,15 +79,21 @@ func (c commit) checkpoint(user, email string) bool {
 
 // history reads up to maxWalk non-merge commits on HEAD, newest first, with the files each changed.
 func history(ctx context.Context, root string) ([]commit, error) {
-	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(maxWalk), "--format=%x00%ae%x09%s", "--name-status", "HEAD")
+	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(maxWalk), "--format=%x00%ae%x09%s%x09%(trailers:key="+strings.TrimSuffix(TaskTrailer, ":")+",valueonly,separator=%x2C)", "--name-status", "HEAD")
 	if err != nil {
 		return nil, err
 	}
 	var commits []commit
 	for _, chunk := range strings.Split(out, "\x00")[1:] {
 		lines := strings.Split(strings.TrimSpace(chunk), "\n")
-		email, subject, _ := strings.Cut(lines[0], "\t")
-		c := commit{email: email, subject: subject}
+		fields := strings.SplitN(lines[0], "\t", 3)
+		c := commit{email: fields[0]}
+		if len(fields) > 1 {
+			c.subject = fields[1]
+		}
+		if len(fields) > 2 {
+			c.task = strings.TrimSpace(fields[2])
+		}
 		for _, line := range lines[1:] {
 			fields := strings.Split(line, "\t")
 			if len(fields) < 2 {

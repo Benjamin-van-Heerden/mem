@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
@@ -113,8 +117,8 @@ func (a *app) taskComplete() *cobra.Command {
 	var specRef string
 	cmd := &cobra.Command{
 		Use:   "complete <task> <notes>",
-		Short: "Mark a task completed, commit its record, sync and push",
-		Long:  "Marks the task completed with notes on what was done and commits its spec's record. Commit the task's code first: the record is committed on its own, then the branch is brought up to date with its upstream and pushed, as `mem sync` does.",
+		Short: "Mark a task completed, commit the work with it, sync and push",
+		Long:  "Marks the task completed with notes on what was done and how it was verified, then commits every change in the working tree (ignored files excepted) together with the task record: the task title is the commit subject, the notes its body. The branch is then brought up to date with its upstream and pushed, as `mem sync` does.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -143,7 +147,7 @@ func (a *app) taskComplete() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "✅ TASK COMPLETED")
 			fmt.Fprintf(out, "Task: %s (%s)\nSpec: %s — %d of %d tasks done\n", t.Meta.Title, t.Slug, s.Slug, len(tasks)-len(pending), len(tasks))
-			nudges := commitRecord(cmd.Context(), out, p, "Complete task "+t.Slug, p.Rel(s.Dir))
+			nudges := commitTask(cmd.Context(), out, p, s, t, args[1])
 			if len(pending) > 0 {
 				fmt.Fprintln(out, "\nRemaining:")
 				for _, r := range pending {
@@ -172,4 +176,18 @@ func (a *app) taskComplete() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&specRef, "spec", "", "Spec the task belongs to (defaults to your single active spec)")
 	return cmd
+}
+
+// commitTask commits the task's work together with its record: everything changed in the working tree, ignored
+// files excepted. The Mem-Task trailer marks the commit as a checkpoint for the work-log count.
+func commitTask(ctx context.Context, out io.Writer, p project.Project, s work.Spec, t work.Task, notes string) []string {
+	message := fmt.Sprintf("%s\n\n%s\n\n%s %s/%s", t.Meta.Title, strings.TrimSpace(notes), checkpoint.TaskTrailer, s.Slug, t.Slug)
+	if err := git.CommitAll(ctx, p.Root, message); err != nil {
+		return []string{fmt.Sprintf("Could not commit the task's work (%v). Tell the user, and commit it by hand with the task record.", err)}
+	}
+	fmt.Fprintln(out, "Committed: "+t.Meta.Title+" (every change in the working tree, with the task record)")
+	if notice := branchNotice(ctx, p); notice != "" {
+		fmt.Fprintln(out, notice)
+	}
+	return nil
 }

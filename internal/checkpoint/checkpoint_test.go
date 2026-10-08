@@ -79,12 +79,20 @@ func TestWorkSinceLogEscalatesAndResetsAtCheckpoints(t *testing.T) {
 
 	write(t, root, "main.go", "six")
 	commitAll(t, root, "Work")
+	write(t, root, "main.go", "task work")
 	write(t, root, ".mem/specs/s/tasks/01_t.md", "done")
-	commitAll(t, root, "Complete task t")
+	commitAll(t, root, "Tokenize\n\nSplit the input; tests pass.\n\n"+TaskTrailer+" s/t")
 	write(t, root, "main.go", "seven")
 	commitAll(t, root, "Work")
 	if n, _ := count(); n != 1 {
 		t.Fatalf("after a completed task: %d", n)
+	}
+	write(t, root, ".mem/specs/s/tasks/02_u.md", "done")
+	commitAll(t, root, "Complete task u")
+	write(t, root, "main.go", "eight")
+	commitAll(t, root, "Work")
+	if n, _ := count(); n != 1 {
+		t.Fatalf("after a record-only task completion from an earlier mem: %d", n)
 	}
 }
 

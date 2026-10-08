@@ -25,7 +25,8 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
 - `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that. A started spec is worked through to the end: do not stop for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
-- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task once its code is committed. It commits the record, syncs and pushes. Then continue with the next task without waiting for approval.
+- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task. It commits every change in the working tree together with the task record, using the task title and your note as the commit message, then syncs and pushes. Then continue with the next task without waiting for approval.
+- Because task completion commits everything that is not ignored, keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`, and commit unrelated changes separately before completing a task.
 - `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
