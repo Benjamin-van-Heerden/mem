@@ -127,7 +127,7 @@ func LogLine(n int) string {
 	line := fmt.Sprintf("%d %s since your last work log or completed task", n, noun)
 	switch {
 	case n >= requireLogAt:
-		return line + "; you should stop and write one now (`mem log new`)."
+		return line + "; you should write one now, before continuing (`mem log new`)."
 	case n >= suggestLogAt:
 		return line + "; consider writing one now (`mem log new`)."
 	}

@@ -159,7 +159,7 @@ func (a *app) taskComplete() *cobra.Command {
 			}
 			if len(pending) > 0 {
 				next := pending[0]
-				output.Instruction(out, append(lines, fmt.Sprintf("Continue with the next task, %s (%s), described above. The spec with its full context: `mem spec show %s`.", next.Meta.Title, next.Slug, s.Slug))...)
+				output.Instruction(out, append(lines, fmt.Sprintf("Continue with the next task now, without waiting for approval: %s (%s), described above. The spec with its full context: `mem spec show %s`.", next.Meta.Title, next.Slug, s.Slug))...)
 				return nil
 			}
 			output.Instruction(out, append(lines,

@@ -18,7 +18,7 @@ func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
 	commit(t, mine, "index.go")
 	writeFile(t, mine, "scratch.go", "package scratch\n")
 	out := mem(t, mine, "task", "complete", "index", "Built and tested.")
-	for _, want := range []string{"Committed: Complete task index", "✔ Rebased 2 local commit(s) onto origin/dev", "✔ Pushed 2 commit(s) to origin/dev.", "📥 INCOMING", "Test: theirs.go", "⚠️ 1 file(s) remain uncommitted", "Continue with the next task, Query (query)"} {
+	for _, want := range []string{"Committed: Complete task index", "✔ Rebased 2 local commit(s) onto origin/dev", "✔ Pushed 2 commit(s) to origin/dev.", "📥 INCOMING", "Test: theirs.go", "⚠️ 1 file(s) remain uncommitted", "Continue with the next task now, without waiting for approval: Query (query)"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("task complete output lacks %q:\n%s", want, out)
 		}

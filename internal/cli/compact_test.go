@@ -73,7 +73,7 @@ func TestCompactHookAsksForAWorkLogOnceWorkHasGathered(t *testing.T) {
 		commit(t, mine, file)
 	}
 	out = mem(t, mine, "hook", "compact")
-	if !strings.Contains(out, "Work log: 5 commits since your last work log or completed task; you should stop and write one now") || !strings.Contains(out, "Write a work log for the work since your last one now") {
+	if !strings.Contains(out, "Work log: 5 commits since your last work log or completed task; you should write one now, before continuing") || !strings.Contains(out, "Write a work log for the work since your last one now") {
 		t.Fatalf("digest after 5 commits:\n%s", out)
 	}
 }

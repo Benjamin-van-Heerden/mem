@@ -146,6 +146,7 @@ func (a *app) specStart() *cobra.Command {
 			output.Instruction(out,
 				fmt.Sprintf("Implement the pending tasks in order, starting with %s (%s).", pending[0].Meta.Title, pending[0].Slug),
 				"After each task, commit its code, then record it with `mem task complete <task> \"what was done and how it was verified\"`, which commits the record and pushes, and continue with the next one.",
+				"Work through every task to the end without stopping for approval in between. Stop only for a decision only the user can make: ask it, and meanwhile continue with the tasks that do not depend on it.",
 			)
 			return nil
 		},

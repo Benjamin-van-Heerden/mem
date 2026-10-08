@@ -67,7 +67,7 @@ func TestWorkSinceLogEscalatesAndResetsAtCheckpoints(t *testing.T) {
 	commitAll(t, root, "Work")
 	write(t, root, "main.go", "five")
 	commitAll(t, root, "Work")
-	if n, _ := count(); !strings.Contains(LogLine(n), "you should stop and write one now") {
+	if n, _ := count(); !strings.Contains(LogLine(n), "you should write one now, before continuing") {
 		t.Fatalf("5 commits: %q", LogLine(n))
 	}
 
