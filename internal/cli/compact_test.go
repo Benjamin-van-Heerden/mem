@@ -67,6 +67,9 @@ func TestCompactHookAsksForAWorkLogOnceWorkHasGathered(t *testing.T) {
 	if !strings.Contains(out, "Work log: 2 commits since your last work log or completed task.") || strings.Contains(out, "Write a work log") {
 		t.Fatalf("digest after 2 commits:\n%s", out)
 	}
+	if !strings.Contains(out, "✔ Pushed 2 commit(s) to origin/dev.") || run(t, mine, "rev-parse", "HEAD") != run(t, mine, "rev-parse", "origin/dev") {
+		t.Fatalf("the compaction catch-up did not push the committed work:\n%s", out)
+	}
 	for _, file := range []string{"c.go", "d.go", "e.go"} {
 		commit(t, mine, file)
 	}

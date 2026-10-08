@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
+	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -22,7 +23,8 @@ const (
 
 // compactHookCommand runs after Claude Code compacts a conversation. Its stdout
 // joins the agent's context, next to the compaction summary: it brings the
-// checkout up to date and adds the shared state the summary cannot know.
+// checkout up to date, pushes committed work when that is safe, and adds the
+// shared state the summary cannot know.
 func (a *app) compactHookCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:  "compact",
@@ -35,6 +37,8 @@ func (a *app) compactHookCommand() *cobra.Command {
 				fmt.Fprintf(out, "mem could not sync this checkout after compaction (%v). Run `mem sync` when convenient.\n", err)
 				return nil
 			}
+			// A compaction is a natural sync point in a long session; Push only acts when mem sync would.
+			c.report = converge.Push(cmd.Context(), c.p, c.report)
 			user, err := a.user(cmd, c.p)
 			if err != nil {
 				user = ""
