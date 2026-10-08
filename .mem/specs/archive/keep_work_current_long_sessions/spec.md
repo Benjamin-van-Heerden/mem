@@ -1,9 +1,10 @@
 ---
 title: Keep work current in long sessions and on feature branches
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-10-08T12:54:40+02:00"
-updated_at: "2026-10-08T13:07:26+02:00"
+updated_at: "2026-10-08T14:39:50+02:00"
+completed_at: "2026-10-08T14:39:50+02:00"
 ---
 
 ## Overview
