@@ -184,7 +184,12 @@ func (a *app) specComplete() *cobra.Command {
 			}
 			// A spec is only finished when its work can join the shared codebase: conflicts are resolved first.
 			if r := converge.Sync(cmd.Context(), p); len(r.Unsettled()) > 0 {
-				return fmt.Errorf("spec %s cannot be completed until the branch is in step with the shared codebase: %s.\n%s\nResolve this with the user, then run `mem spec complete %s` again", s.Slug, strings.Join(r.Unsettled(), "; "), strings.Join(r.Nudges, "\n"), s.Slug)
+				how := strings.Join(r.Nudges, "\n") + "\n"
+				if !r.Fetched {
+					// The reason already carries the fetch error; the sync's own nudge would repeat it.
+					how = "Check the connection to the remote with the user.\n"
+				}
+				return fmt.Errorf("spec %s cannot be completed until the branch is in step with the shared codebase: %s.\n%sResolve this with the user, then run `mem spec complete %s` again", s.Slug, strings.Join(r.Unsettled(), "; "), how, s.Slug)
 			}
 			active := p.Rel(s.Dir)
 			s, err = work.ArchiveSpec(p, s, work.SpecCompleted, "")
