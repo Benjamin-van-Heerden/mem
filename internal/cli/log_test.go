@@ -121,13 +121,26 @@ func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
 	}
 }
 
-func TestClaimedTodosStayVisibleInOnboardAndLogNew(t *testing.T) {
-	mine, _ := sharedProject(t)
+func TestOnboardRemovesTodoClaimsFromOlderProjects(t *testing.T) {
+	mine, teammate := sharedProject(t)
+	config := filepath.Join(mine, ".mem", "config.toml")
+	data, _ := os.ReadFile(config)
+	os.WriteFile(config, []byte(strings.Replace(string(data), "schema = 2", "schema = 1", 1)), 0o644)
 	writeFile(t, mine, ".mem/todos/benchmark.md", "---\ntitle: Benchmark the parser\nstatus: claimed\ncreated_at: \"2026-09-01T10:00:00+02:00\"\nclaimed_by: ana\nclaimed_at: \"2026-09-02T10:00:00+02:00\"\n---\n\nCompare.\n")
-	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Benchmark the parser") || !strings.Contains(out, "ana") {
-		t.Fatalf("onboard leaves out the claimed todo:\n%s", out)
+	run(t, mine, "add", "--all")
+	run(t, mine, "commit", "--quiet", "-m", "A project from before schema 2")
+	run(t, mine, "push", "--quiet")
+
+	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Upgraded the project format to schema 2.") {
+		t.Fatalf("onboard did not upgrade:\n%s", out)
 	}
-	if out := mem(t, mine, "log", "new"); !strings.Contains(out, "- Benchmark the parser (benchmark), claimed by ana") {
-		t.Fatalf("log new leaves out the claimed todo:\n%s", out)
+	todo, _ := os.ReadFile(filepath.Join(mine, ".mem", "todos", "benchmark.md"))
+	if string(todo) != "---\ntitle: Benchmark the parser\ncreated_at: \"2026-09-01T10:00:00+02:00\"\n---\n\nCompare.\n" {
+		t.Fatalf("todo after the upgrade:\n%s", todo)
+	}
+	mem(t, mine, "sync")
+	run(t, teammate, "pull", "--quiet")
+	if shared, _ := os.ReadFile(filepath.Join(teammate, ".mem", "todos", "benchmark.md")); strings.Contains(string(shared), "claimed") {
+		t.Fatalf("the upgraded todo was not committed and shared:\n%s", shared)
 	}
 }

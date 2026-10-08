@@ -9,17 +9,10 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
-const (
-	TodoOpen    = "open"
-	TodoClaimed = "claimed"
-)
-
+// TodoMeta describes a todo. A todo has no states: it is open until it is done, and then it is deleted.
 type TodoMeta struct {
-	Title     string `yaml:"title"`
-	Status    string `yaml:"status"`
-	Created   string `yaml:"created_at"`
-	ClaimedBy string `yaml:"claimed_by,omitempty"`
-	ClaimedAt string `yaml:"claimed_at,omitempty"`
+	Title   string `yaml:"title"`
+	Created string `yaml:"created_at"`
 }
 
 type Todo struct {
@@ -74,13 +67,6 @@ func NewTodo(p project.Project, title, description string) (Todo, error) {
 		return Todo{}, err
 	}
 	t := Todo{Slug: slug, Path: filepath.Join(todosDir(p), slug+".md"), Body: description}
-	t.Meta = TodoMeta{Title: title, Status: TodoOpen, Created: now()}
-	return t, WriteMarkdown(t.Path, t.Meta, t.Body)
-}
-
-func ClaimTodo(t Todo, user string) (Todo, error) {
-	t.Meta.Status = TodoClaimed
-	t.Meta.ClaimedBy = user
-	t.Meta.ClaimedAt = now()
+	t.Meta = TodoMeta{Title: title, Created: now()}
 	return t, WriteMarkdown(t.Path, t.Meta, t.Body)
 }

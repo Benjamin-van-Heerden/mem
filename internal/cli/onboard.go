@@ -238,13 +238,13 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 	if len(todos) == 0 {
 		fmt.Fprintln(out, "No open todos.")
 	} else {
-		rows := [][]string{{"SLUG", "TITLE", "AGE", "CLAIMED BY"}}
+		rows := [][]string{{"SLUG", "TITLE", "AGE"}}
 		for _, t := range todos {
-			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created), orDash(t.Meta.ClaimedBy)})
+			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created)})
 		}
 		table(out, rows)
 	}
-	state.stale = writeStaleness(ctx, out, p, specs, todos, time.Now())
+	state.stale = writeStaleness(ctx, out, p, specs, time.Now())
 
 	logs, err := work.Logs(p)
 	if err != nil {

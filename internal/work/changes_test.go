@@ -24,7 +24,7 @@ func TestRecordChangesDescribesTheLifecycleOfRecords(t *testing.T) {
 		".mem/specs/search/tasks/01_index.md": front("title: Index\nstatus: completed"),
 	}
 	after := map[string]string{
-		".mem/todos/flaky_ci.md":                      front("title: Flaky CI\nstatus: claimed\nclaimed_by: bob"),
+		".mem/todos/flaky_ci.md":                      front("title: Flaky CI\nstatus: open"),
 		".mem/todos/new_logo.md":                      front("title: New logo\nstatus: open"),
 		".mem/specs/login/spec.md":                    front("title: Login\nstatus: active\nassigned_to: bob"),
 		".mem/specs/login/tasks/01_form.md":           front("title: Form\nstatus: completed"),
@@ -47,7 +47,6 @@ func TestRecordChangesDescribesTheLifecycleOfRecords(t *testing.T) {
 		"Spec completed: Search",
 		"Task completed in login: Form",
 		"Task added to login: Auth",
-		"Todo claimed by bob: Flaky CI",
 		"Todo opened: New logo",
 		"Todo closed: Old docs",
 	}, "\n")

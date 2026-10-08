@@ -68,11 +68,7 @@ func (a *app) logNew() *cobra.Command {
 				fmt.Fprintln(out, "No open todos.")
 			}
 			for _, t := range todos {
-				if t.Meta.ClaimedBy != "" {
-					fmt.Fprintf(out, "- %s (%s), claimed by %s\n", t.Meta.Title, t.Slug, t.Meta.ClaimedBy)
-				} else {
-					fmt.Fprintf(out, "- %s (%s)\n", t.Meta.Title, t.Slug)
-				}
+				fmt.Fprintf(out, "- %s (%s)\n", t.Meta.Title, t.Slug)
 			}
 			var lines []string
 			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }

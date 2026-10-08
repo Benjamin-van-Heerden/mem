@@ -53,7 +53,7 @@ func TestWorkSinceLogEscalatesAndResetsAtCheckpoints(t *testing.T) {
 
 	// Record commits, another person's work and mem's project files do not count.
 	write(t, root, ".mem/todos/a.md", "todo")
-	commitAll(t, root, "Claim todo a")
+	commitAll(t, root, "Add todo a")
 	write(t, root, "AGENTS.md", "instructions")
 	commitAll(t, root, ProjectFilesCommit)
 	write(t, root, "other.go", "theirs")

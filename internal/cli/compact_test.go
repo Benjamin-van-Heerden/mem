@@ -16,7 +16,6 @@ func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
 	mem(t, mine, "todo", "new", "Parser docs", "Document the grammar.")
 	run(t, mine, "add", "--all")
 	run(t, mine, "commit", "--quiet", "-m", "Record the docs todo")
-	mem(t, mine, "todo", "claim", "parser_docs")
 	run(t, mine, "push", "--quiet")
 
 	run(t, teammate, "pull", "--quiet")
@@ -33,7 +32,6 @@ func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
 		"Branch: dev (tracking origin/dev: 0 ahead, 0 behind)",
 		"✔ Fast-forwarded dev",
 		"Active spec: Parser (parser), 0 of 2 task(s) done; next: Tokenize (tokenize)",
-		"Your claimed todos: parser_docs",
 		"Test: Add the lexer",
 		"Todo opened: Flaky CI",
 		"New: logging\nUse the structured logger.",

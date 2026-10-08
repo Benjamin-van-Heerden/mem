@@ -12,7 +12,7 @@ import (
 
 func (a *app) todoCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "todo", Short: "Track standalone matters that need attention"}
-	cmd.AddCommand(a.todoNew(), a.todoList(), a.todoShow(), a.todoClaim(), a.todoDelete())
+	cmd.AddCommand(a.todoNew(), a.todoList(), a.todoShow(), a.todoDelete())
 	return cmd
 }
 
@@ -62,9 +62,9 @@ func (a *app) todoList() *cobra.Command {
 				fmt.Fprintln(out, "No open todos.")
 				return nil
 			}
-			rows := [][]string{{"SLUG", "STATUS", "CLAIMED BY", "TITLE"}}
+			rows := [][]string{{"SLUG", "AGE", "TITLE"}}
 			for _, t := range todos {
-				rows = append(rows, []string{t.Slug, t.Meta.Status, orDash(t.Meta.ClaimedBy), t.Meta.Title})
+				rows = append(rows, []string{t.Slug, age(t.Meta.Created), t.Meta.Title})
 			}
 			table(out, rows)
 			return nil
@@ -88,53 +88,10 @@ func (a *app) todoShow() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📌 TODO: "+t.Meta.Title)
-			fmt.Fprintf(out, "Slug: %s\nStatus: %s\n", t.Slug, t.Meta.Status)
-			if t.Meta.ClaimedBy != "" {
-				fmt.Fprintf(out, "Claimed by: %s\n", t.Meta.ClaimedBy)
-			}
+			fmt.Fprintf(out, "Slug: %s\nOpened: %s ago\n", t.Slug, age(t.Meta.Created))
 			if body := strings.TrimSpace(t.Body); body != "" {
 				fmt.Fprintf(out, "\n%s\n", body)
 			}
-			return nil
-		},
-	}
-}
-
-func (a *app) todoClaim() *cobra.Command {
-	return &cobra.Command{
-		Use:   "claim <todo>",
-		Short: "Claim a todo you are working on and publish that",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			p, err := a.project(cmd)
-			if err != nil {
-				return err
-			}
-			user, err := a.user(cmd, p)
-			if err != nil {
-				return err
-			}
-			t, err := work.FindTodo(p, args[0])
-			if err != nil {
-				return err
-			}
-			if t.Meta.Status == work.TodoClaimed {
-				return fmt.Errorf("todo %s is already claimed by %s", t.Slug, t.Meta.ClaimedBy)
-			}
-			if t, err = work.ClaimTodo(t, user); err != nil {
-				return err
-			}
-			out := cmd.OutOrStdout()
-			output.Section(out, "📌 TODO CLAIMED")
-			fmt.Fprintf(out, "Todo: %s (%s)\nClaimed by: %s\n", t.Meta.Title, t.Slug, user)
-			fmt.Fprintln(out, publish(cmd.Context(), p, "Claim todo "+t.Slug, p.Rel(t.Path)))
-			if body := strings.TrimSpace(t.Body); body != "" {
-				fmt.Fprintf(out, "\n%s\n", body)
-			}
-			output.Instruction(out,
-				"1. Work on this todo now. If it turns out to be substantial, propose turning it into a spec with the user.",
-				fmt.Sprintf("2. When it is done, run `mem todo delete %s` and commit the removal together with the work.", t.Slug),
-			)
 			return nil
 		},
 	}

@@ -12,7 +12,8 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 - `structure` with drift detection against the last commit that touched `.mem/structure.md`.
 - Runnables in `.mem/runnables/`.
 - Checkpoint nudges: a `post-commit` hook in every project reports work commits since the last log or completed task (escalating), unpushed commits and a stale structure doc; the compaction digest reports the same work count, and the compaction catch-up pushes committed work when safe. Work logs are checkpoints, not session ends.
-- Onboard lists what has probably stopped being true (⏳ CHECK THESE: todos claimed over 30 days ago, active specs unchanged for 14 days, unmerged remote branches idle for 14 days) and the age of unreleased work.
+- Todos have no claims: open until done, then deleted (schema 2; onboard's patch removes old claim fields).
+- Onboard lists what has probably stopped being true (⏳ CHECK THESE: active specs unchanged for 14 days, unmerged remote branches idle for 14 days) and the age of unreleased work.
 - Feature branches follow development: `mem sync`, onboard, record completion and the compaction catch-up rebase a feature branch onto a newer development branch when that is clean, force-push it with a lease when only the user has committed to it, and otherwise nudge; a rewritten upstream is caught up with `--fork-point`.
 - `promote staging|production` with date tags carrying a generated summary, or drafted release notes confirmed with `--confirm` (`[release] notes`), optional production pull requests completed by fast-forward (`[release] production_pr`), `deploy` for one-step releases, and the `pre-push`/`pre-commit` hooks.
 - Templates: `init --template`, `template use|list|promote|reset`, and template sync at onboard with `.mem/templates.lock`; one-time template setups installed by `init` to `.mem/setup.md` and led by onboard and the compaction digest until the file is deleted.

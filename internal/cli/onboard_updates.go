@@ -19,13 +19,13 @@ import (
 // applyUpdates brings the project and its managed instructions up to date with this executable.
 func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	var lines, publishPaths []string
-	applied, err := project.Upgrade(p)
+	applied, changed, err := project.Upgrade(p)
 	if err != nil {
 		return nil, err
 	}
 	if len(applied) > 0 {
 		lines = append(lines, fmt.Sprintf("Upgraded the project format to schema %d.", project.Schema))
-		publishPaths = append(publishPaths, p.Rel(project.ConfigPath(p.Root)))
+		publishPaths = append(append(publishPaths, p.Rel(project.ConfigPath(p.Root))), changed...)
 	}
 
 	text, err := readAgents(p)

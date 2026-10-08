@@ -76,11 +76,14 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	if sso, err := work.FindSpec(p, "sso"); err != nil || sso.Meta.Status != work.SpecAbandoned || !sso.Archived() {
 		t.Fatalf("sso spec = %+v, %v", sso.Meta, err)
 	}
-	if todo, err := work.FindTodo(p, "email"); err != nil || todo.Meta.ClaimedBy != "octo_cat" || strings.TrimSpace(todo.Body) != "Send email.\n\nGitHub issue: https://github.com/o/r/issues/30" {
+	if todo, err := work.FindTodo(p, "email"); err != nil || strings.TrimSpace(todo.Body) != "Send email.\n\nGitHub issue: https://github.com/o/r/issues/30" {
 		t.Fatalf("todo = %+v, %v", todo.Meta, err)
 	}
-	if todo, err := work.FindTodo(p, "docs"); err != nil || todo.Meta.Status != work.TodoOpen {
+	if todo, err := work.FindTodo(p, "docs"); err != nil || todo.Meta.Title == "" {
 		t.Fatalf("open todo = %+v, %v", todo.Meta, err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, ".mem", "todos", "email.md")); strings.Contains(string(data), "claimed") || strings.Contains(string(data), "status") {
+		t.Fatalf("a claimed harness todo kept its claim:\n%s", data)
 	}
 	latest, err := work.FindLog(p, "octo_cat_20260910_094413")
 	if err != nil || latest.Meta.User != "octo_cat" || latest.Meta.Spec != "login" || latest.Heading() != "Test" {

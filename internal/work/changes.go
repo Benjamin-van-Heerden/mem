@@ -53,8 +53,6 @@ func describe(a record, hadA bool, b record, hasB bool, old map[string]record) s
 			return fmt.Sprintf("Todo opened: %s", r.title)
 		case !hasB:
 			return fmt.Sprintf("Todo closed: %s", r.title)
-		case b.owner != "" && b.owner != a.owner:
-			return fmt.Sprintf("Todo claimed by %s: %s", b.owner, r.title)
 		}
 	case "spec":
 		switch {
@@ -101,7 +99,7 @@ func records(paths []string, rev Revision) map[string]record {
 			if _, err := parseMarkdown(p, data, &m); err != nil {
 				continue
 			}
-			r.title, r.status, r.owner = m.Title, m.Status, m.ClaimedBy
+			r.title = m.Title
 		case "spec":
 			var m SpecMeta
 			if _, err := parseMarkdown(p, data, &m); err != nil {

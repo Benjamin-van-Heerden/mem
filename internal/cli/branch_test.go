@@ -7,24 +7,28 @@ import (
 
 func TestRecordChangesOnAFeatureBranchStayThereAndSaySo(t *testing.T) {
 	mine, _ := sharedProject(t)
-	mem(t, mine, "todo", "new", "Parser docs", "Document the grammar.")
-	mem(t, mine, "todo", "new", "Flaky CI", "The cache step fails sometimes.")
-	run(t, mine, "add", "--all")
-	run(t, mine, "commit", "--quiet", "-m", "Record todos")
-	if out := mem(t, mine, "todo", "claim", "flaky_ci"); strings.Contains(out, "teammates see this") {
-		t.Fatalf("claim on dev mentioned a merge:\n%s", out)
+	draft := func(title, slug string) {
+		mem(t, mine, "spec", "new", title)
+		mem(t, mine, "task", "new", "First", "Do it.", "--spec", slug)
+		run(t, mine, "add", "--all")
+		run(t, mine, "commit", "--quiet", "-m", "Draft "+slug)
+	}
+	draft("Parser", "parser")
+	if out := mem(t, mine, "spec", "start", "parser"); strings.Contains(out, "teammates see this") {
+		t.Fatalf("spec start on dev mentioned a merge:\n%s", out)
 	}
 
 	run(t, mine, "switch", "--quiet", "-c", "refunds")
-	out := mem(t, mine, "todo", "claim", "parser_docs")
+	draft("Refunds", "refunds")
+	out := mem(t, mine, "spec", "start", "refunds")
 	if !strings.Contains(out, "You are on refunds, not dev: teammates see this record change once refunds merges into dev.") {
-		t.Fatalf("claim on a feature branch:\n%s", out)
+		t.Fatalf("spec start on a feature branch:\n%s", out)
 	}
-	if subject := run(t, mine, "log", "-1", "--format=%s", "refunds"); subject != "Claim todo parser_docs" {
-		t.Fatalf("the claim was not committed on the feature branch: %q", subject)
+	if subject := run(t, mine, "log", "-1", "--format=%s", "refunds"); subject != "Start spec refunds" {
+		t.Fatalf("the spec start was not committed on the feature branch: %q", subject)
 	}
-	if subject := run(t, mine, "log", "-1", "--format=%s", "dev"); subject == "Claim todo parser_docs" {
-		t.Fatal("the claim was committed on dev")
+	if subject := run(t, mine, "log", "-1", "--format=%s", "dev"); subject == "Start spec refunds" {
+		t.Fatal("the spec start was committed on dev")
 	}
 }
 

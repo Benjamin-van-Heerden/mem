@@ -246,12 +246,8 @@ func convertTodos(p project.Project, dir string, users map[string]string, sum *S
 		if err != nil {
 			return err
 		}
-		todo := work.TodoMeta{Title: str(meta["title"]), Status: work.TodoOpen, Created: timestamp(meta["created_at"])}
-		if str(meta["status"]) == "claimed" {
-			todo.Status = work.TodoClaimed
-			todo.ClaimedBy = user(str(meta["claimed_by"]), users)
-			todo.ClaimedAt = timestamp(meta["claimed_at"])
-		}
+		// mem todos have no claims: a claimed harness todo becomes an ordinary open one.
+		todo := work.TodoMeta{Title: str(meta["title"]), Created: timestamp(meta["created_at"])}
 		if err := work.WriteMarkdown(p.Path("todos", filepath.Base(file)), todo, withIssue(body, meta)); err != nil {
 			return err
 		}

@@ -14,23 +14,17 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 )
 
-// Records and branches that have not moved for this long have probably stopped being true: a claim nobody works
-// on, a spec that stalled, a branch someone forgot.
+// Specs and branches that have not moved for this long have probably stopped being true: a spec that stalled,
+// a branch someone forgot.
 const (
-	staleClaim  = 30 * 24 * time.Hour
 	staleSpec   = 14 * 24 * time.Hour
 	staleBranch = 14 * 24 * time.Hour
 )
 
 // writeStaleness lists records and branches that have probably stopped being true, and reports whether it listed
 // anything.
-func writeStaleness(ctx context.Context, out io.Writer, p project.Project, specs []work.Spec, todos []work.Todo, now time.Time) bool {
+func writeStaleness(ctx context.Context, out io.Writer, p project.Project, specs []work.Spec, now time.Time) bool {
 	var lines []string
-	for _, t := range todos {
-		if claimed, err := time.Parse(time.RFC3339, t.Meta.ClaimedAt); err == nil && t.Meta.ClaimedBy != "" && now.Sub(claimed) > staleClaim {
-			lines = append(lines, fmt.Sprintf("Todo %s was claimed by %s %s ago. Is it still being worked on, already done (`mem todo delete %s`), or abandoned?", t.Slug, t.Meta.ClaimedBy, days(now.Sub(claimed)), t.Slug))
-		}
-	}
 	for _, s := range specs {
 		if s.Meta.Status != work.SpecActive {
 			continue

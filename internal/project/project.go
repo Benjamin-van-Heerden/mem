@@ -13,7 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const Schema = 1
+const Schema = 2
 
 type Config struct {
 	Schema      int             `toml:"schema"`

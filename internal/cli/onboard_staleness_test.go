@@ -21,7 +21,7 @@ func oldCommit(t *testing.T, dir string, daysAgo int, message string) {
 	}
 }
 
-func TestOnboardFlagsRecordsAndBranchesThatStoppedMoving(t *testing.T) {
+func TestOnboardFlagsSpecsAndBranchesThatStoppedMoving(t *testing.T) {
 	mine, _ := sharedProject(t)
 
 	// A spec started 20 days ago that has not changed since.
@@ -33,17 +33,6 @@ func TestOnboardFlagsRecordsAndBranchesThatStoppedMoving(t *testing.T) {
 	run(t, mine, "add", "--all")
 	oldCommit(t, mine, 20, "Start spec parser")
 
-	// A todo claimed 40 days ago, and one claimed today.
-	mem(t, mine, "todo", "new", "Parser docs", "Document the grammar.")
-	mem(t, mine, "todo", "new", "Flaky CI", "The cache step fails sometimes.")
-	run(t, mine, "add", "--all")
-	run(t, mine, "commit", "--quiet", "-m", "Record todos")
-	mem(t, mine, "todo", "claim", "flaky_ci")
-	docs := filepath.Join(mine, ".mem", "todos", "parser_docs.md")
-	data, _ = os.ReadFile(docs)
-	claimed := time.Now().AddDate(0, 0, -40).Format(time.RFC3339)
-	os.WriteFile(docs, []byte(strings.Replace(string(data), "status: open", "status: claimed\nclaimed_by: test_user\nclaimed_at: \""+claimed+"\"", 1)), 0o644)
-	run(t, mine, "commit", "--quiet", "-am", "Claim todo parser_docs")
 	run(t, mine, "push", "--quiet")
 
 	// A branch nobody has touched for 30 days.
@@ -61,7 +50,6 @@ func TestOnboardFlagsRecordsAndBranchesThatStoppedMoving(t *testing.T) {
 	}
 	for _, want := range []string{
 		"⏳ CHECK THESE",
-		"Todo parser_docs was claimed by test_user 40 days ago",
 		"Active spec parser (test_user) has not changed for 20 days",
 		"Branch origin/spike is not merged into dev and has had no commit for 30 days (last by Test User)",
 		"commit(s) ahead of staging, the oldest from ",
@@ -70,8 +58,5 @@ func TestOnboardFlagsRecordsAndBranchesThatStoppedMoving(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Fatalf("onboard lacks %q:\n%s", want, out)
 		}
-	}
-	if strings.Contains(out, "Todo flaky_ci was claimed") {
-		t.Fatalf("a fresh claim was flagged:\n%s", out)
 	}
 }

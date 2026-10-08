@@ -135,7 +135,7 @@ func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 	output.Instruction(out, strings.Join(lines, " "))
 }
 
-// writeWorkDigest names the user's active spec with its next task and the todos they claimed.
+// writeWorkDigest names the user's active spec with its next task.
 func writeWorkDigest(out io.Writer, p project.Project, user string) {
 	if user == "" {
 		return
@@ -152,15 +152,5 @@ func writeWorkDigest(out io.Writer, p project.Project, user string) {
 			line += fmt.Sprintf("; next: %s (%s)", pending[0].Meta.Title, pending[0].Slug)
 		}
 		fmt.Fprintln(out, line)
-	}
-	todos, _ := work.Todos(p)
-	var claimed []string
-	for _, t := range todos {
-		if t.Meta.ClaimedBy == user {
-			claimed = append(claimed, t.Slug)
-		}
-	}
-	if len(claimed) > 0 {
-		fmt.Fprintln(out, "Your claimed todos: "+strings.Join(claimed, ", "))
 	}
 }
