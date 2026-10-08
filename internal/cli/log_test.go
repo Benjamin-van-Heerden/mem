@@ -82,13 +82,13 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	if status := run(t, mine, "status", "--porcelain"); status != "?? scratch.go" {
 		t.Fatalf("status after log commit = %q, want only the uncommitted scratch.go", status)
 	}
-	if !strings.Contains(out, "⚠️ The session ends with uncommitted work in 1 file(s)") || strings.Contains(out, "session is closed") {
+	if !strings.Contains(out, "⚠️ 1 file(s) outside .mem/ have uncommitted changes") || strings.Contains(out, "log is committed and pushed") {
 		t.Fatalf("uncommitted code was not reported:\n%s", out)
 	}
 
 	os.Remove(filepath.Join(mine, "scratch.go"))
-	if out := mem(t, mine, "log", "commit"); !strings.Contains(out, "already committed") || !strings.Contains(out, "session is closed: the log is committed and dev matches origin/dev") {
-		t.Fatalf("a clean close was not confirmed:\n%s", out)
+	if out := mem(t, mine, "log", "commit"); !strings.Contains(out, "already committed") || !strings.Contains(out, "the log is committed and pushed: dev matches origin/dev") || strings.Contains(out, "session is closed") {
+		t.Fatalf("a clean log commit was not confirmed:\n%s", out)
 	}
 }
 

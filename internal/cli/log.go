@@ -16,7 +16,7 @@ import (
 )
 
 func (a *app) logCommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "log", Short: "Write and read session work logs"}
+	cmd := &cobra.Command{Use: "log", Short: "Write and read work logs"}
 	cmd.AddCommand(a.logNew(), a.logCommit(), a.logList(), a.logShow())
 	return cmd
 }
@@ -25,7 +25,7 @@ func (a *app) logNew() *cobra.Command {
 	var specRef string
 	cmd := &cobra.Command{
 		Use:   "new",
-		Short: "Create a work log for this session",
+		Short: "Create a work log for the work since your last one",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -76,21 +76,21 @@ func (a *app) logNew() *cobra.Command {
 			}
 			var lines []string
 			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }
-			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from this session: what was done, decided and tried. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
-			step("If this session completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
+			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
+			step("If this work completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
 			switch {
 			case drift.Stale():
 				step(fmt.Sprintf("The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))
 			case drift.Missing:
 				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
-			step("Run `mem log commit` to close the session: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
+			step("Run `mem log commit`: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
 			output.Instruction(out, lines...)
 			driftNudges(cmd.Context(), out, p)
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&specRef, "spec", "", "Spec this session worked on (defaults to your single active spec)")
+	cmd.Flags().StringVar(&specRef, "spec", "", "Spec this work belongs to (defaults to your single active spec)")
 	return cmd
 }
 
@@ -133,8 +133,8 @@ func (a *app) logList() *cobra.Command {
 func (a *app) logCommit() *cobra.Command {
 	return &cobra.Command{
 		Use:   "commit [<log>]",
-		Short: "Close the session: commit the log and .mem/ records, sync with the shared codebase and push",
-		Long:  "Commits the changed .mem/ records (the log, todos, specs, structure doc) with the log, brings the branch up to date with its upstream (fast-forward, or rebase when safe), and pushes. Code outside .mem/ is never committed; uncommitted work is reported. Without an argument it closes your newest log.",
+		Short: "Commit the log and .mem/ records, sync with the shared codebase and push",
+		Long:  "Commits the changed .mem/ records (the log, todos, specs, structure doc) with the log, brings the branch up to date with its upstream (fast-forward, or rebase when safe), and pushes. Code outside .mem/ is never committed; uncommitted work is reported. Without an argument it commits your newest log.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -185,18 +185,18 @@ func (a *app) logCommit() *cobra.Command {
 			final.Nudges = append(warnings, final.Nudges...)
 			if n := uncommittedOutsideMem(ctx, p.Root); n > 0 {
 				final.Dirty = true
-				final.Nudges = append(final.Nudges, fmt.Sprintf("The session ends with uncommitted work in %d file(s) outside .mem/ (`git status`). Commit it now if it is finished, or tell the user why it stays uncommitted.", n))
+				final.Nudges = append(final.Nudges, fmt.Sprintf("%d file(s) outside .mem/ have uncommitted changes (`git status`). Commit them now if they are finished, or tell the user why they stay uncommitted.", n))
 			}
 			renderReport(out, final, false)
 			if len(final.Nudges) > 0 {
-				output.Instruction(out, "Tell the user about each ⚠️ item above and resolve it with them before the session ends.")
+				output.Instruction(out, "Tell the user about each ⚠️ item above and resolve it with them.")
 				return nil
 			}
 			target := final.Upstream
 			if target == "" {
 				target = "its remote"
 			}
-			output.Instruction(out, fmt.Sprintf("Tell the user the session is closed: the log is committed and %s matches %s.", final.Branch, target))
+			output.Instruction(out, fmt.Sprintf("Tell the user the log is committed and pushed: %s matches %s. Writing a log does not end the session; carry on with the work.", final.Branch, target))
 			return nil
 		},
 	}

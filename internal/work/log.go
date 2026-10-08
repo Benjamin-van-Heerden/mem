@@ -12,14 +12,14 @@ import (
 )
 
 // logGuidance is for the agent writing the log; Finish removes it before the log is committed.
-const logGuidance = "<!-- A work log records what happened in this session, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
+const logGuidance = "<!-- A work log records a stretch of work since the previous log, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
 
 const logTemplate = "# Work Log - {short title}\n\n" + logGuidance + `
 
 ## Overarching Goals
 
 {
-What we set out to achieve in this session, in the context of the interaction so far.
+What we set out to achieve in this stretch of work, in the context of the interaction so far.
 }
 
 ## What Was Accomplished

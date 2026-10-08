@@ -11,7 +11,7 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 - Specs, tasks, todos, work logs (facts only, closed with `log commit`) and memories.
 - `structure` with drift detection against the last commit that touched `.mem/structure.md`.
 - Runnables in `.mem/runnables/`.
-- Checkpoint nudges: a `post-commit` hook in every project reports work commits since the last log or completed task (escalating), unpushed commits and a stale structure doc.
+- Checkpoint nudges: a `post-commit` hook in every project reports work commits since the last log or completed task (escalating), unpushed commits and a stale structure doc; the compaction digest reports the same work count. Work logs are checkpoints, not session ends.
 - `promote staging|production` with date tags carrying a generated summary, or drafted release notes confirmed with `--confirm` (`[release] notes`), optional production pull requests completed by fast-forward (`[release] production_pr`), `deploy` for one-step releases, and the `pre-push`/`pre-commit` hooks.
 - Templates: `init --template`, `template use|list|promote|reset`, and template sync at onboard with `.mem/templates.lock`; one-time template setups installed by `init` to `.mem/setup.md` and led by onboard and the compaction digest until the file is deleted.
 - Self-update: onboard installs a newer release automatically; `mem update` on demand.

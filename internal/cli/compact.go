@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/templates"
@@ -37,13 +39,19 @@ func (a *app) compactHookCommand() *cobra.Command {
 			if err != nil {
 				user = ""
 			}
-			writeDigest(out, c, user)
+			var sinceLog int
+			if user != "" {
+				sinceLog, _, _ = checkpoint.WorkSinceLog(cmd.Context(), c.p.Root, user, git.UserEmail(cmd.Context(), c.p.Root))
+			}
+			writeDigest(out, c, user, sinceLog)
 			return nil
 		},
 	}
 }
 
-func writeDigest(out io.Writer, c catchUp, user string) {
+// writeDigest prints the shared state after a compaction; sinceLog is the user's work commits since their last
+// work log or completed task.
+func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 	output.Section(out, "🔄 MEM AFTER COMPACTION")
 	fmt.Fprintln(out, "mem synced this checkout with the shared codebase. The compaction summary holds this session's progress; this is the shared state.")
 	fmt.Fprintln(out)
@@ -63,6 +71,9 @@ func writeDigest(out io.Writer, c catchUp, user string) {
 		fmt.Fprintln(out, "✔ "+line)
 	}
 	writeWorkDigest(out, c.p, user)
+	if sinceLog > 0 {
+		fmt.Fprintln(out, "Work log: "+checkpoint.LogLine(sinceLog))
+	}
 	// The digest never fails, so an unreadable setup file only loses the reminder.
 	_, setup, _ := readSetup(c.p)
 	if setup.present {
@@ -107,6 +118,9 @@ func writeDigest(out io.Writer, c catchUp, user string) {
 	}
 	if changed {
 		lines = append(lines, "Follow the changed memories above for the rest of this session.")
+	}
+	if checkpoint.LogRequired(sinceLog) {
+		lines = append(lines, "Write a work log for the work since your last one now (`mem log new`), while the compaction summary still holds it.")
 	}
 	if len(r.Nudges) > 0 || hasWarning(c.templates) {
 		lines = append(lines, "Tell the user about each ⚠️ item above.")

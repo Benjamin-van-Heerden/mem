@@ -194,7 +194,7 @@ func (a *app) specComplete() *cobra.Command {
 			}
 			output.Instruction(out, append(lines,
 				"1. Summarize for the user what the spec delivered.",
-				fmt.Sprintf("2. Offer to close the session: `mem log new --spec %s`, then `mem log commit`.", s.Slug),
+				fmt.Sprintf("2. A completed spec is a checkpoint: write a work log for it now (`mem log new --spec %s`, then `mem log commit`).", s.Slug),
 			)...)
 			return nil
 		},

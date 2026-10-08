@@ -134,6 +134,9 @@ func LogLine(n int) string {
 	return line + "."
 }
 
+// LogRequired reports whether n work commits since the last log call for stopping to write one.
+func LogRequired(n int) bool { return n >= requireLogAt }
+
 // CommitLines are the nudges after a commit, from local state only: the work-log count after each of the user's
 // work commits, unpushed commits past a threshold, and a stale structure doc.
 func CommitLines(ctx context.Context, p project.Project, user, email string) []string {

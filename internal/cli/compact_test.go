@@ -57,3 +57,21 @@ func TestCompactHookNeverFailsOutsideAMemProject(t *testing.T) {
 		t.Fatalf("output:\n%s", out)
 	}
 }
+
+func TestCompactHookAsksForAWorkLogOnceWorkHasGathered(t *testing.T) {
+	mine, _ := sharedProject(t)
+	for _, file := range []string{"a.go", "b.go"} {
+		commit(t, mine, file)
+	}
+	out := mem(t, mine, "hook", "compact")
+	if !strings.Contains(out, "Work log: 2 commits since your last work log or completed task.") || strings.Contains(out, "Write a work log") {
+		t.Fatalf("digest after 2 commits:\n%s", out)
+	}
+	for _, file := range []string{"c.go", "d.go", "e.go"} {
+		commit(t, mine, file)
+	}
+	out = mem(t, mine, "hook", "compact")
+	if !strings.Contains(out, "Work log: 5 commits since your last work log or completed task; you should stop and write one now") || !strings.Contains(out, "Write a work log for the work since your last one now") {
+		t.Fatalf("digest after 5 commits:\n%s", out)
+	}
+}

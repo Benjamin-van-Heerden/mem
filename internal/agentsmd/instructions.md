@@ -40,9 +40,9 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 ## Work Logs
 
-A work log records what a session did, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
+A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- End a session with `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. Ask the user before ending a session.
+- Write one at each checkpoint: when a spec completes, before a release, when mem's commit nudge says to, and when the user wraps up. Run `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
