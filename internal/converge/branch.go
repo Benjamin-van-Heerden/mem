@@ -99,3 +99,24 @@ func firstLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return line
 }
+
+// Unsettled lists why the branch is not known to be in step with the shared codebase: the fetch failed, commits
+// from its upstream are still to be brought in (a conflicting rebase or uncommitted changes stopped it), or, on a
+// feature branch, development has not been taken in. Work that is declared finished, such as a completed spec,
+// needs none of these. A repository without the remote has nothing to be out of step with.
+func (r Report) Unsettled() []string {
+	if !r.HasRemote {
+		return nil
+	}
+	if !r.Fetched {
+		return []string{fmt.Sprintf("could not fetch from %s (%s), so mem cannot confirm the branch is in step", r.Remote, r.FetchError)}
+	}
+	var reasons []string
+	if r.Behind > 0 {
+		reasons = append(reasons, fmt.Sprintf("%s is still %d commit(s) behind %s", r.Branch, r.Behind, r.Upstream))
+	}
+	if feature(r) && r.DevBehind > 0 {
+		reasons = append(reasons, fmt.Sprintf("%s does not contain %d commit(s) from %s yet", r.Branch, r.DevBehind, r.Development))
+	}
+	return reasons
+}

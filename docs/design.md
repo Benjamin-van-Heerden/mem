@@ -87,7 +87,7 @@ Identity is `git config user.name`, slugified.
 
 ## Work records
 
-- **Spec:** larger planned work. Statuses `draft → active → completed | abandoned`. Body template: Overview, Goals, Technical Approach, Success Criteria, Notes. A started spec is worked through to the end without stopping for approval between tasks; `spec start`, `task complete` and the instructions say so, and the agent stops only for decisions only the user can make, continuing meanwhile with tasks that do not depend on them.
+- **Spec:** larger planned work. Statuses `draft → active → completed | abandoned`. Body template: Overview, Goals, Technical Approach, Success Criteria, Notes. A started spec is worked through to the end without stopping for approval between tasks; `spec start`, `task complete` and the instructions say so, and the agent stops only for decisions only the user can make, continuing meanwhile with tasks that do not depend on them. `spec complete` first syncs and refuses while the fetch fails, the branch is still behind its upstream (an unresolved conflict) or a feature branch lacks development commits; the spec stays active until those are resolved.
   - `spec new "title"`, `spec list`, `spec show <slug>`
   - `spec start <slug>`: assigns the current user and marks it active; commits and pushes the change
   - `spec complete <slug>`: requires all tasks done; archives the spec, commits the archive, syncs and pushes; tells the agent to summarize the spec and offer a log (the Success Criteria are checked before, at the last `task complete`)

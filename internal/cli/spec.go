@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -180,6 +181,10 @@ func (a *app) specComplete() *cobra.Command {
 					names[i] = t.Slug
 				}
 				return fmt.Errorf("spec %s still has pending tasks: %s; complete them first", s.Slug, strings.Join(names, ", "))
+			}
+			// A spec is only finished when its work can join the shared codebase: conflicts are resolved first.
+			if r := converge.Sync(cmd.Context(), p); len(r.Unsettled()) > 0 {
+				return fmt.Errorf("spec %s cannot be completed until the branch is in step with the shared codebase: %s.\n%s\nResolve this with the user, then run `mem spec complete %s` again", s.Slug, strings.Join(r.Unsettled(), "; "), strings.Join(r.Nudges, "\n"), s.Slug)
 			}
 			active := p.Rel(s.Dir)
 			s, err = work.ArchiveSpec(p, s, work.SpecCompleted, "")

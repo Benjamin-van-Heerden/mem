@@ -79,6 +79,9 @@ func TestSyncLeavesAFeatureBranchUnchangedWhenTheRebaseWouldConflict(t *testing.
 	if after := run(t, p.Root, "rev-parse", "HEAD"); after != before {
 		t.Fatal("the conflicting rebase changed the branch")
 	}
+	if reasons := strings.Join(r.Unsettled(), "; "); !strings.Contains(reasons, "feature does not contain 1 commit(s) from origin/dev yet") {
+		t.Fatalf("unsettled = %q", reasons)
+	}
 }
 
 func TestSyncDoesNotRewriteAFeatureBranchOthersCommittedTo(t *testing.T) {

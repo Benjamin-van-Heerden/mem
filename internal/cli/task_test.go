@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Benjamin-van-Heerden/mem/internal/git"
 )
 
 func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
@@ -59,5 +64,50 @@ func TestSyncPushesLocalCommits(t *testing.T) {
 	out := mem(t, mine, "sync")
 	if !strings.Contains(out, "✔ Pushed 1 commit(s) to origin/dev.") || strings.Contains(out, "⚠️") {
 		t.Fatalf("sync output:\n%s", out)
+	}
+}
+
+func TestSpecCompletionWaitsUntilConflictsAreResolved(t *testing.T) {
+	mine, teammate := sharedProject(t)
+	mem(t, mine, "spec", "new", "Search")
+	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
+	mem(t, mine, "spec", "start", "search")
+	run(t, teammate, "pull", "--quiet")
+	writeFile(t, teammate, "README.md", "theirs\n")
+	run(t, teammate, "commit", "--quiet", "-am", "Their readme")
+	run(t, teammate, "push", "--quiet")
+
+	writeFile(t, mine, "README.md", "mine\n")
+	mem(t, mine, "task", "complete", "index", "Rewrote the readme.")
+	err := memErr(t, mine, "spec", "complete", "search")
+	if err == nil || !strings.Contains(err.Error(), "spec search cannot be completed until the branch is in step") || !strings.Contains(err.Error(), "behind origin/dev") {
+		t.Fatalf("spec complete with an unresolved conflict: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(mine, ".mem", "specs", "search", "spec.md")); statErr != nil {
+		t.Fatal("the spec was archived despite the conflict")
+	}
+
+	if _, rebaseErr := git.Run(context.Background(), mine, "rebase", "origin/dev"); rebaseErr == nil {
+		t.Fatal("the rebase was expected to conflict")
+	}
+	writeFile(t, mine, "README.md", "both\n")
+	run(t, mine, "add", "README.md")
+	if _, err := git.RunEnv(context.Background(), mine, []string{"GIT_EDITOR=true"}, "rebase", "--continue"); err != nil {
+		t.Fatal(err)
+	}
+	if out := mem(t, mine, "spec", "complete", "search"); !strings.Contains(out, "Committed: Complete spec search") {
+		t.Fatalf("spec complete after resolving:\n%s", out)
+	}
+}
+
+func TestSpecCompletionNeedsAReachableRemote(t *testing.T) {
+	mine, _ := sharedProject(t)
+	mem(t, mine, "spec", "new", "Search")
+	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
+	mem(t, mine, "spec", "start", "search")
+	mem(t, mine, "task", "complete", "index", "Built.")
+	run(t, mine, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	if err := memErr(t, mine, "spec", "complete", "search"); err == nil || !strings.Contains(err.Error(), "could not fetch from origin") {
+		t.Fatalf("spec complete without the remote: %v", err)
 	}
 }
