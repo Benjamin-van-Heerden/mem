@@ -192,6 +192,8 @@ type Status struct {
 	TagAge       string
 	StagingAhead int
 	DevAhead     int
+	// OldestUnreleased is how long ago the oldest commit on development not yet on staging was made, e.g. "3 weeks ago".
+	OldestUnreleased string
 	// StagingOutside and ProductionOutside count commits on those branches that development lacks, such as a
 	// change merged into production directly. Promotion cannot fast-forward past them.
 	StagingOutside    int
@@ -214,6 +216,11 @@ func CurrentStatus(ctx context.Context, p project.Project) Status {
 	}
 	st.StagingAhead = count(ctx, p.Root, remoteRef(p, g.Production)+".."+remoteRef(p, g.Staging))
 	st.DevAhead = count(ctx, p.Root, remoteRef(p, g.Staging)+".."+remoteRef(p, g.Development))
+	if st.DevAhead > 0 {
+		if out, err := git.Run(ctx, p.Root, "log", "--reverse", "--format=%cr", remoteRef(p, g.Staging)+".."+remoteRef(p, g.Development)); err == nil {
+			st.OldestUnreleased, _, _ = strings.Cut(out, "\n")
+		}
+	}
 	st.StagingOutside = count(ctx, p.Root, remoteRef(p, g.Development)+".."+remoteRef(p, g.Staging))
 	st.ProductionOutside = count(ctx, p.Root, remoteRef(p, g.Development)+".."+remoteRef(p, g.Production))
 	if tag, err := git.Run(ctx, p.Root, "describe", "--tags", "--abbrev=0", "--match", "v*", remoteRef(p, g.Production)); err == nil {

@@ -153,6 +153,7 @@ type contextState struct {
 	drift            structure.Drift
 	templateWarnings bool
 	knowledgeChanged bool
+	stale            bool
 	setup            setupState
 }
 
@@ -170,7 +171,11 @@ func renderReleases(out io.Writer, p project.Project, st release.Status) {
 		fmt.Fprintf(out, "Production (%s): no release tag yet\n", g.Production)
 	}
 	fmt.Fprintf(out, "Staging (%s): %d commit(s) ahead of production\n", g.Staging, st.StagingAhead)
-	fmt.Fprintf(out, "Development (%s): %d commit(s) ahead of staging\n", g.Development, st.DevAhead)
+	fmt.Fprintf(out, "Development (%s): %d commit(s) ahead of staging", g.Development, st.DevAhead)
+	if st.OldestUnreleased != "" {
+		fmt.Fprintf(out, ", the oldest from %s", st.OldestUnreleased)
+	}
+	fmt.Fprintln(out)
 	for _, b := range []struct {
 		name    string
 		outside int
@@ -239,6 +244,7 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 		}
 		table(out, rows)
 	}
+	state.stale = writeStaleness(ctx, out, p, specs, todos, time.Now())
 
 	logs, err := work.Logs(p)
 	if err != nil {
@@ -392,6 +398,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 		step("Mention that there is no codebase structure doc yet, and offer to create one with `mem structure`.")
 	case state.drift.Stale():
 		step("Mention that the codebase structure doc is out of date, and offer to refresh it with `mem structure`.")
+	}
+	if state.stale {
+		step("Go through each item under ⏳ CHECK THESE with the user: these records and branches have probably stopped being true. Update, complete, delete or keep each as they decide.")
 	}
 	step("Summarize the project state from the open specs, open todos and release status. Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
 	step("Ask the user how they would like to proceed.")
