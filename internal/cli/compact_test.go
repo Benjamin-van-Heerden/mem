@@ -38,6 +38,7 @@ func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
 		"Todo opened: Flaky CI",
 		"New: logging\nUse the structured logger.",
 		"Follow the changed memories",
+		"If you can rename this session",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("digest lacks %q:\n%s", want, out)

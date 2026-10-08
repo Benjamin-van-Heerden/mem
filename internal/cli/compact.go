@@ -113,7 +113,10 @@ func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 		fmt.Fprintln(out, "⚠️ "+line)
 	}
 
-	lines := []string{"Continue with the work in progress from the compaction summary."}
+	lines := []string{
+		"Continue with the work in progress from the compaction summary.",
+		"If you can rename this session (as in the Claude desktop app), give it a short title for that work now, unless its title already describes it.",
+	}
 	if setup.present {
 		lines = append(lines, "Continue the setup in "+templates.SetupPath+".")
 	}
