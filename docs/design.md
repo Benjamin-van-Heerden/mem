@@ -100,7 +100,7 @@ Arguments accept a slug or an unambiguous title.
 
 Two layers:
 
-1. **Records** hold open work: specs with their pending tasks, and todos. Onboard renders them, with each todo's age, and derives release status from Git, so the next session knows what remains without reading any note.
+1. **Records** hold open work: specs with their pending tasks, and todos. Onboard renders them, with each todo's age, and derives release status from Git, so the next session knows what remains without reading any note. Records live on the branch they are changed on: specs, tasks and claims made on a feature branch reach development, and teammates, when the branch merges, and mem says so when it commits one there.
 2. **Logs** are statements of fact about a stretch of work since the previous log: goals, what was done, decisions, files affected, failed approaches. They are written at checkpoints (a completed spec, a release, the post-commit nudge, the user wrapping up), not tied to the end of a session, which in practice often never comes. They are never updated, so they never carry open work. `log new [--spec]` creates the templated file, lists open todos and prompts the agent to delete the ones the work completed and to record anything left open as todos. `log commit` refuses while placeholders remain, commits the changed `.mem/` records, syncs the branch with its upstream, pushes, and reports uncommitted work outside `.mem/`. Onboard shows the user's latest log in full and lists the other logs of the last 14 days by title. `log list`, `log show`.
 
 ## Structure doc

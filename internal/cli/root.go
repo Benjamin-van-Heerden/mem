@@ -62,16 +62,31 @@ func (a *app) user(cmd *cobra.Command, p project.Project) (string, error) {
 // publish commits and pushes mem-owned paths so teammates see the change, and describes the outcome.
 func publish(ctx context.Context, p project.Project, message string, paths ...string) string {
 	pushed, err := git.CommitPaths(ctx, p.Root, message, paths...)
+	var line string
 	switch {
 	case errors.Is(err, git.ErrPush):
-		return fmt.Sprintf("⚠️ Committed %q, but the push failed (%v). Run `mem sync`, which brings in what others pushed and pushes this; tell the user if it still fails.", message, err)
+		line = fmt.Sprintf("⚠️ Committed %q, but the push failed (%v). Run `mem sync`, which brings in what others pushed and pushes this; tell the user if it still fails.", message, err)
 	case err != nil:
 		return fmt.Sprintf("⚠️ Saved locally but could not commit (%v). Tell the user; commit %s together with the next commit.", err, strings.Join(paths, ", "))
 	case pushed:
-		return "Committed and pushed: " + message
+		line = "Committed and pushed: " + message
 	default:
-		return "Committed: " + message + " (this branch has no upstream, so nothing was pushed)"
+		line = "Committed: " + message + " (this branch has no upstream, so nothing was pushed)"
 	}
+	if notice := branchNotice(ctx, p); notice != "" {
+		line += "\n" + notice
+	}
+	return line
+}
+
+// branchNotice says, on a branch other than development, that a record committed there reaches teammates only
+// when the branch merges. Records stay on the branch they are changed on; mem never commits them elsewhere.
+func branchNotice(ctx context.Context, p project.Project) string {
+	branch, dev := git.CurrentBranch(ctx, p.Root), p.Config.Git.Development
+	if branch == "" || branch == dev {
+		return ""
+	}
+	return fmt.Sprintf("You are on %s, not %s: teammates see this record change once %s merges into %s.", branch, dev, branch, dev)
 }
 
 func table(w io.Writer, rows [][]string) {

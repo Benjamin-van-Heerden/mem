@@ -12,7 +12,7 @@ mem keeps a project's records and branches in step at a few moments: onboard, `m
 
 **Long sessions.** Many sessions never end: work continues across compactions for hours or days. Onboard runs once, `mem log new` is tied to "ending a session" and rarely happens, the compaction hook never pushes, and plain coding never reaches task or spec completion. The result is missing work logs, commits teammates cannot see, and a structure doc that goes stale without a warning. Every migration so far also showed the same decay in records: todos claimed months ago, spec tasks still `todo` after their work shipped, handovers behind the code.
 
-**Feature branches.** On a branch other than the development branch, mem keeps the branch in step with its own upstream and reports how many commits it is ahead of or behind development. It does not say whether that drift will conflict, does not bring development in, and records changed on the branch (a todo claim, a started spec) stay invisible to teammates until the branch merges.
+**Feature branches.** On a branch other than the development branch, mem keeps the branch in step with its own upstream and reports how many commits it is ahead of or behind development. It does not say whether that drift will conflict and does not bring development in.
 
 This spec makes mem measure and act at the moments that do happen often, commits and compactions, and makes feature branches follow development continuously so merging back is a fast-forward. It adds no new kinds of record.
 
@@ -23,7 +23,7 @@ This spec makes mem measure and act at the moments that do happen often, commits
 - The compaction catch-up pushes committed work when that is safe, as `mem sync` does, and asks for a work log when enough has gathered since the last one.
 - On a feature branch, mem rebases the branch onto a newer development branch when the rebase applies cleanly, force-pushing it with a lease when the branch is pushed and only the user has committed to it. When the rebase would conflict, or others have committed to the branch, it only nudges, naming the files.
 - A checkout whose feature branch was rewritten on the remote catches up by replaying only its genuinely new commits.
-- On any branch, work records are read from and written to `origin/<development>`, so claims and specs reach teammates at once and a feature branch never changes records itself.
+- Records behave like any other file: on a feature branch they are committed on the branch and reach development when it merges. Record commands that change something say so there, so the user knows when teammates will see it.
 - Onboard flags records and branches that have probably stopped being true: long-claimed todos, active specs that have not moved, unmerged branches nobody has touched, and how long work has waited unreleased.
 
 ## Technical Approach
@@ -58,12 +58,9 @@ This spec makes mem measure and act at the moments that do happen often, commits
 - Development, staging and production are never rebased or force-pushed.
 - Spec completion on a feature branch instructs the agent to merge the branch into development now.
 
-### Records live on the remote development branch
+### Records on feature branches
 
-- On a branch other than development, record commands (specs, tasks, todos, logs, memories) read records from `origin/<development>` after a fetch, and write each change as a commit built directly on `origin/<development>` with Git plumbing (a temporary index read from that tree, the changed files added, `write-tree`, `commit-tree`), pushed to development as a fast-forward with a lease. No branch is switched and the feature branch's files are not touched.
-- The feature branch's copy of `.mem/` catches up when it is next rebased onto development; since the branch never changes records itself, that rebase cannot conflict there.
-- The structure doc is not a record: it describes the branch's code and is updated on the branch with that code.
-- If the push to development is rejected (someone pushed meanwhile), fetch and rebuild the commit once, then report the failure.
+- Records stay on the branch they are changed on. On a branch other than development, `publish` and `commitRecord` (claims, spec start, task and spec completion, project files) and `mem log commit` add one line: teammates see the change once the branch merges into development. Nothing is committed to another branch. Continuous rebasing and the push to merge back early keep that window short.
 
 ### Onboard staleness
 
@@ -77,7 +74,7 @@ This spec makes mem measure and act at the moments that do happen often, commits
 - Each work commit prints the escalating work-log line (1, 3 and 5 commits checked); a commit after a log or a completed task starts again at 1; unpushed commits at 3 and a stale structure doc print their lines; commits made by mem print nothing.
 - The compaction hook pushes a branch that is ahead and not behind and reports how many commits have gathered since the last work log.
 - In a test repository: a feature branch behind development with no conflicts is rebased; if pushed and authored only by the user it is force-pushed with a lease, and a second clone of that branch with a new local commit catches up with only that commit replayed; a conflicting rebase is aborted with the files named; a branch with another author's commits is not rewritten.
-- A todo claimed on a feature branch is a commit on `origin/<development>` immediately, the feature branch's working tree is unchanged, and listing todos on the branch shows records from `origin/<development>`.
+- Claiming a todo on a feature branch commits it on that branch and says teammates see it once the branch merges into development.
 - Onboard flags a todo claimed 31 days ago, a stalled active spec, a stale unmerged branch, and shows the age of unreleased work.
 - Instructions, `docs/design.md`, `docs/status.md` and the structure doc describe the new behaviour; focused tests and `go vet` pass for the affected packages.
 
@@ -90,7 +87,7 @@ Decided with the user:
 - Long-session and feature-branch work belong in one spec.
 
 - Thresholds: unpushed commits nudge at 3; the work-log line shows on every work commit, suggests a log from 3 and says to stop and write one from 5; todos claimed over 30 days ago; specs and branches with no movement for 14 days.
-- Records are read from and written to the remote development branch, not the feature branch.
+- Records on a feature branch stay on that branch until it merges; mem only says so. Committing records to development from another branch was considered and rejected as complexity out of proportion to the benefit for small teams.
 - mem does not keep compaction summaries.
 
 Claude Code's PreCompact hook cannot reach the model or shape the summary (it can only block compaction), so nothing here runs before compaction.

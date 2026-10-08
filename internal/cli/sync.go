@@ -78,6 +78,9 @@ func commitRecord(ctx context.Context, out io.Writer, p project.Project, message
 		return []string{fmt.Sprintf("Could not commit %s (%v). Tell the user, and commit it with the next commit.", strings.Join(paths, ", "), err)}
 	}
 	fmt.Fprintln(out, "Committed: "+message)
+	if notice := branchNotice(ctx, p); notice != "" {
+		fmt.Fprintln(out, notice)
+	}
 	if n := len(uncommittedFiles(ctx, p.Root)); n > 0 {
 		return []string{fmt.Sprintf("%d file(s) remain uncommitted (`git status`); only the record was committed. If they belong to the finished work, commit them now and run `mem sync` to push them; otherwise tell the user why they stay uncommitted.", n)}
 	}

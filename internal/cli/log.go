@@ -176,6 +176,9 @@ func (a *app) logCommit() *cobra.Command {
 					warnings = append(warnings, fmt.Sprintf("Could not commit the .mem/ records (%v). Tell the user, and commit them by hand.", err))
 				} else {
 					fmt.Fprintf(out, "Committed .mem/ records: %s\n", message)
+					if notice := branchNotice(ctx, p); notice != "" {
+						fmt.Fprintln(out, notice)
+					}
 				}
 			} else {
 				fmt.Fprintln(out, "The .mem/ records were already committed.")
