@@ -7,6 +7,7 @@ import (
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
+	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
 	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
@@ -97,7 +98,7 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 		}
 	}
 	if len(publishPaths) > 0 {
-		lines = append(lines, publish(ctx, p, "Update mem project files", publishPaths...))
+		lines = append(lines, publish(ctx, p, checkpoint.ProjectFilesCommit, publishPaths...))
 	}
 	hookLines, err := hooks.Sync(ctx, p)
 	return append(lines, hookLines...), err

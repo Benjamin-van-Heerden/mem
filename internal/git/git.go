@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// InternalEnv marks every Git command mem runs, so mem's own Git hooks stay quiet for mem's commits and rebases.
+const InternalEnv = "MEM_GIT"
+
 func Run(ctx context.Context, dir string, args ...string) (string, error) {
 	return RunEnv(ctx, dir, nil, args...)
 }
@@ -18,7 +21,7 @@ func Run(ctx context.Context, dir string, args ...string) (string, error) {
 // RunEnv runs git with extra environment variables such as "NAME=value".
 func RunEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(append(os.Environ(), "GIT_TERMINAL_PROMPT=0"), env...)
+	cmd.Env = append(append(os.Environ(), "GIT_TERMINAL_PROMPT=0", InternalEnv+"=1"), env...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -48,6 +51,11 @@ func CurrentBranch(ctx context.Context, root string) string {
 func UserName(ctx context.Context, root string) string {
 	name, _ := Run(ctx, root, "config", "user.name")
 	return name
+}
+
+func UserEmail(ctx context.Context, root string) string {
+	email, _ := Run(ctx, root, "config", "user.email")
+	return email
 }
 
 const PushTimeout = 30 * time.Second

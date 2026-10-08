@@ -79,7 +79,7 @@ Work lands on the development branch, which does not deploy. `mem promote stagin
 
 Projects that want review before production set `[release] production_pr = true` (or `mem init --production-pr`). A production release then opens a pull request with the notes or summary; once it is approved, `mem promote production --confirm` fast-forwards production to it, so history stays linear and GitHub shows the pull request as merged. This needs a GitHub token (`GITHUB_TOKEN`, `GH_TOKEN` or a logged-in `gh`), and `mem deploy` refuses such projects.
 
-The hooks refuse direct pushes to staging and production and commits made on them, pointing to `mem promote` instead.
+The hooks refuse direct pushes to staging and production and commits made on them, pointing to `mem promote` instead. Every project also gets a `post-commit` hook that keeps long sessions honest: after each commit it counts your work commits since your last work log or completed task, nudging harder from three, and mentions unpushed commits and a stale structure doc.
 
 ## Project layout
 

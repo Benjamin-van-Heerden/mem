@@ -47,7 +47,7 @@ func TestSyncKeepsForeignHooksAndRemovesOwnWhenUnprotected(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines, err := Sync(ctx, p)
-	if err != nil || len(lines) != 2 {
+	if err != nil || len(lines) != 3 {
 		t.Fatalf("lines=%v err=%v", lines, err)
 	}
 	if data, _ := os.ReadFile(foreign); !strings.Contains(string(data), "lint-staged") {
@@ -59,6 +59,9 @@ func TestSyncKeepsForeignHooksAndRemovesOwnWhenUnprotected(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(p.Root, ".git", "hooks", "pre-push")); !os.IsNotExist(err) {
 		t.Fatal("mem pre-push hook not removed")
+	}
+	if _, err := os.Stat(filepath.Join(p.Root, ".git", "hooks", "post-commit")); err != nil {
+		t.Fatal("the post-commit hook was removed with protection; it belongs to every project")
 	}
 	if _, err := os.Stat(foreign); err != nil {
 		t.Fatal("foreign hook removed")
