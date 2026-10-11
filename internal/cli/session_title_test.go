@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -17,5 +19,22 @@ func TestOnboardAndWorkLogsAskForASessionTitle(t *testing.T) {
 		if out := mem(t, mine, args...); !strings.Contains(out, `session id "self"`) || !strings.Contains(out, "If the rename fails, correct the call and retry.") {
 			t.Fatalf("%v does not say how to address this session or to retry a failed rename:\n%s", args, out)
 		}
+	}
+}
+
+func TestALongOnboardContextEndsWithTheSessionTitleReminder(t *testing.T) {
+	mine, _ := sharedProject(t)
+	writeFile(t, mine, ".mem/docs/glossary.md", strings.Repeat("A long project doc that pushes the context into a file.\n", 300))
+
+	out := mem(t, mine, "onboard")
+	context, err := os.ReadFile(filepath.Join(mine, ".mem/local/onboard.md"))
+	if err != nil {
+		t.Fatalf("the context was not written to a file: %v\n%s", err, out)
+	}
+	if !strings.HasSuffix(string(context), "🏷️ SESSION TITLE\n"+strings.Repeat("-", 70)+"\n\nRemember to name this session. "+nameSession()+"\n") {
+		t.Fatalf("onboard.md does not end with the session title reminder:\n%s", context[max(0, len(context)-600):])
+	}
+	if strings.Contains(out, "Remember to name this session.") {
+		t.Fatalf("the reminder belongs at the end of onboard.md, not in stdout:\n%s", out)
 	}
 }

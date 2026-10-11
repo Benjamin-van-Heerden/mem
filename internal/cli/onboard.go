@@ -98,6 +98,8 @@ func (a *app) onboardCommand() *cobra.Command {
 			if buf.Len() <= inlineContextLimit {
 				out.Write(buf.Bytes())
 			} else {
+				output.Section(&buf, "🏷️ SESSION TITLE")
+				fmt.Fprintln(&buf, sessionTitleReminder())
 				path := p.Path("local", "onboard.md")
 				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 					return err
