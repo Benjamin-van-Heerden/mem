@@ -13,4 +13,9 @@ func TestOnboardAndWorkLogsAskForASessionTitle(t *testing.T) {
 	if out := mem(t, mine, "log", "new"); !strings.Contains(out, `look up its current title`) || !strings.Contains(out, `rename it to a short title for the current work now`) {
 		t.Fatalf("log new lacks the retitle step:\n%s", out)
 	}
+	for _, args := range [][]string{{"onboard"}, {"log", "new"}} {
+		if out := mem(t, mine, args...); !strings.Contains(out, `session id "self"`) || !strings.Contains(out, "If the rename fails, correct the call and retry.") {
+			t.Fatalf("%v does not say how to address this session or to retry a failed rename:\n%s", args, out)
+		}
+	}
 }

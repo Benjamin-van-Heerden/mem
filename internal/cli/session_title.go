@@ -5,11 +5,11 @@ package cli
 
 // nameSession asks for the session's first real title, once the user has said what to work on.
 func nameSession() string {
-	return `If you can rename this session (as in the Claude desktop app), give it a short title for the work, a few words such as "Tugela charger startup issue", as soon as the user has said what to work on: now if they already have, otherwise after their next message.`
+	return `If you can rename this session (as in the Claude desktop app, whose rename tool takes the session id "self" for this session), give it a short title for the work, a few words such as "Tugela charger startup issue", as soon as the user has said what to work on: now if they already have, otherwise after their next message. If the rename fails, correct the call and retry.`
 }
 
 // retitleSession asks the agent to check the title against where the session has gone since it was named,
 // at points where enough work has happened for it to have moved on.
 func retitleSession() string {
-	return "If you can rename this session (as in the Claude desktop app), look up its current title and compare it with what the session is working on now. Sessions drift: if the title no longer describes the current work, rename it to a short title for the current work now. Leave it only if it still fits."
+	return `If you can rename this session (as in the Claude desktop app, whose session tools take the session id "self" for this session), look up its current title and compare it with what the session is working on now. Sessions drift: if the title no longer describes the current work, rename it to a short title for the current work now. Leave it only if it still fits. If the rename fails, correct the call and retry.`
 }
