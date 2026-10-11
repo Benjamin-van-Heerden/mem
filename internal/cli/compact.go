@@ -115,7 +115,7 @@ func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 
 	lines := []string{
 		"Continue with the work in progress from the compaction summary.",
-		retitleSession(c.p.Config.Name),
+		retitleSession(),
 	}
 	if setup.present {
 		lines = append(lines, "Continue the setup in "+templates.SetupPath+".")

@@ -37,7 +37,7 @@ func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
 		"New: logging\nUse the structured logger.",
 		"Follow the changed memories",
 		"look up its current title and compare it with what the session is working on now",
-		"rename it \"mine · <the current work>\" now",
+		"rename it to a short title for the current work now",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("digest lacks %q:\n%s", want, out)
