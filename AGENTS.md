@@ -1,11 +1,13 @@
 <mem>
-<!-- Managed by mem v0.7.1. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.7.6. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
 ## Getting Started
 
 Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and release status. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
+
+If `mem` is not installed (the command is not found), read `.mem/install.md` and follow all of it, including putting mem permanently on PATH, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
 
 Don't rerun onboard later in the session unless the user asks.
 
@@ -23,9 +25,10 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 - `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
-- `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that.
-- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task once its code is committed. It commits the record, syncs and pushes. Then continue with the next task without waiting for approval.
-- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes.
+- `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that. A started spec is worked through to the end: do not stop for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
+- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task. It commits every change in the working tree together with the task record, using the task title and your note as the commit message, then syncs and pushes. Then continue with the next task without waiting for approval.
+- Because task completion commits everything that is not ignored, keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`, and commit unrelated changes separately before completing a task.
+- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes. It refuses until the branch is in step with the shared codebase: resolve any conflicts it names, with the user, first.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
 `--spec` can be omitted when exactly one active spec is assigned to you. Refer to specs, tasks and todos by slug or by title.
@@ -34,14 +37,13 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 - `mem todo new "<title>" "<description>"`: record one.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
-- `mem todo claim <todo>`: claim it as soon as you start working on it.
 - `mem todo delete <todo>`: once it is done or no longer relevant; commit the removal with the work.
 
 ## Work Logs
 
-A work log records what a session did, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
+A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- End a session with `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. Ask the user before ending a session.
+- Write one at each checkpoint: when a spec completes, before a release, when mem's commit nudge says to, and when the user wraps up. Run `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
@@ -64,7 +66,7 @@ Use project memories rather than external memory tools.
 Nothing deploys from the development branch. Releases move the staging and production branches forward along the development history, and CI deploys them.
 
 - When the user asks for a preview release: `mem promote staging`. Use `--to <commit>` to leave out unfinished work.
-- When the user asks for a release: `mem promote production`, then follow its instructions: refine the drafted release notes, show them to the user, and release with `--confirm` once they agree. Some projects release through a pull request; complete it only when the user says it is approved.
+- When the user asks for a release: `mem promote production`, then follow its instructions. Projects with release notes have you refine the drafted notes, show them to the user and release with `--confirm` once they agree. Some projects release through a pull request; complete it only when the user says it is approved.
 - A full deployment means both, in that order.
 - `mem deploy` releases everything at once without notes or review. It is the user's command: never run it unless the user explicitly asks you to run `mem deploy`.
 

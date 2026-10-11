@@ -1,4 +1,4 @@
-schema = 1
+schema = 2
 name = 'mem'
 description = 'Context building and work records for coding agents'
 

@@ -1,6 +1,5 @@
 ---
 title: Add Rust GPUI and Go templates
-status: open
 created_at: "2026-09-28T12:05:40+02:00"
 ---
 
