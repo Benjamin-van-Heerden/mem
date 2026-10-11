@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hookCommand is called by the installed Git hooks and mem's Claude Code hooks.
+// hookCommand is called by the installed Git hooks and the Claude Code compaction hook.
 func (a *app) hookCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "hook", Short: "Commands run by mem's Git and Claude Code hooks", Hidden: true}
 	cmd.AddCommand(&cobra.Command{
@@ -59,6 +59,5 @@ func (a *app) hookCommand() *cobra.Command {
 		},
 	})
 	cmd.AddCommand(a.compactHookCommand())
-	cmd.AddCommand(a.promptHookCommand())
 	return cmd
 }

@@ -16,9 +16,9 @@ func settings(t *testing.T, root string) string {
 	return string(data)
 }
 
-func TestSyncHooksInstallsBothHooksIntoAFreshProject(t *testing.T) {
+func TestSyncCompactHookInstallsIntoAFreshProject(t *testing.T) {
 	root := t.TempDir()
-	if changed, err := SyncHooks(root, true); err != nil || !changed {
+	if changed, err := SyncCompactHook(root, true); err != nil || !changed {
 		t.Fatalf("changed = %v, %v", changed, err)
 	}
 	got := settings(t, root)
@@ -35,17 +35,6 @@ func TestSyncHooksInstallsBothHooksIntoAFreshProject(t *testing.T) {
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v mem >/dev/null 2>&1 && mem hook prompt 2>/dev/null | grep '^mem: ' || true",
-            "timeout": 10
-          }
-        ]
-      }
     ]
   }
 }
@@ -53,12 +42,12 @@ func TestSyncHooksInstallsBothHooksIntoAFreshProject(t *testing.T) {
 	if got != want {
 		t.Fatalf("settings:\n%s", got)
 	}
-	if changed, err := SyncHooks(root, true); err != nil || changed {
+	if changed, err := SyncCompactHook(root, true); err != nil || changed {
 		t.Fatalf("a second sync changed the file: %v, %v", changed, err)
 	}
 }
 
-func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
+func TestSyncCompactHookKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 	root := t.TempDir()
 	existing := `{
   "permissions": {"allow": ["Bash(go test:*)"]},
@@ -71,11 +60,11 @@ func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 	os.MkdirAll(filepath.Join(root, ".claude"), 0o755)
 	os.WriteFile(filepath.Join(root, SettingsPath), []byte(existing), 0o644)
 
-	if _, err := SyncHooks(root, true); err != nil {
+	if _, err := SyncCompactHook(root, true); err != nil {
 		t.Fatal(err)
 	}
 	got := settings(t, root)
-	order := []string{`"permissions"`, `"hooks"`, `"SessionStart"`, `"echo hi"`, `mem hook compact`, `"PreToolUse"`, `"UserPromptSubmit"`, `mem hook prompt`, `"model"`}
+	order := []string{`"permissions"`, `"hooks"`, `"SessionStart"`, `"echo hi"`, `mem hook compact`, `"PreToolUse"`, `"model"`}
 	last := -1
 	for _, s := range order {
 		i := strings.Index(got, s)
@@ -85,18 +74,18 @@ func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 		last = i
 	}
 
-	if changed, err := SyncHooks(root, false); err != nil || !changed {
+	if changed, err := SyncCompactHook(root, false); err != nil || !changed {
 		t.Fatalf("opting out changed = %v, %v", changed, err)
 	}
 	got = settings(t, root)
-	if strings.Contains(got, "mem hook") || strings.Contains(got, "UserPromptSubmit") || !strings.Contains(got, `"echo hi"`) || !strings.Contains(got, `"./check.sh"`) {
+	if strings.Contains(got, "mem hook compact") || !strings.Contains(got, `"echo hi"`) || !strings.Contains(got, `"./check.sh"`) {
 		t.Fatalf("after opting out:\n%s", got)
 	}
 }
 
-func TestSyncHooksOptOutDoesNotCreateSettings(t *testing.T) {
+func TestSyncCompactHookOptOutDoesNotCreateSettings(t *testing.T) {
 	root := t.TempDir()
-	if changed, err := SyncHooks(root, false); err != nil || changed {
+	if changed, err := SyncCompactHook(root, false); err != nil || changed {
 		t.Fatalf("changed = %v, %v", changed, err)
 	}
 	if _, err := os.Stat(filepath.Join(root, SettingsPath)); !os.IsNotExist(err) {

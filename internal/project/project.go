@@ -37,8 +37,7 @@ type ReleaseConfig struct {
 
 // ClaudeConfig controls what mem installs for Claude Code.
 type ClaudeConfig struct {
-	// CompactHook turns mem's Claude Code hooks off when false: the post-compaction catch-up and the session
-	// title hint after onboard. Unset means on.
+	// CompactHook turns the post-compaction catch-up hook off when false; unset means on.
 	CompactHook *bool `toml:"compact_hook,omitempty"`
 }
 
