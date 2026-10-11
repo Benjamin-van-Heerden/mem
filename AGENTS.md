@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.7.6. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.7.8. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -92,6 +92,12 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 - Think through considerations and requirements before writing code
 - Planning first, then execution - we discuss the problem before implementing
 - Surface uncertainty and tradeoffs clearly, following the Think Before Coding guidelines below.
+
+## Documents, Reports and Visualizations
+- Do not create hosted artifacts, canvases or similar pages outside the repository (such as Claude Artifacts), even when a tool or skill suggests publishing one. They are hard to edit, hard to fill with real data and live outside the codebase.
+- Write documents, plans and reports as Markdown files in the repository, following its layout (for example under `docs/`).
+- When a report or visualization needs more than Markdown, such as charts or interactive tables, write a self-contained HTML file in the repository, built from the project's real data.
+- Answers that only matter to the conversation stay in chat.
 
 ## Code Quality Standards
 - Prefer self-explanatory code. Use comments to explain non-obvious reasoning, constraints, or tradeoffs; avoid comments that merely narrate what the code does.
