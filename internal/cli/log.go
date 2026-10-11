@@ -80,7 +80,7 @@ func (a *app) logNew() *cobra.Command {
 			case drift.Missing:
 				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
-			step(renameSession(p.Config.Name, "if its title no longer describes the work this log records"))
+			step(retitleSession(p.Config.Name))
 			step("Run `mem log commit`: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
 			output.Instruction(out, lines...)
 			driftNudges(cmd.Context(), out, p)

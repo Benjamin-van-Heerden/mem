@@ -404,7 +404,7 @@ func renderOnboardInstruction(out io.Writer, name string, r converge.Report, sta
 	}
 	step("Summarize the project state from the open specs, open todos and release status. Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
 	step("Ask the user how they would like to proceed.")
-	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.", renameSession(name, "as soon as the user has said what to work on: now if they already have, otherwise after their next message"))
+	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.", nameSession(name))
 	output.Instruction(out, lines...)
 }
 
