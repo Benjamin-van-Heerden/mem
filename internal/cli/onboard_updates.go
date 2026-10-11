@@ -79,17 +79,17 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	settingsStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", claude.SettingsPath)
 	enabled := p.Config.Claude.CompactHookEnabled()
-	switch changed, err := claude.SyncCompactHook(p.Root, enabled); {
+	switch changed, err := claude.SyncHooks(p.Root, enabled); {
 	case err != nil:
-		lines = append(lines, fmt.Sprintf("⚠️ Could not update the Claude Code compaction hook: %v. Tell the user; fix the file, and the next onboard installs the hook.", err))
+		lines = append(lines, fmt.Sprintf("⚠️ Could not update mem's Claude Code hooks: %v. Tell the user; fix the file, and the next onboard installs the hooks.", err))
 	case changed:
-		line := "Installed the Claude Code compaction hook in " + claude.SettingsPath + "."
+		line := "Installed mem's Claude Code hooks (catch-up after compaction, session title hint after onboard) in " + claude.SettingsPath + "."
 		if !enabled {
-			line = "Removed the Claude Code compaction hook from " + claude.SettingsPath + " ([claude] compact_hook = false)."
+			line = "Removed mem's Claude Code hooks from " + claude.SettingsPath + " ([claude] compact_hook = false)."
 		}
 		switch {
 		case settingsIgnored(ctx, p.Root):
-			lines = append(lines, line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs it in every checkout.")
+			lines = append(lines, line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs them in every checkout.")
 		case settingsStatus != "":
 			lines = append(lines, line+" It already had uncommitted edits, so commit it together with them.")
 		default:

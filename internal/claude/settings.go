@@ -17,10 +17,12 @@ const SettingsPath = ".claude/settings.json"
 // CompactCommand runs mem's catch-up after compaction; it does nothing where mem is not installed.
 const CompactCommand = "command -v mem >/dev/null 2>&1 && mem hook compact || true"
 
-const compactMarker = "mem hook compact"
+// PromptCommand runs on every prompt and speaks only on the first one after an onboard. Only its "mem: " line
+// passes, so a mem too old to know the command adds its usage text to no prompt.
+const PromptCommand = "command -v mem >/dev/null 2>&1 && mem hook prompt 2>/dev/null | grep '^mem: ' || true"
 
 type hookEntry struct {
-	Matcher string        `json:"matcher"`
+	Matcher string        `json:"matcher,omitempty"`
 	Hooks   []hookCommand `json:"hooks"`
 }
 
@@ -30,12 +32,22 @@ type hookCommand struct {
 	Timeout int    `json:"timeout,omitempty"`
 }
 
-var compactEntry = hookEntry{Matcher: "compact", Hooks: []hookCommand{{Type: "command", Command: CompactCommand, Timeout: 60}}}
+// memHook is one of mem's entries under a Claude Code hook event, recognised by the mem command it runs.
+type memHook struct {
+	event  string
+	marker string
+	entry  hookEntry
+}
 
-// SyncCompactHook adds, updates or removes mem's SessionStart "compact" hook in
-// .claude/settings.json, keeping every other setting and its order. It writes
-// only when mem's entry changes and reports whether it did.
-func SyncCompactHook(root string, enabled bool) (bool, error) {
+var memHooks = []memHook{
+	{"SessionStart", "mem hook compact", hookEntry{Matcher: "compact", Hooks: []hookCommand{{Type: "command", Command: CompactCommand, Timeout: 60}}}},
+	{"UserPromptSubmit", "mem hook prompt", hookEntry{Hooks: []hookCommand{{Type: "command", Command: PromptCommand, Timeout: 10}}}},
+}
+
+// SyncHooks adds, updates or removes mem's Claude Code hooks in .claude/settings.json: the post-compaction
+// catch-up and the first-prompt session-title hint. It keeps every other setting and its order, writes only
+// when mem's entries change and reports whether it did.
+func SyncHooks(root string, enabled bool) (bool, error) {
 	path := filepath.Join(root, SettingsPath)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -56,41 +68,10 @@ func SyncCompactHook(root string, enabled bool) (bool, error) {
 			return false, fmt.Errorf("%s: hooks is not an object: %w", SettingsPath, err)
 		}
 	}
-	var entries []json.RawMessage
-	if raw, ok := hooks.get("SessionStart"); ok {
-		if err := json.Unmarshal(raw, &entries); err != nil {
-			return false, fmt.Errorf("%s: hooks.SessionStart is not a list: %w", SettingsPath, err)
-		}
-	}
-
-	want, err := marshal(compactEntry)
-	if err != nil {
-		return false, err
-	}
-	var kept []json.RawMessage
-	placed := false
-	for _, raw := range entries {
-		if !isMemEntry(raw) {
-			kept = append(kept, raw)
-			continue
-		}
-		if enabled && !placed {
-			kept = append(kept, want)
-			placed = true
-		}
-	}
-	if enabled && !placed {
-		kept = append(kept, want)
-	}
-
-	if len(kept) > 0 {
-		list, err := marshal(kept)
-		if err != nil {
+	for _, h := range memHooks {
+		if err := syncEvent(&hooks, h, enabled); err != nil {
 			return false, err
 		}
-		hooks.set("SessionStart", list)
-	} else {
-		hooks.remove("SessionStart")
 	}
 	if len(hooks) > 0 {
 		encoded, err := marshal(hooks)
@@ -115,13 +96,53 @@ func SyncCompactHook(root string, enabled bool) (bool, error) {
 	return true, os.WriteFile(path, updated, 0o644)
 }
 
-func isMemEntry(raw json.RawMessage) bool {
+// syncEvent puts mem's entry for one event where its first copy stood (or last), drops any other copies and
+// leaves the event's other entries alone.
+func syncEvent(hooks *object, h memHook, enabled bool) error {
+	var entries []json.RawMessage
+	if raw, ok := hooks.get(h.event); ok {
+		if err := json.Unmarshal(raw, &entries); err != nil {
+			return fmt.Errorf("%s: hooks.%s is not a list: %w", SettingsPath, h.event, err)
+		}
+	}
+	want, err := marshal(h.entry)
+	if err != nil {
+		return err
+	}
+	var kept []json.RawMessage
+	placed := false
+	for _, raw := range entries {
+		if !isMemEntry(raw, h.marker) {
+			kept = append(kept, raw)
+			continue
+		}
+		if enabled && !placed {
+			kept = append(kept, want)
+			placed = true
+		}
+	}
+	if enabled && !placed {
+		kept = append(kept, want)
+	}
+	if len(kept) == 0 {
+		hooks.remove(h.event)
+		return nil
+	}
+	list, err := marshal(kept)
+	if err != nil {
+		return err
+	}
+	hooks.set(h.event, list)
+	return nil
+}
+
+func isMemEntry(raw json.RawMessage, marker string) bool {
 	var e hookEntry
 	if json.Unmarshal(raw, &e) != nil {
 		return false
 	}
 	for _, h := range e.Hooks {
-		if strings.Contains(h.Command, compactMarker) {
+		if strings.Contains(h.Command, marker) {
 			return true
 		}
 	}

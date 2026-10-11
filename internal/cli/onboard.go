@@ -110,7 +110,8 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
 			state.templateWarnings = hasWarning(templateLines)
-			renderOnboardInstruction(out, report, state)
+			renderOnboardInstruction(out, p.Config.Name, report, state)
+			markOnboarded(p)
 			return nil
 		},
 	}
@@ -371,7 +372,7 @@ func age(timestamp string) string {
 	}
 }
 
-func renderOnboardInstruction(out io.Writer, r converge.Report, state contextState) {
+func renderOnboardInstruction(out io.Writer, name string, r converge.Report, state contextState) {
 	lines := []string{"Your next response must:"}
 	step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines), text)) }
 	if state.knowledgeChanged {
@@ -404,7 +405,7 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	}
 	step("Summarize the project state from the open specs, open todos and release status. Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
 	step("Ask the user how they would like to proceed.")
-	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.")
+	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking. "+renameSession(name, "for that work"))
 	output.Instruction(out, lines...)
 }
 
