@@ -244,6 +244,12 @@ NEVER run a full test suite unless specifically asked to. focus on specific test
 
 <memories>
 # Project Memories
+
+## claude-mods
+The personal Claude Code mods (mission-control, replay-theater) live in ~/.claude/mods, its own Git repository pushed to the private GitHub repo Benjamin-van-Heerden/claude-mods. They are not part of mem or mem-templates: never move them into either. Claude Code loads them into every session through CLAUDE_CODE_PLUGIN_DIRS in ~/.claude/settings.json; an edit reloads a mod when the turn ends and resets its module state (Replay Theater's replays empty). After changing a mod: run `claude plugin validate .`, `npx -p typescript tsc -p .` and `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude plugin test .` in its folder (mission-control's type-check also needs replay-theater's contract in its type root, so use a scratch tsconfig that adds it when the generated one lacks it), bump the version in its .claude-plugin/plugin.json, keep its README and the root README current, then commit and push in ~/.claude/mods without agent attribution. Load the plugin-authoring skill before mod work.
+
+## mod-ui
+Lessons for mod UI on the desktop surface: Text has no font size, so Markdown headings (#, ##, ###) are the only way to size text, and the hierarchy must follow the sections; Text is proportional, so code that needs monospace or token colours is drawn as SVG (Code in diff format has no syntax colours there); a pane's width is e.props.bodyColumns, not e.viewport.columns (the whole window); $.ui.open's columns is only a request, and a width the person dragged wins; slash commands wait for the running turn unless registered immediate, so a button that acts across mods should be answered with a ui.press hook on the other mod's key rather than $.command.run; links from a mod open only for https: on remote surfaces; a pane has its own close mark, so draw no Close in it. Check layouts with $.ui.mount tests on both the terminal and desktop surfaces, and ask the user for a screenshot rather than assuming how the desktop draws.
 </memories>
 
 # Developing mem
