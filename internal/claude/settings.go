@@ -14,13 +14,15 @@ import (
 // SettingsPath is the project's shared Claude Code settings file, relative to the repository root.
 const SettingsPath = ".claude/settings.json"
 
-// CompactCommand runs mem's catch-up after compaction; it does nothing where mem is not installed.
-const CompactCommand = "command -v mem >/dev/null 2>&1 && mem hook compact || true"
-
-const compactMarker = "mem hook compact"
+// CompactCommand runs mem's catch-up after compaction; PromptCommand reports the work since the last work log
+// when the user sends a message. Both do nothing where mem is not installed.
+const (
+	CompactCommand = "command -v mem >/dev/null 2>&1 && mem hook compact || true"
+	PromptCommand  = "command -v mem >/dev/null 2>&1 && mem hook prompt || true"
+)
 
 type hookEntry struct {
-	Matcher string        `json:"matcher"`
+	Matcher string        `json:"matcher,omitempty"`
 	Hooks   []hookCommand `json:"hooks"`
 }
 
@@ -30,16 +32,30 @@ type hookCommand struct {
 	Timeout int    `json:"timeout,omitempty"`
 }
 
-var compactEntry = hookEntry{Matcher: "compact", Hooks: []hookCommand{{Type: "command", Command: CompactCommand, Timeout: 60}}}
+// memHook is one of mem's entries: the event it belongs to and the command that identifies it.
+type memHook struct {
+	event, marker string
+	entry         hookEntry
+}
 
-// SyncCompactHook adds, updates or removes mem's SessionStart "compact" hook in
-// .claude/settings.json, keeping every other setting and its order. It writes
-// only when mem's entry changes and reports whether it did.
-func SyncCompactHook(root string, enabled bool) (bool, error) {
+var (
+	compactHook = memHook{"SessionStart", "mem hook compact", hookEntry{Matcher: "compact", Hooks: []hookCommand{{Type: "command", Command: CompactCommand, Timeout: 60}}}}
+	promptHook  = memHook{"UserPromptSubmit", "mem hook prompt", hookEntry{Hooks: []hookCommand{{Type: "command", Command: PromptCommand, Timeout: 10}}}}
+)
+
+// Hooks says which of mem's Claude Code hooks a project wants.
+type Hooks struct {
+	Compact, Prompt bool
+}
+
+// SyncHooks adds, updates or removes mem's hooks in .claude/settings.json: the SessionStart "compact" catch-up and
+// the UserPromptSubmit work-log nudge. It keeps every other setting and its order, writes only when mem's entries
+// change and reports whether it did.
+func SyncHooks(root string, want Hooks) (bool, error) {
 	path := filepath.Join(root, SettingsPath)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		if !enabled {
+		if !want.Compact && !want.Prompt {
 			return false, nil
 		}
 		data = []byte("{}")
@@ -56,41 +72,13 @@ func SyncCompactHook(root string, enabled bool) (bool, error) {
 			return false, fmt.Errorf("%s: hooks is not an object: %w", SettingsPath, err)
 		}
 	}
-	var entries []json.RawMessage
-	if raw, ok := hooks.get("SessionStart"); ok {
-		if err := json.Unmarshal(raw, &entries); err != nil {
-			return false, fmt.Errorf("%s: hooks.SessionStart is not a list: %w", SettingsPath, err)
-		}
-	}
-
-	want, err := marshal(compactEntry)
-	if err != nil {
-		return false, err
-	}
-	var kept []json.RawMessage
-	placed := false
-	for _, raw := range entries {
-		if !isMemEntry(raw) {
-			kept = append(kept, raw)
-			continue
-		}
-		if enabled && !placed {
-			kept = append(kept, want)
-			placed = true
-		}
-	}
-	if enabled && !placed {
-		kept = append(kept, want)
-	}
-
-	if len(kept) > 0 {
-		list, err := marshal(kept)
-		if err != nil {
+	for _, h := range []struct {
+		hook    memHook
+		enabled bool
+	}{{compactHook, want.Compact}, {promptHook, want.Prompt}} {
+		if err := syncEntry(&hooks, h.hook, h.enabled); err != nil {
 			return false, err
 		}
-		hooks.set("SessionStart", list)
-	} else {
-		hooks.remove("SessionStart")
 	}
 	if len(hooks) > 0 {
 		encoded, err := marshal(hooks)
@@ -115,13 +103,52 @@ func SyncCompactHook(root string, enabled bool) (bool, error) {
 	return true, os.WriteFile(path, updated, 0o644)
 }
 
-func isMemEntry(raw json.RawMessage) bool {
+// syncEntry puts h's entry in place of mem's existing one in its event's list, or appends it, or removes it.
+func syncEntry(hooks *object, h memHook, enabled bool) error {
+	var entries []json.RawMessage
+	if raw, ok := hooks.get(h.event); ok {
+		if err := json.Unmarshal(raw, &entries); err != nil {
+			return fmt.Errorf("%s: hooks.%s is not a list: %w", SettingsPath, h.event, err)
+		}
+	}
+	want, err := marshal(h.entry)
+	if err != nil {
+		return err
+	}
+	var kept []json.RawMessage
+	placed := false
+	for _, raw := range entries {
+		if !isEntry(raw, h.marker) {
+			kept = append(kept, raw)
+			continue
+		}
+		if enabled && !placed {
+			kept = append(kept, want)
+			placed = true
+		}
+	}
+	if enabled && !placed {
+		kept = append(kept, want)
+	}
+	if len(kept) == 0 {
+		hooks.remove(h.event)
+		return nil
+	}
+	list, err := marshal(kept)
+	if err != nil {
+		return err
+	}
+	hooks.set(h.event, list)
+	return nil
+}
+
+func isEntry(raw json.RawMessage, marker string) bool {
 	var e hookEntry
 	if json.Unmarshal(raw, &e) != nil {
 		return false
 	}
 	for _, h := range e.Hooks {
-		if strings.Contains(h.Command, compactMarker) {
+		if strings.Contains(h.Command, marker) {
 			return true
 		}
 	}

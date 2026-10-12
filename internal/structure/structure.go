@@ -120,7 +120,7 @@ func ChangesSince(ctx context.Context, p project.Project, base string) (Drift, e
 		}
 		added, _ := strconv.Atoi(fields[0])
 		deleted, _ := strconv.Atoi(fields[1])
-		d.add(p, renamedTo(fields[2]), added+deleted)
+		d.add(p, RenamedTo(fields[2]), added+deleted)
 	}
 	untracked, err := git.Run(ctx, p.Root, "ls-files", "--others", "--exclude-standard")
 	if err != nil {
@@ -136,15 +136,15 @@ func ChangesSince(ctx context.Context, p project.Project, base string) (Drift, e
 }
 
 func (d *Drift) add(p project.Project, file string, lines int) {
-	if lines == 0 || !Relevant(file, p.Config.Structure.Ignore) {
+	if lines == 0 || !Relevant(file, p.Config.Structure) {
 		return
 	}
 	d.Changes = append(d.Changes, Change{Path: file, Lines: lines})
 	d.Lines += lines
 }
 
-// renamedTo resolves numstat rename notation such as "src/{old => new}/f.go".
-func renamedTo(file string) string {
+// RenamedTo resolves numstat rename notation such as "src/{old => new}/f.go".
+func RenamedTo(file string) string {
 	if !strings.Contains(file, " => ") {
 		return file
 	}
@@ -156,9 +156,20 @@ func renamedTo(file string) string {
 	return target
 }
 
-// Relevant reports whether a repository path counts as code for the structure doc.
-func Relevant(file string, ignore []string) bool {
-	if file == "AGENTS.md" || file == "CLAUDE.md" || excludedNames[path.Base(file)] || inExcludedDir(file) {
+// Relevant reports whether a repository path counts as work, for the structure doc's drift and the work-log nudges.
+// mem's records and the agent instructions never count. Ignore patterns exclude; include patterns bring back files
+// the built-in rules leave out, such as Markdown in a project whose work is written in it.
+func Relevant(file string, c project.StructureConfig) bool {
+	if file == "AGENTS.md" || file == "CLAUDE.md" || strings.HasPrefix(file, ".mem/") || strings.HasPrefix(file, ".git/") {
+		return false
+	}
+	if matchesAny(c.Ignore, file) {
+		return false
+	}
+	if matchesAny(c.Include, file) {
+		return true
+	}
+	if excludedNames[path.Base(file)] || inExcludedDir(file) {
 		return false
 	}
 	for _, suffix := range excludedSuffixes {
@@ -166,18 +177,43 @@ func Relevant(file string, ignore []string) bool {
 			return false
 		}
 	}
-	for _, pattern := range ignore {
-		if prefix, ok := strings.CutSuffix(pattern, "/**"); ok && strings.HasPrefix(file, prefix+"/") {
-			return false
+	return true
+}
+
+// matchesAny matches file against glob patterns. A pattern without a slash matches the file name in any
+// directory; otherwise it matches the whole path, with ** standing for any number of directories.
+func matchesAny(patterns []string, file string) bool {
+	for _, pattern := range patterns {
+		if !strings.Contains(pattern, "/") {
+			if matched, _ := path.Match(pattern, path.Base(file)); matched {
+				return true
+			}
+			continue
 		}
-		if matched, _ := path.Match(pattern, file); matched {
-			return false
-		}
-		if matched, _ := path.Match(pattern, path.Base(file)); matched {
-			return false
+		if globMatch(strings.Split(pattern, "/"), strings.Split(file, "/")) {
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+func globMatch(pattern, segments []string) bool {
+	if len(pattern) == 0 {
+		return len(segments) == 0
+	}
+	if pattern[0] == "**" {
+		for i := 0; i <= len(segments); i++ {
+			if globMatch(pattern[1:], segments[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(segments) == 0 {
+		return false
+	}
+	matched, _ := path.Match(pattern[0], segments[0])
+	return matched && globMatch(pattern[1:], segments[1:])
 }
 
 func inExcludedDir(file string) bool {
@@ -200,7 +236,7 @@ func Tree(ctx context.Context, p project.Project) (string, error) {
 	var lines []string
 	seen := map[string]bool{}
 	for _, file := range files {
-		if file == "" || inExcludedDir(file) || !strings.HasSuffix(file, ".md") && !Relevant(file, nil) {
+		if file == "" || inExcludedDir(file) || !strings.HasSuffix(file, ".md") && !Relevant(file, project.StructureConfig{}) {
 			continue
 		}
 		parts := strings.Split(file, "/")

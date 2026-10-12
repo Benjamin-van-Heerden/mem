@@ -78,7 +78,7 @@ func (a *app) initCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
-			if _, err := claude.SyncCompactHook(root, true); err != nil {
+			if _, err := claude.SyncHooks(root, claude.Hooks{Compact: true, Prompt: true}); err != nil {
 				return err
 			}
 			removed, err := removeClaudeLink(root)

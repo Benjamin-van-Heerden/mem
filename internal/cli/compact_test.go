@@ -64,17 +64,15 @@ func TestCompactHookAsksForAWorkLogOnceWorkHasGathered(t *testing.T) {
 		commit(t, mine, file)
 	}
 	out := mem(t, mine, "hook", "compact")
-	if !strings.Contains(out, "Work log: 2 commits since your last work log or completed task.") || strings.Contains(out, "Write a work log") {
+	if !strings.Contains(out, "Work log: 2 commits, 2 files and 2 lines of work since your last work log or completed task.") || strings.Contains(out, "Write a work log") {
 		t.Fatalf("digest after 2 commits:\n%s", out)
 	}
 	if !strings.Contains(out, "✔ Pushed 2 commit(s) to origin/dev.") || run(t, mine, "rev-parse", "HEAD") != run(t, mine, "rev-parse", "origin/dev") {
 		t.Fatalf("the compaction catch-up did not push the committed work:\n%s", out)
 	}
-	for _, file := range []string{"c.go", "d.go", "e.go"} {
-		commit(t, mine, file)
-	}
+	writeFile(t, mine, "parser.go", strings.Repeat("x\n", 1200))
 	out = mem(t, mine, "hook", "compact")
-	if !strings.Contains(out, "Work log: 5 commits since your last work log or completed task; you should write one now, before continuing") || !strings.Contains(out, "Write a work log for the work since your last one now") {
+	if !strings.Contains(out, "a work log is due: write one at the next natural stopping point") || !strings.Contains(out, "Write a work log for the work since your last one at the next natural stopping point") {
 		t.Fatalf("digest after 5 commits:\n%s", out)
 	}
 }

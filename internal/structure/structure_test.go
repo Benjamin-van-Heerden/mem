@@ -60,8 +60,8 @@ func TestRenamedToResolvesNumstatRenames(t *testing.T) {
 		"src/{ => api}/f.go":    "src/api/f.go",
 	}
 	for in, want := range cases {
-		if got := renamedTo(in); got != want {
-			t.Errorf("renamedTo(%q) = %q, want %q", in, got, want)
+		if got := RenamedTo(in); got != want {
+			t.Errorf("RenamedTo(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -81,5 +81,29 @@ func write(t *testing.T, root, rel, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRelevantAppliesIncludeAndIgnorePatterns(t *testing.T) {
+	c := project.StructureConfig{Include: []string{"*.md", "assets/**/*.svg"}, Ignore: []string{"docs/archive/**", "content/**/draft-*.md"}}
+	for file, want := range map[string]bool{
+		"main.go":                       true,
+		"docs/guide.md":                 true,
+		"README.md":                     true,
+		"assets/icons/ui/logo.svg":      true,
+		"logo.svg":                      false,
+		"docs/archive/2025/old.md":      false,
+		"content/posts/draft-intro.md":  false,
+		"content/posts/intro.md":        true,
+		".mem/logs/someone_20261012.md": false,
+		"AGENTS.md":                     false,
+		"go.sum":                        false,
+	} {
+		if got := Relevant(file, c); got != want {
+			t.Errorf("Relevant(%q) = %v, want %v", file, got, want)
+		}
+	}
+	if Relevant("docs/guide.md", project.StructureConfig{}) {
+		t.Error("Markdown counts as work without an include pattern")
 	}
 }

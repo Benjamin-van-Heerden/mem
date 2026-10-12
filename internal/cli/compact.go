@@ -43,19 +43,19 @@ func (a *app) compactHookCommand() *cobra.Command {
 			if err != nil {
 				user = ""
 			}
-			var sinceLog int
+			var since checkpoint.Work
 			if user != "" {
-				sinceLog, _, _ = checkpoint.WorkSinceLog(cmd.Context(), c.p.Root, user, git.UserEmail(cmd.Context(), c.p.Root))
+				since, _ = checkpoint.Since(cmd.Context(), c.p, user, git.UserEmail(cmd.Context(), c.p.Root))
 			}
-			writeDigest(out, c, user, sinceLog)
+			writeDigest(out, c, user, since)
 			return nil
 		},
 	}
 }
 
-// writeDigest prints the shared state after a compaction; sinceLog is the user's work commits since their last
-// work log or completed task.
-func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
+// writeDigest prints the shared state after a compaction; since is the user's work since their last work log or
+// completed task.
+func writeDigest(out io.Writer, c catchUp, user string, since checkpoint.Work) {
 	output.Section(out, "🔄 MEM AFTER COMPACTION")
 	fmt.Fprintln(out, "mem synced this checkout with the shared codebase. The compaction summary holds this session's progress; this is the shared state.")
 	fmt.Fprintln(out)
@@ -75,8 +75,8 @@ func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 		fmt.Fprintln(out, "✔ "+line)
 	}
 	writeWorkDigest(out, c.p, user)
-	if sinceLog > 0 {
-		fmt.Fprintln(out, "Work log: "+checkpoint.LogLine(sinceLog))
+	if since.Commits > 0 || since.Files > 0 {
+		fmt.Fprintln(out, "Work log: "+checkpoint.MidTurnLine(since))
 	}
 	// The digest never fails, so an unreadable setup file only loses the reminder.
 	_, setup, _ := readSetup(c.p)
@@ -126,8 +126,8 @@ func writeDigest(out io.Writer, c catchUp, user string, sinceLog int) {
 	if changed {
 		lines = append(lines, "Follow the changed memories above for the rest of this session.")
 	}
-	if checkpoint.LogRequired(sinceLog) {
-		lines = append(lines, "Write a work log for the work since your last one now (`mem log new`), while the compaction summary still holds it.")
+	if since.Level() == checkpoint.Due {
+		lines = append(lines, "Write a work log for the work since your last one at the next natural stopping point (`mem log new`), while the compaction summary still holds it.")
 	}
 	if len(r.Nudges) > 0 || hasWarning(c.templates) {
 		lines = append(lines, "Tell the user about each ⚠️ item above.")

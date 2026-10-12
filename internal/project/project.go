@@ -39,9 +39,13 @@ type ReleaseConfig struct {
 type ClaudeConfig struct {
 	// CompactHook turns the post-compaction catch-up hook off when false; unset means on.
 	CompactHook *bool `toml:"compact_hook,omitempty"`
+	// PromptHook turns the work-log nudge at each user message off when false; unset means on.
+	PromptHook *bool `toml:"prompt_hook,omitempty"`
 }
 
 func (c ClaudeConfig) CompactHookEnabled() bool { return c.CompactHook == nil || *c.CompactHook }
+
+func (c ClaudeConfig) PromptHookEnabled() bool { return c.PromptHook == nil || *c.PromptHook }
 
 type GitConfig struct {
 	Remote      string `toml:"remote"`
@@ -69,8 +73,10 @@ type TemplatesConfig struct {
 	Exclude []string `toml:"exclude,omitempty"`
 }
 
+// StructureConfig sets which files count as work, for the structure doc's drift and the work-log nudges.
 type StructureConfig struct {
-	Ignore []string `toml:"ignore,omitempty"`
+	Ignore  []string `toml:"ignore,omitempty"`
+	Include []string `toml:"include,omitempty"`
 }
 
 type Project struct {

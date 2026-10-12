@@ -78,15 +78,12 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 		lines = append(lines, "⚠️ Files under .mem/local/ are committed, but they are local to each checkout. Stop tracking them with `git rm -r --cached .mem/local` and commit that.")
 	}
 	settingsStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", claude.SettingsPath)
-	enabled := p.Config.Claude.CompactHookEnabled()
-	switch changed, err := claude.SyncCompactHook(p.Root, enabled); {
+	want := claude.Hooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
+	switch changed, err := claude.SyncHooks(p.Root, want); {
 	case err != nil:
-		lines = append(lines, fmt.Sprintf("⚠️ Could not update the Claude Code compaction hook: %v. Tell the user; fix the file, and the next onboard installs the hook.", err))
+		lines = append(lines, fmt.Sprintf("⚠️ Could not update mem's Claude Code hooks: %v. Tell the user; fix the file, and the next onboard installs the hooks.", err))
 	case changed:
-		line := "Installed the Claude Code compaction hook in " + claude.SettingsPath + "."
-		if !enabled {
-			line = "Removed the Claude Code compaction hook from " + claude.SettingsPath + " ([claude] compact_hook = false)."
-		}
+		line := claudeHooksLine(want)
 		switch {
 		case settingsIgnored(ctx, p.Root):
 			lines = append(lines, line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs it in every checkout.")
@@ -162,4 +159,27 @@ func afterUpdates(ctx context.Context, p project.Project, r converge.Report) con
 	}
 	r.Nudges = nudges
 	return r
+}
+
+// claudeHooksLine describes mem's Claude Code hooks after onboard changed them.
+func claudeHooksLine(want claude.Hooks) string {
+	var on, off []string
+	for _, h := range []struct {
+		enabled   bool
+		name, key string
+	}{{want.Compact, "the compaction catch-up", "compact_hook"}, {want.Prompt, "the work-log nudge at each user message", "prompt_hook"}} {
+		if h.enabled {
+			on = append(on, h.name)
+		} else {
+			off = append(off, fmt.Sprintf("%s ([claude] %s = false)", h.name, h.key))
+		}
+	}
+	line := "Updated mem's Claude Code hooks in " + claude.SettingsPath
+	if len(on) > 0 {
+		line += ": " + strings.Join(on, " and ")
+	}
+	if len(off) > 0 {
+		line += "; turned off: " + strings.Join(off, " and ")
+	}
+	return line + "."
 }

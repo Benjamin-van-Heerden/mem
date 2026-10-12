@@ -82,7 +82,7 @@ func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
 	}
 }
 
-func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
+func TestOnboardInstallsTheClaudeHooksAndHonoursTheOptOut(t *testing.T) {
 	mine, _ := sharedProject(t)
 	settings := filepath.Join(mine, ".claude/settings.json")
 	run(t, mine, "rm", "--quiet", ".claude/settings.json")
@@ -90,7 +90,7 @@ func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
 	run(t, mine, "push", "--quiet")
 
 	out := mem(t, mine, "onboard")
-	if data, _ := os.ReadFile(settings); !strings.Contains(out, "Installed the Claude Code compaction hook") || !strings.Contains(string(data), "mem hook compact") {
+	if data, _ := os.ReadFile(settings); !strings.Contains(out, "Updated mem's Claude Code hooks in .claude/settings.json: the compaction catch-up and the work-log nudge at each user message.") || !strings.Contains(string(data), "mem hook compact") || !strings.Contains(string(data), "mem hook prompt") {
 		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
 	}
 	if status := run(t, mine, "status", "--porcelain"); status != "" {
@@ -102,7 +102,7 @@ func TestOnboardInstallsTheCompactionHookAndHonoursTheOptOut(t *testing.T) {
 	os.WriteFile(config, append(data, []byte("\n[claude]\ncompact_hook = false\n")...), 0o644)
 	run(t, mine, "commit", "--quiet", "-am", "Turn the compaction hook off")
 	out = mem(t, mine, "onboard")
-	if data, _ := os.ReadFile(settings); !strings.Contains(out, "Removed the Claude Code compaction hook") || strings.Contains(string(data), "mem hook compact") {
+	if data, _ := os.ReadFile(settings); !strings.Contains(out, "turned off: the compaction catch-up ([claude] compact_hook = false)") || strings.Contains(string(data), "mem hook compact") || !strings.Contains(string(data), "mem hook prompt") {
 		t.Fatalf("onboard output:\n%s\nsettings:\n%s", out, data)
 	}
 }

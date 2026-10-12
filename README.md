@@ -28,7 +28,7 @@ In an existing Git repository:
 mem init
 ```
 
-This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds the Claude Code compaction hook to `.claude/settings.json`. A `CLAUDE.md` that only links to `AGENTS.md` is removed, since Claude Code reads `AGENTS.md` itself. Commit the result on the development branch and push it.
+This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds mem's Claude Code hooks (the compaction catch-up and the work-log nudge at each message) to `.claude/settings.json`. A `CLAUDE.md` that only links to `AGENTS.md` is removed, since Claude Code reads `AGENTS.md` itself. Commit the result on the development branch and push it.
 
 Branch names default to `dev`, `test` and `main`:
 
@@ -62,7 +62,7 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 
 - **`mem onboard`** starts every session. It fetches and brings the checkout up to date (fast-forwarding, or rebasing unpushed commits, when that is safe), refreshes mem's instructions, and prints the project context for the agent. Anything that needs attention, such as diverged history or unpushed work, is flagged with ⚠️ for the agent to raise with you. `mem sync` catches up mid-session: the same Git convergence and template sync, plus a report of what teammates pushed since the last fetch. In Claude Code, mem also runs this catch-up after every compaction and adds a short digest to the agent's context (turn it off with `[claude] compact_hook = false` in `.mem/config.toml`).
 - **Specs, tasks and todos** track planned work. A spec is written up with the user, broken into ordered tasks and implemented task by task; todos are standalone matters. None of them are needed for ordinary coding.
-- **Work logs** record a stretch of work: what was done, decided and tried. They are never updated; open work lives in todos. They are written at checkpoints, such as a completed spec, a release, a nudge after commits, or the end of the day, and never end the session: `mem log new` and then `mem log commit` commit the log and the other records, sync the branch and push. Onboard shows your latest log and lists other recent ones.
+- **Work logs** record a stretch of work: what was done, decided and tried. They are never updated; open work lives in todos. They are written at checkpoints, such as a completed spec, a release, a nudge once enough work has gathered, or the end of the day, and never end the session: `mem log new` and then `mem log commit` commit the log and the other records, sync the branch and push. Onboard shows your latest log and lists other recent ones.
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
 - **Templates** supply memories, skills and docs for a kind of project from a shared Git library, and optionally a one-time setup for new projects. Onboard draws in what is missing and updates what the project has not changed; `mem template promote` sends a project's memory, skill or doc back so similar projects receive it.
 - **The structure doc**, `.mem/structure.md`, is a living map of the codebase that onboard includes. `mem structure` creates it and later lists what has changed since it was last updated; mem warns when it falls behind the code.
@@ -113,7 +113,8 @@ production = "main"
 protect = true
 
 [structure]
-ignore = ["migrations/**"]   # optional: paths that do not count as code changes
+ignore = ["migrations/**"]   # optional: paths that do not count as work
+include = ["*.md"]           # optional: paths that count although the built-in rules leave them out, such as Markdown
 ```
 
 Runnables are for context that is better extracted than pasted whole, such as design tokens, UI components or database models. Each executable in `.mem/runnables/` runs at onboard from the repository root, in name order, with a 15 second limit.

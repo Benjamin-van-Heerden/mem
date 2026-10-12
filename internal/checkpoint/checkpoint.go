@@ -1,6 +1,6 @@
-// Package checkpoint measures work that has not reached a checkpoint yet: the user's commits since their last work
-// log or completed task, commits not pushed, and a stale structure doc. mem's post-commit hook and the compaction
-// digest report it, so records and branches stay current in sessions that never end.
+// Package checkpoint measures work that has not reached a checkpoint yet: the user's commits and changed files since
+// their last work log or completed task, commits not pushed, and a stale structure doc. mem's post-commit hook, the
+// prompt hook and the compaction digest report it, so records and branches stay current in sessions that never end.
 package checkpoint
 
 import (
@@ -14,12 +14,14 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/structure"
 )
 
+// Thresholds for the work-log nudges; whichever measure reaches its threshold first sets the level.
 const (
-	suggestLogAt = 3
-	requireLogAt = 5
-	pushAt       = 3
-	// maxWalk bounds the history read when looking for the last checkpoint.
-	maxWalk = 1000
+	suggestCommits, suggestFiles, suggestLines = 5, 10, 500
+	requireCommits, requireFiles, requireLines = 10, 20, 1200
+	pushAt                                     = 3
+	// firstWalk and maxWalk bound the history read when looking for the last checkpoint, which is usually recent.
+	firstWalk = 100
+	maxWalk   = 1000
 )
 
 // ProjectFilesCommit is the subject of the commit in which onboard publishes mem's own project files; it is not work.
@@ -33,20 +35,25 @@ const TaskTrailer = "Mem-Task:"
 // before task commits carried the work and TaskTrailer.
 var completions = []string{"Complete task ", "Complete spec "}
 
+type change struct {
+	file  string
+	lines int
+}
+
 type commit struct {
 	email, subject, task string
-	files                []string
+	changes              []change
 	// setsUp marks the commit that added .mem/config.toml.
 	setsUp bool
 }
 
 // work reports whether c is the user's own work rather than a record commit or another person's.
-func (c commit) work(email string) bool {
+func (c commit) work(email string, s project.StructureConfig) bool {
 	if !strings.EqualFold(c.email, email) || c.subject == ProjectFilesCommit {
 		return false
 	}
-	for _, f := range c.files {
-		if !strings.HasPrefix(f, ".mem/") {
+	for _, ch := range c.changes {
+		if structure.Relevant(ch.file, s) {
 			return true
 		}
 	}
@@ -69,17 +76,17 @@ func (c commit) checkpoint(user, email string) bool {
 			}
 		}
 	}
-	for _, f := range c.files {
-		if strings.HasPrefix(f, ".mem/logs/"+user+"_") {
+	for _, ch := range c.changes {
+		if strings.HasPrefix(ch.file, ".mem/logs/"+user+"_") {
 			return true
 		}
 	}
 	return false
 }
 
-// history reads up to maxWalk non-merge commits on HEAD, newest first, with the files each changed.
-func history(ctx context.Context, root string) ([]commit, error) {
-	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(maxWalk), "--format=%x00%ae%x09%s%x09%(trailers:key="+strings.TrimSuffix(TaskTrailer, ":")+",valueonly,separator=%x2C)", "--name-status", "HEAD")
+// history reads up to n non-merge commits on HEAD, newest first, with the files each changed and their line counts.
+func history(ctx context.Context, root string, n int) ([]commit, error) {
+	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(n), "--format=%x00%ae%x09%s%x09%(trailers:key="+strings.TrimSuffix(TaskTrailer, ":")+",valueonly,separator=%x2C)", "--numstat", "--summary", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -95,67 +102,144 @@ func history(ctx context.Context, root string) ([]commit, error) {
 			c.task = strings.TrimSpace(fields[2])
 		}
 		for _, line := range lines[1:] {
-			fields := strings.Split(line, "\t")
-			if len(fields) < 2 {
+			if summary := strings.TrimSpace(line); strings.HasPrefix(summary, "create mode ") && strings.HasSuffix(summary, " .mem/config.toml") {
+				c.setsUp = true
 				continue
 			}
-			file := fields[len(fields)-1]
-			if fields[0] == "A" && file == ".mem/config.toml" {
-				c.setsUp = true
+			fields := strings.SplitN(line, "\t", 3)
+			if len(fields) != 3 {
+				continue
 			}
-			c.files = append(c.files, file)
+			added, _ := strconv.Atoi(fields[0])
+			deleted, _ := strconv.Atoi(fields[1])
+			c.changes = append(c.changes, change{file: structure.RenamedTo(fields[2]), lines: added + deleted})
 		}
 		commits = append(commits, c)
 	}
 	return commits, nil
 }
 
-// WorkSinceLog counts the user's work commits on HEAD since their last work log or completed task. It also reports
-// whether the newest commit is one of them.
-func WorkSinceLog(ctx context.Context, root, user, email string) (count int, latestIsWork bool, err error) {
-	commits, err := history(ctx, root)
+// Work is the user's work since their last work log or completed task: their work commits, and the files and lines
+// that count as work (structure.Relevant) changed by those commits and by uncommitted changes.
+type Work struct {
+	Commits, Files, Lines int
+	// LatestIsWork reports whether the newest commit is one of the user's work commits.
+	LatestIsWork bool
+}
+
+// Level is how strongly the work since the last checkpoint calls for a work log.
+type Level int
+
+const (
+	Quiet Level = iota
+	Suggested
+	Due
+)
+
+func (w Work) Level() Level {
+	switch {
+	case w.Commits >= requireCommits || w.Files >= requireFiles || w.Lines >= requireLines:
+		return Due
+	case w.Commits >= suggestCommits || w.Files >= suggestFiles || w.Lines >= suggestLines:
+		return Suggested
+	}
+	return Quiet
+}
+
+// Since measures the user's work since their last checkpoint. Teammates' commits do not count, and neither do
+// mem's records; uncommitted changes in the checkout do, whoever made them.
+func Since(ctx context.Context, p project.Project, user, email string) (Work, error) {
+	commits, err := history(ctx, p.Root, firstWalk)
+	if err == nil && len(commits) == firstWalk && !anyCheckpoint(commits, user, email) {
+		commits, err = history(ctx, p.Root, maxWalk)
+	}
 	if err != nil {
-		return 0, false, err
+		return Work{}, err
+	}
+	var w Work
+	files := map[string]bool{}
+	count := func(file string, lines int) {
+		if structure.Relevant(file, p.Config.Structure) {
+			files[file] = true
+			w.Lines += lines
+		}
 	}
 	for i, c := range commits {
 		if c.checkpoint(user, email) {
 			break
 		}
-		if c.work(email) {
-			count++
-			if i == 0 {
-				latestIsWork = true
-			}
+		if !c.work(email, p.Config.Structure) {
+			continue
+		}
+		w.Commits++
+		w.LatestIsWork = w.LatestIsWork || i == 0
+		for _, ch := range c.changes {
+			count(ch.file, ch.lines)
 		}
 	}
-	return count, latestIsWork, nil
+	if d, err := structure.ChangesSince(ctx, p, "HEAD"); err == nil {
+		for _, ch := range d.Changes {
+			count(ch.Path, ch.Lines)
+		}
+	}
+	w.Files = len(files)
+	return w, nil
 }
 
-// LogLine describes n work commits since the last work log, escalating from a count to an instruction to stop.
-func LogLine(n int) string {
-	noun := "commits"
+func anyCheckpoint(commits []commit, user, email string) bool {
+	for _, c := range commits {
+		if c.checkpoint(user, email) {
+			return true
+		}
+	}
+	return false
+}
+
+// Summary describes the work in one clause, such as "3 commits, 12 files and 640 lines of work since your last work
+// log or completed task".
+func (w Work) Summary() string {
+	return fmt.Sprintf("%s, %s and %s of work since your last work log or completed task", plural(w.Commits, "commit"), plural(w.Files, "file"), plural(w.Lines, "line"))
+}
+
+func plural(n int, noun string) string {
 	if n == 1 {
-		noun = "commit"
+		return "1 " + noun
 	}
-	line := fmt.Sprintf("%d %s since your last work log or completed task", n, noun)
-	switch {
-	case n >= requireLogAt:
-		return line + "; you should write one now, before continuing (`mem log new`)."
-	case n >= suggestLogAt:
-		return line + "; consider writing one now (`mem log new`)."
-	}
-	return line + "."
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-// LogRequired reports whether n work commits since the last log call for stopping to write one.
-func LogRequired(n int) bool { return n >= requireLogAt }
+const carryOn = "A log does not end your turn: carry on with the work afterwards."
+
+// MidTurnLine is the nudge for an agent that may be in the middle of something, after a commit or a compaction: it
+// never asks the agent to drop the work at hand.
+func MidTurnLine(w Work) string {
+	switch w.Level() {
+	case Due:
+		return w.Summary() + "; a work log is due: write one at the next natural stopping point, such as when the current change is done (`mem log new`). " + carryOn
+	case Suggested:
+		return w.Summary() + "; write a work log at the next natural stopping point (`mem log new`). " + carryOn
+	}
+	return w.Summary() + "."
+}
+
+// TurnStartLine is the nudge when the user sends a message, usually at the start of a turn but possibly while the
+// agent is still working; it is empty while no log is called for.
+func TurnStartLine(w Work) string {
+	switch w.Level() {
+	case Due:
+		return w.Summary() + ". A work log is due: write one before taking up substantial new work (`mem log new`, then `mem log commit`); if you are in the middle of a change, finish it first. Answer a quick question first, and if the user asked you to stop, stop. Writing a log does not end your turn: continue with the user's request afterwards."
+	case Suggested:
+		return w.Summary() + ". Write a work log at the next natural stopping point in this turn (`mem log new`). " + carryOn
+	}
+	return ""
+}
 
 // CommitLines are the nudges after a commit, from local state only: the work-log count after each of the user's
 // work commits, unpushed commits past a threshold, and a stale structure doc.
 func CommitLines(ctx context.Context, p project.Project, user, email string) []string {
 	var lines []string
-	if n, latest, err := WorkSinceLog(ctx, p.Root, user, email); err == nil && latest {
-		lines = append(lines, LogLine(n))
+	if w, err := Since(ctx, p, user, email); err == nil && w.LatestIsWork {
+		lines = append(lines, MidTurnLine(w))
 	}
 	if out, err := git.Run(ctx, p.Root, "rev-list", "--count", "@{upstream}..HEAD"); err == nil {
 		if n, _ := strconv.Atoi(out); n >= pushAt {

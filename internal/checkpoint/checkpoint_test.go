@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
+	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
 const (
@@ -28,73 +29,88 @@ func repo(t *testing.T) string {
 	return root
 }
 
-func TestWorkSinceLogEscalatesAndResetsAtCheckpoints(t *testing.T) {
+func TestSinceCountsTheUsersWorkAndResetsAtCheckpoints(t *testing.T) {
 	ctx := context.Background()
 	root := repo(t)
-	count := func() (int, bool) {
+	p := project.Project{Root: root}
+	since := func() Work {
 		t.Helper()
-		n, latest, err := WorkSinceLog(ctx, root, user, email)
+		w, err := Since(ctx, p, user, email)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return n, latest
+		return w
 	}
 
-	for i, want := range []string{"1 commit since", "2 commits since", "3 commits since"} {
-		write(t, root, "main.go", strings.Repeat("x", i+1))
-		commitAll(t, root, "Work")
-		if n, latest := count(); !latest || !strings.HasPrefix(LogLine(n), want) {
-			t.Fatalf("after %d work commits: %q, latest %v", i+1, LogLine(n), latest)
-		}
-	}
-	if n, _ := count(); !strings.Contains(LogLine(n), "consider writing one now") {
-		t.Fatalf("3 commits: %q", LogLine(n))
+	write(t, root, "main.go", lines(30))
+	commitAll(t, root, "Work")
+	if w := since(); w != (Work{Commits: 1, Files: 1, Lines: 30, LatestIsWork: true}) || w.Level() != Quiet || MidTurnLine(w) != "1 commit, 1 file and 30 lines of work since your last work log or completed task." {
+		t.Fatalf("after one work commit: %+v %q", w, MidTurnLine(w))
 	}
 
-	// Record commits, another person's work and mem's project files do not count.
+	// Record commits, another person's work, mem's project files and documentation do not count.
 	write(t, root, ".mem/todos/a.md", "todo")
 	commitAll(t, root, "Add todo a")
 	write(t, root, "AGENTS.md", "instructions")
 	commitAll(t, root, ProjectFilesCommit)
-	write(t, root, "other.go", "theirs")
+	write(t, root, "docs/guide.md", lines(400))
+	commitAll(t, root, "Write the guide")
+	write(t, root, "other.go", lines(900))
 	run(t, root, "add", ".")
 	run(t, root, "-c", "user.name=Ann", "-c", "user.email=ann@example.com", "commit", "--quiet", "-m", "Their work")
-	if n, latest := count(); n != 3 || latest {
-		t.Fatalf("after non-work commits: %d, latest %v", n, latest)
+	if w := since(); w.Commits != 1 || w.Files != 1 || w.Lines != 30 || w.LatestIsWork {
+		t.Fatalf("after commits that are not the user's work: %+v", w)
 	}
 
-	write(t, root, "main.go", "four")
-	commitAll(t, root, "Work")
-	write(t, root, "main.go", "five")
-	commitAll(t, root, "Work")
-	if n, _ := count(); !strings.Contains(LogLine(n), "you should write one now, before continuing") {
-		t.Fatalf("5 commits: %q", LogLine(n))
+	// Uncommitted changes count, and lines alone can make a log due.
+	write(t, root, "parser.go", lines(600))
+	if w := since(); w.Lines != 630 || w.Level() != Suggested || !strings.Contains(MidTurnLine(w), "write a work log at the next natural stopping point") || !strings.Contains(TurnStartLine(w), "at the next natural stopping point in this turn") {
+		t.Fatalf("with uncommitted work: %+v %q", w, TurnStartLine(w))
 	}
+	write(t, root, "lexer.go", lines(600))
+	if w := since(); w.Level() != Due || !strings.Contains(MidTurnLine(w), "a work log is due") || strings.Contains(MidTurnLine(w), "now") || !strings.Contains(TurnStartLine(w), "before taking up substantial new work") {
+		t.Fatalf("past the line threshold: %+v %q", w, MidTurnLine(w))
+	}
+	commitAll(t, root, "Parse")
+
+	// An include pattern makes Markdown work.
+	p.Config.Structure.Include = []string{"*.md"}
+	if w := since(); w.Commits != 3 || w.Files != 4 {
+		t.Fatalf("with Markdown included: %+v", w)
+	}
+	p.Config.Structure.Include = nil
 
 	write(t, root, ".mem/logs/"+user+"_20261008_120000.md", "log")
 	commitAll(t, root, "Work log: checkpoint")
-	if n, latest := count(); n != 0 || latest {
-		t.Fatalf("after a work log: %d, latest %v", n, latest)
+	if w := since(); w != (Work{}) || TurnStartLine(w) != "" {
+		t.Fatalf("after a work log: %+v", w)
 	}
 
-	write(t, root, "main.go", "six")
-	commitAll(t, root, "Work")
+	for i := range 5 {
+		write(t, root, "main.go", lines(i+1))
+		commitAll(t, root, "Work")
+	}
+	if w := since(); w.Commits != 5 || w.Level() != Suggested {
+		t.Fatalf("five small commits: %+v", w)
+	}
 	write(t, root, "main.go", "task work")
 	write(t, root, ".mem/specs/s/tasks/01_t.md", "done")
 	commitAll(t, root, "Tokenize\n\nSplit the input; tests pass.\n\n"+TaskTrailer+" s/t")
 	write(t, root, "main.go", "seven")
 	commitAll(t, root, "Work")
-	if n, _ := count(); n != 1 {
-		t.Fatalf("after a completed task: %d", n)
+	if w := since(); w.Commits != 1 {
+		t.Fatalf("after a completed task: %+v", w)
 	}
 	write(t, root, ".mem/specs/s/tasks/02_u.md", "done")
 	commitAll(t, root, "Complete task u")
 	write(t, root, "main.go", "eight")
 	commitAll(t, root, "Work")
-	if n, _ := count(); n != 1 {
-		t.Fatalf("after a record-only task completion from an earlier mem: %d", n)
+	if w := since(); w.Commits != 1 {
+		t.Fatalf("after a record-only task completion from an earlier mem: %+v", w)
 	}
 }
+
+func lines(n int) string { return strings.Repeat("x\n", n) }
 
 func run(t *testing.T, dir string, args ...string) {
 	t.Helper()

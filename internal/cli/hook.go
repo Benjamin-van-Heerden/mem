@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hookCommand is called by the installed Git hooks and the Claude Code compaction hook.
+// hookCommand is called by the installed Git hooks and mem's Claude Code hooks.
 func (a *app) hookCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "hook", Short: "Commands run by mem's Git and Claude Code hooks", Hidden: true}
 	cmd.AddCommand(&cobra.Command{
@@ -53,6 +53,27 @@ func (a *app) hookCommand() *cobra.Command {
 				return nil
 			}
 			for _, line := range checkpoint.CommitLines(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root)) {
+				fmt.Fprintln(cmd.OutOrStdout(), "mem: "+line)
+			}
+			return nil
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:  "prompt",
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Claude Code adds this output to the agent's context with the user's message; it stays silent until a
+			// work log is called for and never fails the prompt.
+			p, err := a.project(cmd)
+			if err != nil {
+				return nil
+			}
+			user, err := project.User(cmd.Context(), p.Root)
+			if err != nil {
+				return nil
+			}
+			w, err := checkpoint.Since(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root))
+			if line := checkpoint.TurnStartLine(w); err == nil && line != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), "mem: "+line)
 			}
 			return nil

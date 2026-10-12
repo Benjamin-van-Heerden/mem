@@ -36,7 +36,7 @@ func (a *app) importCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
-			if _, err := claude.SyncCompactHook(root, true); err != nil {
+			if _, err := claude.SyncHooks(root, claude.Hooks{Compact: true, Prompt: true}); err != nil {
 				return err
 			}
 			hookLines, err := hooks.Sync(cmd.Context(), sum.Project)
@@ -98,10 +98,10 @@ func (a *app) importCommand() *cobra.Command {
 	return cmd
 }
 
-// settingsIgnored reports whether .gitignore keeps .claude/settings.json, and with it mem's compaction hook, out of Git.
+// settingsIgnored reports whether .gitignore keeps .claude/settings.json, and with it mem's Claude Code hooks, out of Git.
 func settingsIgnored(ctx context.Context, root string) bool {
 	_, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", claude.SettingsPath)
 	return err == nil
 }
 
-const sharedSettingsWarning = "⚠️ .gitignore ignores " + claude.SettingsPath + ", so it is not shared. Each checkout's onboard still installs the compaction hook, but other project settings stay local. Tell the user; Claude Code's convention is to ignore only .claude/settings.local.json (personal settings) and commit " + claude.SettingsPath + "."
+const sharedSettingsWarning = "⚠️ .gitignore ignores " + claude.SettingsPath + ", so it is not shared. Each checkout's onboard still installs mem's hooks, but other project settings stay local. Tell the user; Claude Code's convention is to ignore only .claude/settings.local.json (personal settings) and commit " + claude.SettingsPath + "."
