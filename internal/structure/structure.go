@@ -109,30 +109,41 @@ func Measure(ctx context.Context, p project.Project) (Drift, error) {
 // ChangesSince counts code changes between base and the working tree, including new untracked files.
 func ChangesSince(ctx context.Context, p project.Project, base string) (Drift, error) {
 	var d Drift
-	numstat, err := git.Run(ctx, p.Root, "diff", "--numstat", base)
+	changes, err := Diff(ctx, p.Root, base)
+	for _, c := range changes {
+		d.add(p, c.Path, c.Lines)
+	}
+	return d, err
+}
+
+// Diff lists every file changed between base and the working tree, including new untracked files, with its
+// changed lines, most changed first. Binary files count no lines.
+func Diff(ctx context.Context, root, base string) ([]Change, error) {
+	var changes []Change
+	numstat, err := git.Run(ctx, root, "diff", "--numstat", base)
 	if err != nil {
-		return d, err
+		return nil, err
 	}
 	for _, line := range strings.Split(numstat, "\n") {
 		fields := strings.SplitN(line, "\t", 3)
-		if len(fields) != 3 || fields[0] == "-" {
+		if len(fields) != 3 {
 			continue
 		}
 		added, _ := strconv.Atoi(fields[0])
 		deleted, _ := strconv.Atoi(fields[1])
-		d.add(p, RenamedTo(fields[2]), added+deleted)
+		changes = append(changes, Change{Path: RenamedTo(fields[2]), Lines: added + deleted})
 	}
-	untracked, err := git.Run(ctx, p.Root, "ls-files", "--others", "--exclude-standard")
+	untracked, err := git.Run(ctx, root, "ls-files", "--others", "--exclude-standard")
 	if err != nil {
-		return d, err
+		return changes, err
 	}
 	for _, file := range strings.Split(untracked, "\n") {
-		if data, err := os.ReadFile(filepath.Join(p.Root, file)); err == nil && file != "" {
-			d.add(p, file, strings.Count(string(data), "\n"))
+		if data, err := os.ReadFile(filepath.Join(root, file)); err == nil && file != "" {
+			changes = append(changes, Change{Path: file, Lines: strings.Count(string(data), "\n")})
 		}
 	}
-	sort.Slice(d.Changes, func(i, j int) bool { return d.Changes[i].Lines > d.Changes[j].Lines })
-	return d, nil
+	sort.SliceStable(changes, func(i, j int) bool { return changes[i].Lines > changes[j].Lines })
+	return changes, nil
 }
 
 func (d *Drift) add(p project.Project, file string, lines int) {

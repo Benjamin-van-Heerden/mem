@@ -1,6 +1,7 @@
 package work
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,14 +13,24 @@ import (
 )
 
 // logGuidance is for the agent writing the log; Finish removes it before the log is committed.
-const logGuidance = "<!-- A work log records a stretch of work since the previous log, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
+const logGuidance = "<!-- A work log records a stretch of work since the previous log, as fact and as things stand. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
+
+// The placeholders for the key files: one under the files mem listed from Git, one when it found none.
+const (
+	listedFilesPlaceholder = `{
+Say what changed in the files above where the rest of the log does not already make it clear, remove files that belong to someone else's work, such as another session in this checkout, and add files changed outside this repository. Then remove this placeholder.
+}`
+	filesPlaceholder = `{
+Files affected and the changes made to them, including files outside this repository.
+}`
+)
 
 const logTemplate = "# Work Log - {short title}\n\n" + logGuidance + `
 
-## Overarching Goals
+## Goal
 
 {
-What we set out to achieve in this stretch of work, in the context of the interaction so far.
+What this stretch of work was for, in one or two sentences.
 }
 
 ## What Was Accomplished
@@ -38,16 +49,14 @@ Decisions made and the reasons for them, so later sessions do not reopen them wi
 
 ## Key Files Affected
 
-{
-Files affected and the changes made to them. Be reasonably detailed.
-}
+<files>
 
-## Errors and Barriers
+## Notes
 
 {
-Errors and barriers met, approaches that were tried and failed, and why, so they are not repeated.
+Anything else worth keeping: errors and barriers met, approaches that were tried and dropped and why, so they are not repeated.
 
-(Omit this section if there were none)
+(Omit this section if there is nothing to note)
 }
 `
 
@@ -55,6 +64,8 @@ type LogMeta struct {
 	Created string `yaml:"created_at"`
 	User    string `yaml:"user"`
 	Spec    string `yaml:"spec,omitempty"`
+	// Commits are the user's work commits the log covers, oldest first, as they were when it was written.
+	Commits []string `yaml:"commits,omitempty,flow"`
 }
 
 type Log struct {
@@ -73,7 +84,7 @@ var placeholder = regexp.MustCompile(`\{[^{}]*\}`)
 // by its first line of guidance.
 func (l Log) Unfilled() []string {
 	var left []string
-	for _, ph := range placeholder.FindAllString(logTemplate, -1) {
+	for _, ph := range placeholder.FindAllString(logTemplate+listedFilesPlaceholder+filesPlaceholder, -1) {
 		if !strings.Contains(l.Body, ph) {
 			continue
 		}
@@ -156,10 +167,35 @@ func FindLog(p project.Project, ref string) (Log, error) {
 	return resolve("log", ref, logs)
 }
 
-func NewLog(p project.Project, user, spec string) (Log, error) {
+// LogFile is a file the work since the last log changed, with its changed lines.
+type LogFile struct {
+	Path  string
+	Lines int
+}
+
+// maxLogFiles caps the files listed in a new log; the agent names the rest where they matter.
+const maxLogFiles = 30
+
+// NewLog creates a log from the template, listing the files and commits the work since the last log covers.
+func NewLog(p project.Project, user, spec string, commits []string, files []LogFile) (Log, error) {
 	created := time.Now()
 	name := user + "_" + created.Format("20060102_150405")
-	l := Log{Name: name, Path: filepath.Join(logsDir(p), name+".md"), Body: logTemplate}
-	l.Meta = LogMeta{Created: created.Format(time.RFC3339), User: user, Spec: spec}
+	l := Log{Name: name, Path: filepath.Join(logsDir(p), name+".md"), Body: strings.Replace(logTemplate, "<files>", keyFiles(files), 1)}
+	l.Meta = LogMeta{Created: created.Format(time.RFC3339), User: user, Spec: spec, Commits: commits}
 	return l, WriteMarkdown(l.Path, l.Meta, l.Body)
+}
+
+func keyFiles(files []LogFile) string {
+	if len(files) == 0 {
+		return filesPlaceholder
+	}
+	var b strings.Builder
+	for i, f := range files {
+		if i == maxLogFiles {
+			fmt.Fprintf(&b, "- … and %d more\n", len(files)-i)
+			break
+		}
+		fmt.Fprintf(&b, "- `%s` (%d lines)\n", f.Path, f.Lines)
+	}
+	return b.String() + "\n" + listedFilesPlaceholder
 }

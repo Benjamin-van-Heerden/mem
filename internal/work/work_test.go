@@ -99,7 +99,7 @@ func TestLongTitlesGetShortUniqueSlugs(t *testing.T) {
 
 func TestFinishRemovesTheGuidanceCommentOnly(t *testing.T) {
 	p := project.Project{Root: t.TempDir()}
-	l, err := NewLog(p, "tester", "")
+	l, err := NewLog(p, "tester", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestFinishRemovesTheGuidanceCommentOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	logs, _ := Logs(p)
-	if len(logs) != 1 || strings.Contains(logs[0].Body, "<!--") || !strings.HasPrefix(logs[0].Body, "# Work Log - {short title}\n\n## Overarching Goals") {
+	if len(logs) != 1 || strings.Contains(logs[0].Body, "<!--") || !strings.HasPrefix(logs[0].Body, "# Work Log - {short title}\n\n## Goal") {
 		t.Fatalf("finished log body:\n%s", logs[0].Body)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
@@ -48,7 +49,13 @@ func (a *app) logNew() *cobra.Command {
 			} else if ok {
 				spec = s.Slug
 			}
-			l, err := work.NewLog(p, user, spec)
+			// A log is still worth writing when Git cannot say what it covers, such as in a repository without commits.
+			cov, _ := checkpoint.Cover(cmd.Context(), p.Root, user, git.UserEmail(cmd.Context(), p.Root))
+			var files []work.LogFile
+			for _, f := range cov.Files {
+				files = append(files, work.LogFile{Path: f.Path, Lines: f.Lines})
+			}
+			l, err := work.NewLog(p, user, spec, cov.Commits, files)
 			if err != nil {
 				return err
 			}
@@ -72,7 +79,7 @@ func (a *app) logNew() *cobra.Command {
 			}
 			var lines []string
 			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }
-			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
+			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried, as things stand. Leave out the sections marked as optional when they have nothing to say. Key Files Affected already lists the files your commits since your last log and the uncommitted changes touched, from Git. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
 			step("If this work completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
 			switch {
 			case drift.Stale():

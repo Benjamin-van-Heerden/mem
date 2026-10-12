@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Benjamin-van-Heerden/mem/internal/work"
 )
 
 // sharedProject returns a mem project on dev and a teammate's clone of it, sharing a bare remote.
@@ -92,14 +94,43 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	}
 }
 
+func TestLogNewListsTheFilesAndCommitsSinceTheLastLog(t *testing.T) {
+	mine, teammate := sharedProject(t)
+	commit(t, mine, "lexer.go")
+	commit(t, mine, "parser.go")
+	writeFile(t, teammate, "theirs.go", "package theirs\n")
+	run(t, teammate, "add", "theirs.go")
+	run(t, teammate, "-c", "user.email=ana@example.com", "commit", "--quiet", "-m", "Their work")
+	run(t, teammate, "push", "--quiet")
+	mem(t, mine, "sync")
+	writeFile(t, mine, "docs/parser.md", "one\ntwo\nthree\n")
+	hashes := strings.Split(run(t, mine, "log", "--format=%h", "-n", "3", "--author=test@example.com"), "\n")
+
+	mem(t, mine, "log", "new")
+	logs, _ := filepath.Glob(filepath.Join(mine, ".mem/logs/*.md"))
+	data, _ := os.ReadFile(logs[0])
+	log := string(data)
+	var meta work.LogMeta
+	if _, err := work.ReadMarkdown(logs[0], &meta); err != nil || strings.Join(meta.Commits, " ") != hashes[1]+" "+hashes[0] {
+		t.Fatalf("the log does not record the user's two work commits, oldest first:\n%s", log)
+	}
+	if !strings.Contains(log, "## Key Files Affected\n\n- `docs/parser.md` (3 lines)\n- `lexer.go` (1 lines)\n- `parser.go` (1 lines)\n\n{\nSay what changed") || strings.Contains(log, "theirs.go") {
+		t.Fatalf("key files are not listed from Git:\n%s", log)
+	}
+	if !strings.Contains(log, "## Goal\n") || !strings.Contains(log, "## Notes\n") || strings.Contains(log, "Overarching") || strings.Contains(log, "Errors and Barriers") {
+		t.Fatalf("the log does not use the checkpoint template:\n%s", log)
+	}
+}
+
 func writeLog(t *testing.T, root, name, user string, created time.Time, title string) {
 	t.Helper()
 	writeFile(t, root, ".mem/logs/"+name+".md", fmt.Sprintf("---\ncreated_at: %q\nuser: %s\n---\n# Work Log - %s\n\nBody of %s.\n", created.Format(time.RFC3339), user, title, title))
 }
 
-func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
+func TestOnboardShowsTheUsersRecentLogsInFullAndListsOthers(t *testing.T) {
 	mine, _ := sharedProject(t)
 	now := time.Now()
+	writeLog(t, mine, "test_user_older", "test_user", now.AddDate(0, 0, -20), "Older work")
 	writeLog(t, mine, "test_user_old", "test_user", now.AddDate(0, 0, -5), "Earlier work")
 	writeLog(t, mine, "test_user_new", "test_user", now.AddDate(0, 0, -1), "Latest work")
 	writeLog(t, mine, "ana_recent", "ana", now.AddDate(0, 0, -3), "Ana's recent work")
@@ -107,10 +138,11 @@ func TestOnboardShowsTheLatestLogInFullAndListsRecentOnes(t *testing.T) {
 	writeFile(t, mine, ".mem/todos/benchmark.md", fmt.Sprintf("---\ntitle: Benchmark the parser\nstatus: open\ncreated_at: %q\n---\n\nCompare.\n", now.AddDate(0, 0, -12).Format(time.RFC3339)))
 
 	out := mem(t, mine, "onboard", "--offline")
-	if !strings.Contains(out, "Body of Latest work.") || strings.Contains(out, "Body of Earlier work.") || strings.Contains(out, "Body of Ana's recent work.") {
-		t.Fatalf("only the latest log should be shown in full:\n%s", out)
+	latest, earlier := strings.Index(out, "Your latest log.\nDate: "), strings.Index(out, "An earlier log of yours.")
+	if latest < 0 || earlier < latest || !strings.Contains(out, "Body of Latest work.") || !strings.Contains(out, "Body of Earlier work.") || strings.Contains(out, "Body of Older work.") || strings.Contains(out, "Body of Ana's recent work.") {
+		t.Fatalf("the user's recent logs should be shown in full, newest first, and no others:\n%s", out)
 	}
-	if !strings.Contains(out, "Earlier work") || !strings.Contains(out, "Ana's recent work") || strings.Contains(out, "Ana's old work") {
+	if !strings.Contains(out, "Ana's recent work") || strings.Contains(out, "Ana's old work") || strings.Contains(out, "Older work") {
 		t.Fatalf("recent logs are not listed as expected:\n%s", out)
 	}
 	if !strings.Contains(out, "12 days") {
@@ -142,5 +174,19 @@ func TestOnboardRemovesTodoClaimsFromOlderProjects(t *testing.T) {
 	run(t, teammate, "pull", "--quiet")
 	if shared, _ := os.ReadFile(filepath.Join(teammate, ".mem", "todos", "benchmark.md")); strings.Contains(string(shared), "claimed") {
 		t.Fatalf("the upgraded todo was not committed and shared:\n%s", shared)
+	}
+}
+
+func TestRecentLogsStopsShowingLogsInFullAtTheSizeCap(t *testing.T) {
+	now := time.Now()
+	logAt := func(name string, daysAgo int, size int) work.Log {
+		return work.Log{Name: name, Body: strings.Repeat("x", size), Meta: work.LogMeta{User: "me", Created: now.AddDate(0, 0, -daysAgo).Format(time.RFC3339)}}
+	}
+	full, others := recentLogs([]work.Log{logAt("a", 0, 7000), logAt("b", 1, 7000), logAt("c", 2, 100)}, "me", now)
+	if len(full) != 1 || full[0].Name != "a" || len(others) != 2 {
+		t.Fatalf("full = %v, others = %v", full, others)
+	}
+	if full, _ := recentLogs([]work.Log{logAt("a", 0, 20000)}, "me", now); len(full) != 1 {
+		t.Fatal("the latest log is not shown when it alone exceeds the cap")
 	}
 }

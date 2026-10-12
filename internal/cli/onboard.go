@@ -253,8 +253,8 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 		return state, err
 	}
 	output.Section(out, "🧾 WORK LOGS")
-	latest, earlier := recentLogs(logs, user, time.Now())
-	if latest == nil {
+	full, earlier := recentLogs(logs, user, time.Now())
+	if len(full) == 0 {
 		fmt.Fprintln(out, "No work logs yet.")
 		return state, nil
 	}
@@ -267,13 +267,18 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 		}
 		table(out, rows)
 	}
-	output.File(out, "🧾 "+latest.Name)
-	if latest.Meta.User == user {
-		fmt.Fprintln(out, "Your latest log.")
-	} else {
-		fmt.Fprintf(out, "The latest log, from %s.\n", latest.Meta.User)
+	for i, l := range full {
+		output.File(out, "🧾 "+l.Name)
+		switch {
+		case l.Meta.User != user:
+			fmt.Fprintf(out, "The latest log, from %s.\n", l.Meta.User)
+		case i == 0:
+			fmt.Fprintln(out, "Your latest log.")
+		default:
+			fmt.Fprintln(out, "An earlier log of yours.")
+		}
+		fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", l.Meta.Created, orDash(l.Meta.Spec), strings.TrimSpace(l.Body))
 	}
-	fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", latest.Meta.Created, orDash(latest.Meta.Spec), strings.TrimSpace(latest.Body))
 	return state, nil
 }
 
@@ -332,29 +337,41 @@ func writeDocs(out io.Writer, p project.Project) error {
 const (
 	recentLogDays = 14
 	recentLogMax  = 10
+	fullLogs      = 3
+	fullLogBytes  = 12000
 )
 
-// recentLogs picks the log to show in full (the user's latest, or else the
-// latest from anyone) and the other logs of the last two weeks to list by title.
-func recentLogs(logs []work.Log, user string, now time.Time) (*work.Log, []work.Log) {
+// recentLogs picks the logs to show in full, newest first: the user's latest and, since logs are checkpoints that
+// each cover a stretch of work, up to two more of theirs from the recent days while they fit fullLogBytes; or, when
+// the user has none, the latest log of anyone. It also lists the other logs of the recent days.
+func recentLogs(logs []work.Log, user string, now time.Time) (full, others []work.Log) {
 	if len(logs) == 0 {
 		return nil, nil
 	}
-	latest := &logs[0]
-	for i := range logs {
-		if logs[i].Meta.User == user {
-			latest = &logs[i]
+	cutoff := now.AddDate(0, 0, -recentLogDays).Format(time.RFC3339)
+	shown := map[string]bool{}
+	size := 0
+	for _, l := range logs {
+		if l.Meta.User != user {
+			continue
+		}
+		if len(full) > 0 && (len(full) == fullLogs || l.Meta.Created < cutoff || size+len(l.Body) > fullLogBytes) {
 			break
 		}
+		full = append(full, l)
+		shown[l.Name] = true
+		size += len(l.Body)
 	}
-	cutoff := now.AddDate(0, 0, -recentLogDays).Format(time.RFC3339)
-	var others []work.Log
+	if len(full) == 0 {
+		full = logs[:1]
+		shown[logs[0].Name] = true
+	}
 	for _, l := range logs {
-		if l.Name != latest.Name && l.Meta.Created >= cutoff && len(others) < recentLogMax {
+		if !shown[l.Name] && l.Meta.Created >= cutoff && len(others) < recentLogMax {
 			others = append(others, l)
 		}
 	}
-	return latest, others
+	return full, others
 }
 
 // age describes how long ago an RFC 3339 timestamp was, in days.

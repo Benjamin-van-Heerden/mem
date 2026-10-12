@@ -6,6 +6,8 @@ package checkpoint
 import (
 	"context"
 	"fmt"
+	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -41,15 +43,29 @@ type change struct {
 }
 
 type commit struct {
-	email, subject, task string
+	hash, email, subject, task string
 	changes              []change
 	// setsUp marks the commit that added .mem/config.toml.
 	setsUp bool
 }
 
-// work reports whether c is the user's own work rather than a record commit or another person's.
-func (c commit) work(email string, s project.StructureConfig) bool {
+// own reports whether c is the user's own, changing something outside .mem/, rather than a record commit or
+// another person's.
+func (c commit) own(email string) bool {
 	if !strings.EqualFold(c.email, email) || c.subject == ProjectFilesCommit {
+		return false
+	}
+	for _, ch := range c.changes {
+		if !strings.HasPrefix(ch.file, ".mem/") {
+			return true
+		}
+	}
+	return false
+}
+
+// work reports whether c is the user's own and changes a file that counts as work.
+func (c commit) work(email string, s project.StructureConfig) bool {
+	if !c.own(email) {
 		return false
 	}
 	for _, ch := range c.changes {
@@ -86,20 +102,23 @@ func (c commit) checkpoint(user, email string) bool {
 
 // history reads up to n non-merge commits on HEAD, newest first, with the files each changed and their line counts.
 func history(ctx context.Context, root string, n int) ([]commit, error) {
-	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(n), "--format=%x00%ae%x09%s%x09%(trailers:key="+strings.TrimSuffix(TaskTrailer, ":")+",valueonly,separator=%x2C)", "--numstat", "--summary", "HEAD")
+	out, err := git.Run(ctx, root, "log", "--no-merges", "-n", strconv.Itoa(n), "--format=%x00%h%x09%ae%x09%s%x09%(trailers:key="+strings.TrimSuffix(TaskTrailer, ":")+",valueonly,separator=%x2C)", "--numstat", "--summary", "HEAD")
 	if err != nil {
 		return nil, err
 	}
 	var commits []commit
 	for _, chunk := range strings.Split(out, "\x00")[1:] {
 		lines := strings.Split(strings.TrimSpace(chunk), "\n")
-		fields := strings.SplitN(lines[0], "\t", 3)
-		c := commit{email: fields[0]}
+		fields := strings.SplitN(lines[0], "\t", 4)
+		c := commit{hash: fields[0]}
 		if len(fields) > 1 {
-			c.subject = fields[1]
+			c.email = fields[1]
 		}
 		if len(fields) > 2 {
-			c.task = strings.TrimSpace(fields[2])
+			c.subject = fields[2]
+		}
+		if len(fields) > 3 {
+			c.task = strings.TrimSpace(fields[3])
 		}
 		for _, line := range lines[1:] {
 			if summary := strings.TrimSpace(line); strings.HasPrefix(summary, "create mode ") && strings.HasSuffix(summary, " .mem/config.toml") {
@@ -146,13 +165,24 @@ func (w Work) Level() Level {
 	return Quiet
 }
 
+// sinceCheckpoint reads the commits on HEAD back to the user's last checkpoint, newest first, without it.
+func sinceCheckpoint(ctx context.Context, root, user, email string) ([]commit, error) {
+	commits, err := history(ctx, root, firstWalk)
+	if err == nil && len(commits) == firstWalk && !anyCheckpoint(commits, user, email) {
+		commits, err = history(ctx, root, maxWalk)
+	}
+	for i, c := range commits {
+		if c.checkpoint(user, email) {
+			return commits[:i], err
+		}
+	}
+	return commits, err
+}
+
 // Since measures the user's work since their last checkpoint. Teammates' commits do not count, and neither do
 // mem's records; uncommitted changes in the checkout do, whoever made them.
 func Since(ctx context.Context, p project.Project, user, email string) (Work, error) {
-	commits, err := history(ctx, p.Root, firstWalk)
-	if err == nil && len(commits) == firstWalk && !anyCheckpoint(commits, user, email) {
-		commits, err = history(ctx, p.Root, maxWalk)
-	}
+	commits, err := sinceCheckpoint(ctx, p.Root, user, email)
 	if err != nil {
 		return Work{}, err
 	}
@@ -165,9 +195,6 @@ func Since(ctx context.Context, p project.Project, user, email string) (Work, er
 		}
 	}
 	for i, c := range commits {
-		if c.checkpoint(user, email) {
-			break
-		}
 		if !c.work(email, p.Config.Structure) {
 			continue
 		}
@@ -184,6 +211,50 @@ func Since(ctx context.Context, p project.Project, user, email string) (Work, er
 	}
 	w.Files = len(files)
 	return w, nil
+}
+
+// Covered is what a work log written now covers: the user's own commits since their last checkpoint, oldest first,
+// and every file outside .mem/ they and the uncommitted changes touched, most changed first.
+type Covered struct {
+	Commits []string
+	Files   []structure.Change
+}
+
+func Cover(ctx context.Context, root, user, email string) (Covered, error) {
+	commits, err := sinceCheckpoint(ctx, root, user, email)
+	if err != nil {
+		return Covered{}, err
+	}
+	var cov Covered
+	lines := map[string]int{}
+	var order []string
+	add := func(file string, n int) {
+		if strings.HasPrefix(file, ".mem/") || path.Base(file) == ".DS_Store" {
+			return
+		}
+		if _, seen := lines[file]; !seen {
+			order = append(order, file)
+		}
+		lines[file] += n
+	}
+	for i := len(commits) - 1; i >= 0; i-- {
+		if c := commits[i]; c.own(email) {
+			cov.Commits = append(cov.Commits, c.hash)
+			for _, ch := range c.changes {
+				add(ch.file, ch.lines)
+			}
+		}
+	}
+	if changes, err := structure.Diff(ctx, root, "HEAD"); err == nil {
+		for _, ch := range changes {
+			add(ch.Path, ch.Lines)
+		}
+	}
+	for _, file := range order {
+		cov.Files = append(cov.Files, structure.Change{Path: file, Lines: lines[file]})
+	}
+	sort.SliceStable(cov.Files, func(i, j int) bool { return cov.Files[i].Lines > cov.Files[j].Lines })
+	return cov, nil
 }
 
 func anyCheckpoint(commits []commit, user, email string) bool {
