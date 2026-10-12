@@ -58,6 +58,37 @@ func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
 	}
 }
 
+func TestTaskCompletionWithPathsLeavesAnotherSessionsChangesAlone(t *testing.T) {
+	mine, _ := sharedProject(t)
+	mem(t, mine, "spec", "new", "Search")
+	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
+	mem(t, mine, "spec", "start", "search")
+	commit(t, mine, "shared.go")
+	run(t, mine, "push", "--quiet")
+
+	writeFile(t, mine, "index/index.go", "package index\n")
+	writeFile(t, mine, "index/index_test.go", "package index\n")
+	writeFile(t, mine, "forgotten.go", "package index\n")
+	writeFile(t, mine, "shared.go", "another session's edit\n")
+	run(t, mine, "add", "shared.go")
+	out := mem(t, mine, "task", "complete", "index", "Built the index.", "index")
+
+	files := run(t, mine, "show", "--name-only", "--format=", "HEAD")
+	if files != ".mem/specs/search/tasks/01_index.md\nindex/index.go\nindex/index_test.go" {
+		t.Fatalf("the task commit holds more or less than the named paths and the record:\n%s", files)
+	}
+	if run(t, mine, "rev-parse", "HEAD") != run(t, mine, "rev-parse", "origin/dev") {
+		t.Fatal("task complete did not push")
+	}
+	if status := run(t, mine, "status", "--porcelain"); status != "M  shared.go\n?? forgotten.go" {
+		t.Fatalf("the other changes were not left as they were:\n%s", status)
+	}
+	listed := "Left uncommitted (not in the paths you named):\n  new:     forgotten.go\n  changed: shared.go"
+	if !strings.Contains(out, "Committed: Index (the paths you named, with the task record)") || !strings.Contains(out, listed) || !strings.Contains(out, `git commit -m "Add files missed from Index"`) || !strings.Contains(out, "another session may be working in this checkout") {
+		t.Fatalf("task complete output:\n%s", out)
+	}
+}
+
 func TestSyncPushesLocalCommits(t *testing.T) {
 	mine, _ := sharedProject(t)
 	commit(t, mine, "parser.go")
