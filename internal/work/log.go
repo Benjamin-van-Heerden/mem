@@ -12,8 +12,9 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
-// logGuidance is for the agent writing the log; Finish removes it before the log is committed.
-const logGuidance = "<!-- A work log records a stretch of work since the previous log, as fact and as things stand. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->"
+// olderGuidance is the guidance comment logs started by mem v0.7.10 carry under their heading; the guidance is now in
+// `mem log new`'s instructions, and Finish removes the comment from such a log before it is committed.
+var olderGuidance = regexp.MustCompile(`<!-- A work log records [^>]*-->\n\n`)
 
 // The placeholders for the key files: one under the files mem listed from Git, one when it found none.
 const (
@@ -25,7 +26,7 @@ Files affected and the changes made to them, including files outside this reposi
 }`
 )
 
-const logTemplate = "# Work Log - {short title}\n\n" + logGuidance + `
+const logTemplate = `# Work Log - {short title}
 
 ## Goal
 
@@ -98,9 +99,9 @@ func (l Log) Unfilled() []string {
 	return left
 }
 
-// Finish removes the template's guidance comment from the log file.
+// Finish removes the guidance comment of a log started by an older mem from the log file.
 func (l *Log) Finish() error {
-	body := strings.Replace(l.Body, logGuidance+"\n\n", "", 1)
+	body := olderGuidance.ReplaceAllString(l.Body, "")
 	if body == l.Body {
 		return nil
 	}

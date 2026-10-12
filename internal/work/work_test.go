@@ -97,12 +97,17 @@ func TestLongTitlesGetShortUniqueSlugs(t *testing.T) {
 	}
 }
 
-func TestFinishRemovesTheGuidanceCommentOnly(t *testing.T) {
+func TestNewLogsCarryNoGuidanceAndFinishRemovesAnOlderOne(t *testing.T) {
 	p := project.Project{Root: t.TempDir()}
 	l, err := NewLog(p, "tester", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if strings.Contains(l.Body, "<!--") || !strings.HasPrefix(l.Body, "# Work Log - {short title}\n\n## Goal") {
+		t.Fatalf("new log body:\n%s", l.Body)
+	}
+	// A log started by mem v0.7.10 and committed by this one.
+	l.Body = strings.Replace(l.Body, "\n\n## Goal", "\n\n<!-- A work log records a stretch of work since the previous log, as fact. It is not updated later. Anything still to be done, including blockers and decisions waiting on the user, belongs in a todo, not here. -->\n\n## Goal", 1)
 	if err := l.Finish(); err != nil {
 		t.Fatal(err)
 	}
