@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v mem >/dev/null 2>&1 && mem hook prompt || true",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

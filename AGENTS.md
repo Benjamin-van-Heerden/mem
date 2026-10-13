@@ -1,5 +1,5 @@
 <mem>
-<!-- Managed by mem v0.7.10. Edits inside this block are replaced on onboard. -->
+<!-- Managed by mem v0.8.0. Edits inside this block are replaced on onboard. -->
 
 # Working With mem
 
@@ -26,8 +26,8 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
 - `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that. A started spec is worked through to the end: do not stop for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
-- `mem task complete <task> "<what was done and how it was verified>"`: record a finished task. It commits every change in the working tree together with the task record, using the task title and your note as the commit message, then syncs and pushes. Then continue with the next task without waiting for approval.
-- Because task completion commits everything that is not ignored, keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`, and commit unrelated changes separately before completing a task.
+- `mem task complete <task> "<what was done and how it was verified>" <path>...`: record a finished task. It commits the paths you name, relative to the repository root, together with the task record, using the task title and your note as the commit message, then syncs and pushes. Name the files and directories you changed for the task: another session may be working in the same checkout, and its changes must stay out of your commit. mem lists what it left uncommitted; commit anything of yours among it as a follow-up. Without paths it commits every change in the working tree. Then continue with the next task without waiting for approval.
+- Keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`.
 - `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes. It refuses until the branch is in step with the shared codebase: resolve any conflicts it names, with the user, first.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
@@ -43,7 +43,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- Write one at each checkpoint: when a spec completes, before a release, when mem's commit nudge says to, and when the user wraps up. Run `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
+- Write one at each checkpoint: when a spec completes, before a release, when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit`, which commits the log with the other .mem/ records, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
