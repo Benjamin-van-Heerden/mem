@@ -40,6 +40,43 @@ func TestCommitPathsCommitsOnlyGivenPathsAndPushes(t *testing.T) {
 	}
 }
 
+func TestCommitTakesPathsAlreadyRemovedOrMovedInTheIndex(t *testing.T) {
+	ctx := context.Background()
+	repo := t.TempDir()
+	mustRun(t, repo, "init", "--quiet", "-b", "dev")
+	mustRun(t, repo, "config", "user.name", "Test")
+	mustRun(t, repo, "config", "user.email", "test@example.com")
+	for _, file := range []string{"requirements.txt", "HANDOVER.md", "old.txt", "other.txt"} {
+		write(t, repo, file, file+"\n")
+	}
+	mustRun(t, repo, "add", ".")
+	mustRun(t, repo, "commit", "--quiet", "-m", "init")
+
+	mustRun(t, repo, "rm", "--quiet", "requirements.txt")
+	write(t, repo, "docs/history/.keep", "")
+	mustRun(t, repo, "mv", "HANDOVER.md", "docs/history/HANDOVER.md")
+	if err := os.Remove(filepath.Join(repo, "old.txt")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, repo, "other.txt", "changed\n")
+
+	if err := Commit(ctx, repo, "Move docs", "requirements.txt", "HANDOVER.md", "docs", "old.txt"); err != nil {
+		t.Fatal(err)
+	}
+	files := mustRun(t, repo, "show", "--name-status", "--format=", "HEAD")
+	for _, want := range []string{"D\trequirements.txt", "D\told.txt", "docs/history/HANDOVER.md", "docs/history/.keep"} {
+		if !strings.Contains(files, want) {
+			t.Fatalf("commit lacks %q:\n%s", want, files)
+		}
+	}
+	if status := mustRun(t, repo, "status", "--porcelain"); status != " M other.txt" {
+		t.Fatalf("a path that was not named was committed or staged: %q", status)
+	}
+	if err := Commit(ctx, repo, "Typo", "no-such-file.txt"); err == nil {
+		t.Fatal("a path that matches nothing was accepted")
+	}
+}
+
 func TestPushReportsARemoteThatMovedOnInOneLine(t *testing.T) {
 	base := t.TempDir()
 	remote, repo, other := filepath.Join(base, "remote.git"), filepath.Join(base, "repo"), filepath.Join(base, "other")

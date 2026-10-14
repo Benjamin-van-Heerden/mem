@@ -166,6 +166,10 @@ func (a *app) logCommit() *cobra.Command {
 			if left := l.Unfilled(); len(left) > 0 {
 				return fmt.Errorf("%s still has %d unfilled placeholder(s): %s. Fill them in, then run `mem log commit` again", p.Rel(l.Path), len(left), strings.Join(left, " / "))
 			}
+			// An ignored log never shows in git status, which would read as "already committed".
+			if rule := ignoreRule(ctx, p.Root, p.Rel(l.Path)); rule != "" {
+				return fmt.Errorf("%s is ignored by Git (%s), so it cannot be committed. Change that rule so it no longer matches .mem/ (a bare `logs/`, for example, also matches .mem/logs/; `/logs/` matches only the top-level folder), then run `mem log commit` again", p.Rel(l.Path), rule)
+			}
 			if err := l.Finish(); err != nil {
 				return err
 			}
@@ -207,6 +211,17 @@ func (a *app) logCommit() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// ignoreRule names the .gitignore rule that keeps an untracked path out of Git ("<file>:<line>:<pattern>"), or ""
+// when none does.
+func ignoreRule(ctx context.Context, root, path string) string {
+	out, err := git.Run(ctx, root, "check-ignore", "--verbose", "--", path)
+	if err != nil {
+		return ""
+	}
+	rule, _, _ := strings.Cut(out, "\t")
+	return rule
 }
 
 // uncommittedOutsideMem counts changed and untracked files outside .mem/, ignoring .DS_Store.

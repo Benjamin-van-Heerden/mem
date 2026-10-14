@@ -60,6 +60,21 @@ func TestLogCommitRefusesAnUnfilledLog(t *testing.T) {
 	}
 }
 
+func TestLogCommitRefusesALogThatGitIgnores(t *testing.T) {
+	mine, _ := sharedProject(t)
+	writeFile(t, mine, ".gitignore", "logs/\n")
+	run(t, mine, "add", ".gitignore")
+	run(t, mine, "commit", "--quiet", "-m", "Ignore logs")
+	mem(t, mine, "log", "new")
+	fillLog(t, mine)
+	cmd := New()
+	cmd.SetOut(new(strings.Builder))
+	cmd.SetArgs([]string{"log", "commit", "--dir", mine})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "is ignored by Git (.gitignore:1:logs/)") {
+		t.Fatalf("an ignored log was reported as committed: %v", err)
+	}
+}
+
 func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	mine, teammate := sharedProject(t)
 	commit(t, teammate, "theirs.txt")

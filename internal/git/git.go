@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -66,11 +67,30 @@ var ErrPush = errors.New("push failed")
 // Commit commits only the given paths, leaving any other changes in the
 // working tree and index untouched.
 func Commit(ctx context.Context, root, message string, paths ...string) error {
-	if _, err := Run(ctx, root, append([]string{"add", "--all", "--"}, paths...)...); err != nil {
-		return err
+	// A path already taken out of the index (git rm, or the old side of git mv) has nothing left to stage and git add
+	// rejects it, while git commit still records its removal; a path that matches nothing at all fails in git commit.
+	var stage []string
+	for _, path := range paths {
+		if present(ctx, root, path) {
+			stage = append(stage, path)
+		}
+	}
+	if len(stage) > 0 {
+		if _, err := Run(ctx, root, append([]string{"add", "--all", "--"}, stage...)...); err != nil {
+			return err
+		}
 	}
 	_, err := Run(ctx, root, append([]string{"commit", "--quiet", "-m", message, "--"}, paths...)...)
 	return err
+}
+
+// present reports whether a path exists in the working tree or the index.
+func present(ctx context.Context, root, path string) bool {
+	if _, err := os.Lstat(filepath.Join(root, path)); err == nil {
+		return true
+	}
+	tracked, err := Run(ctx, root, "ls-files", "--", path)
+	return err == nil && tracked != ""
 }
 
 // CommitAll commits every change in the working tree, new files included and ignored files excepted.
