@@ -141,3 +141,41 @@ func TestInitRemovesACLAUDELinkButKeepsItsOwnFile(t *testing.T) {
 		}
 	}
 }
+
+func TestOnboardDeletesTheOldHarnessCLAUDECopyAndFlagsItsOwnFile(t *testing.T) {
+	harnessCopy := "# Project\n\n<core_instructions>\nRun harness/main.py onboard.\n</core_instructions>\n"
+	for _, c := range []struct {
+		name, content string
+		tracked, kept bool
+	}{
+		{"untracked harness copy", harnessCopy, false, false},
+		{"committed harness copy", harnessCopy, true, false},
+		{"own instructions", "# Claude notes\n", true, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			mine, _ := sharedProject(t)
+			writeFile(t, mine, "CLAUDE.md", c.content)
+			if c.tracked {
+				run(t, mine, "add", "CLAUDE.md")
+				run(t, mine, "commit", "--quiet", "-m", "Add CLAUDE.md")
+				run(t, mine, "push", "--quiet")
+			}
+
+			out := mem(t, mine, "onboard")
+			_, err := os.Lstat(filepath.Join(mine, "CLAUDE.md"))
+			if c.kept != (err == nil) {
+				t.Fatalf("CLAUDE.md exists=%v, want %v\n%s", err == nil, c.kept, out)
+			}
+			flagged := strings.Contains(out, "⚠️ CLAUDE.md has its own instructions") && strings.Contains(out, "Tell the user about each ⚠️ item under 🔄 UPDATES")
+			if c.kept != flagged || !c.kept && !strings.Contains(out, "Removed CLAUDE.md, a copy of the old harness instructions") {
+				t.Fatalf("onboard output:\n%s", out)
+			}
+			if status := run(t, mine, "status", "--porcelain"); status != "" {
+				t.Fatalf("uncommitted after onboard:\n%s", status)
+			}
+			if local, remote := run(t, mine, "rev-parse", "HEAD"), run(t, mine, "rev-parse", "origin/dev"); local != remote {
+				t.Fatal("onboard left commits unpushed")
+			}
+		})
+	}
+}

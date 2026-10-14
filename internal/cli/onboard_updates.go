@@ -77,6 +77,16 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	if tracked, _ := git.Run(ctx, p.Root, "ls-files", "--", ".mem/local"); tracked != "" {
 		lines = append(lines, "⚠️ Files under .mem/local/ are committed, but they are local to each checkout. Stop tracking them with `git rm -r --cached .mem/local` and commit that.")
 	}
+	claudeLine, claudeTracked, err := settleClaudeFile(ctx, p.Root)
+	if err != nil {
+		return nil, err
+	}
+	if claudeLine != "" {
+		lines = append(lines, claudeLine)
+	}
+	if claudeTracked {
+		publishPaths = append(publishPaths, "CLAUDE.md")
+	}
 	settingsStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", claude.SettingsPath)
 	want := claude.Hooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
 	switch changed, err := claude.SyncHooks(p.Root, want); {

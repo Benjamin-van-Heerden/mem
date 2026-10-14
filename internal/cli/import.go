@@ -59,10 +59,10 @@ func (a *app) importCommand() *cobra.Command {
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}
-			if removed, err := removeClaudeLink(root); err != nil {
+			if line, _, err := settleClaudeFile(cmd.Context(), root); err != nil {
 				return err
-			} else if removed {
-				sum.Notes = append(sum.Notes, claudeLinkRemoved)
+			} else if line != "" {
+				sum.Notes = append(sum.Notes, line)
 			}
 			if settingsIgnored(cmd.Context(), root) {
 				sum.Notes = append(sum.Notes, sharedSettingsWarning)

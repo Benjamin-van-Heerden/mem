@@ -71,6 +71,9 @@ var (
 	extraLegacyBlock = regexp.MustCompile(legacyBlock.String() + `\n*`)
 )
 
+// HasLegacy reports whether text holds a managed block from the Python coding harness.
+func HasLegacy(text string) bool { return legacyBlock.MatchString(text) }
+
 // ReplaceLegacy swaps the Python coding harness's first managed block for the mem
 // block in the same position, drops any further harness blocks and adds an empty memories block.
 func ReplaceLegacy(text, version string) (string, error) {

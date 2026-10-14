@@ -141,9 +141,6 @@ func convertAgents(root, version, memoriesDir string, sum *Summary) (string, err
 	if err != nil {
 		return "", err
 	}
-	if info, err := os.Lstat(filepath.Join(root, "CLAUDE.md")); err == nil && info.Mode()&os.ModeSymlink == 0 {
-		sum.Notes = append(sum.Notes, "CLAUDE.md is a separate file. Claude Code reads it instead of AGENTS.md, so the mem instructions would be skipped. Tell the user; move anything still needed from CLAUDE.md into AGENTS.md and delete CLAUDE.md.")
-	}
 	files, _ := filepath.Glob(filepath.Join(memoriesDir, "*.md"))
 	sort.Strings(files)
 	for _, file := range files {

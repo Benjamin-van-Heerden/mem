@@ -111,6 +111,7 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintf(out, "The project context is %d lines long and was written to %s.\n", bytes.Count(buf.Bytes(), []byte("\n")), p.Rel(path))
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
+			state.updateWarnings = hasWarning(updates)
 			state.templateWarnings = hasWarning(templateLines)
 			renderOnboardInstruction(out, report, state)
 			return nil
@@ -153,6 +154,7 @@ func renderReport(out io.Writer, r converge.Report, offline bool) {
 type contextState struct {
 	active           *work.Spec
 	drift            structure.Drift
+	updateWarnings   bool
 	templateWarnings bool
 	knowledgeChanged bool
 	stale            bool
@@ -398,6 +400,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	}
 	if len(r.Nudges) > 0 {
 		step("Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")
+	}
+	if state.updateWarnings {
+		step("Tell the user about each ⚠️ item under 🔄 UPDATES and settle it with them.")
 	}
 	if state.templateWarnings {
 		step("Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
