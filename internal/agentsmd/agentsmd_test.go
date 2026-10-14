@@ -45,6 +45,17 @@ func TestRefreshLeavesBlockFromNewerVersion(t *testing.T) {
 	}
 }
 
+func TestReplaceLegacyDropsEveryHarnessBlock(t *testing.T) {
+	text := "<AGENT_CORE>\nnewer harness\n</AGENT_CORE>\n\n<core_instructions>\nolder harness\n</core_instructions>\n\n## UV\n\nKeep this.\n"
+	updated, err := ReplaceLegacy(text, "1.2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(updated, "harness") || !strings.HasPrefix(updated, "<mem>\n") || !strings.Contains(updated, "</mem>\n\n## UV\n\nKeep this.\n") {
+		t.Fatalf("legacy blocks left behind or project content lost:\n%s", updated)
+	}
+}
+
 func TestSetMemoryReplacesByNameAndRemoveDeletesOnlyThatMemory(t *testing.T) {
 	text, _ := Install("", "1.0.0")
 	text, _ = SetMemory(text, "a", "first")

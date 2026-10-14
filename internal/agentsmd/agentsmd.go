@@ -65,10 +65,14 @@ func Install(text, version string) (string, error) {
 	return strings.TrimRight(strings.Join(parts, "\n\n"), "\n") + "\n", nil
 }
 
-var legacyBlock = regexp.MustCompile(`(?s)<(core_instructions|AGENT_CORE|agent_core)>.*?</(core_instructions|AGENT_CORE|agent_core)>`)
+var (
+	legacyBlock = regexp.MustCompile(`(?s)<(core_instructions|AGENT_CORE|agent_core)>.*?</(core_instructions|AGENT_CORE|agent_core)>`)
+	// Later harness versions wrote a new block without removing the old one, so a file can hold several.
+	extraLegacyBlock = regexp.MustCompile(legacyBlock.String() + `\n*`)
+)
 
-// ReplaceLegacy swaps the Python coding harness's managed block for the mem
-// block in the same position and adds an empty memories block.
+// ReplaceLegacy swaps the Python coding harness's first managed block for the mem
+// block in the same position, drops any further harness blocks and adds an empty memories block.
 func ReplaceLegacy(text, version string) (string, error) {
 	loc := legacyBlock.FindStringIndex(text)
 	if loc == nil {
@@ -77,7 +81,7 @@ func ReplaceLegacy(text, version string) (string, error) {
 	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	updated := text[:loc[0]] + block(version) + text[loc[1]:]
+	updated := text[:loc[0]] + block(version) + extraLegacyBlock.ReplaceAllString(text[loc[1]:], "")
 	if !hasTag(updated, memoriesOpen) {
 		updated = strings.TrimRight(updated, "\n") + "\n\n" + renderMemories(nil) + "\n"
 	}
