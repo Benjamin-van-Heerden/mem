@@ -134,7 +134,7 @@ func TestInitRemovesACLAUDELinkButKeepsItsOwnFile(t *testing.T) {
 			t.Skip("symlinks unavailable:", err)
 		}
 		commit(t, repo, "README.md")
-		mem(t, repo, "init", "--protect=false")
+		mem(t, repo, "init", "--protect=false", "--no-template")
 		_, err := os.Lstat(filepath.Join(repo, "CLAUDE.md"))
 		if own == (err != nil) {
 			t.Fatalf("own CLAUDE.md=%v: CLAUDE.md exists=%v", own, err == nil)

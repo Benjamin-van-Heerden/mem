@@ -24,7 +24,7 @@ func sharedProject(t *testing.T) (mine, teammate string) {
 	run(t, mine, "config", "user.email", "test@example.com")
 	commit(t, mine, "README.md")
 	run(t, mine, "push", "--quiet", "origin", "HEAD:main")
-	mem(t, mine, "init", "--protect=false")
+	mem(t, mine, "init", "--protect=false", "--no-template")
 	run(t, mine, "add", "--all")
 	run(t, mine, "commit", "--quiet", "-m", "mem setup")
 	run(t, mine, "push", "--quiet")

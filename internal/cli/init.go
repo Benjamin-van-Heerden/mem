@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ func (a *app) initCommand() *cobra.Command {
 	config := project.Config{Schema: project.Schema}
 	var templateNames []string
 	var templateSource string
+	var noTemplate bool
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up mem in the current Git repository",
@@ -41,8 +43,14 @@ func (a *app) initCommand() *cobra.Command {
 			if config.Name == "" {
 				config.Name = filepath.Base(root)
 			}
+			if len(templateNames) > 0 && noTemplate {
+				return errors.New("--template and --no-template exclude each other")
+			}
 			var lib templates.Library
 			var libWarning string
+			if len(templateNames) == 0 && !noTemplate {
+				return askForTemplates(cmd.Context(), cmd.OutOrStdout(), librarySource(templateSource, ""))
+			}
 			if len(templateNames) > 0 {
 				config.Templates.Source = librarySource(templateSource, "")
 				if lib, libWarning, err = templates.Open(cmd.Context(), config.Templates.Source, true); err != nil {
@@ -158,11 +166,51 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Git.Staging, "staging", "test", "Staging branch, deployed as preview releases")
 	cmd.Flags().StringVar(&config.Git.Production, "production", "main", "Production branch")
 	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills and docs from; repeat for several (later ones win on name clashes)")
+	cmd.Flags().BoolVar(&noTemplate, "no-template", false, "Set up without templates (without --template or this flag, init only lists the library's templates)")
 	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to "+templates.DefaultSource+")")
 	cmd.Flags().BoolVar(&config.Release.ProductionPR, "production-pr", false, "Release production through a pull request, which mem completes by fast-forward")
 	cmd.Flags().BoolVar(&config.Release.Notes, "release-notes", false, "Release production with notes the agent drafts and the user confirms")
 	cmd.Flags().BoolVar(&config.Git.Protect, "protect", true, "Install Git hooks that keep staging and production promotion-only (use --protect=false for solo projects)")
 	return cmd
+}
+
+// askForTemplates stops init before it changes anything, so the user chooses the
+// templates while they can still shape the project's setup.
+func askForTemplates(ctx context.Context, out io.Writer, source string) error {
+	lib, warning, err := templates.Open(ctx, source, true)
+	if err != nil {
+		return fmt.Errorf("%w; run `mem init --no-template` to set up without templates", err)
+	}
+	available, err := lib.Templates()
+	if err != nil {
+		return err
+	}
+	output.Heading(out, "🧩 MEM INIT: CHOOSE TEMPLATES")
+	fmt.Fprintln(out, "Nothing has been set up yet.")
+	fmt.Fprintf(out, "Library: %s\n", source)
+	if warning != "" {
+		fmt.Fprintln(out, "⚠️ "+warning)
+	}
+	fmt.Fprintln(out)
+	rows := [][]string{{"TEMPLATE", "SETUP", "DESCRIPTION"}}
+	for _, t := range available {
+		setup := ""
+		if t.HasSetup {
+			setup = "yes"
+		}
+		rows = append(rows, []string{t.Name, setup, t.Description})
+	}
+	if len(available) == 0 {
+		fmt.Fprintln(out, "The library has no templates yet.")
+		output.Instruction(out, "1. Run the same `mem init` command again with `--no-template`.")
+		return nil
+	}
+	table(out, rows)
+	output.Instruction(out,
+		"1. Show the user these templates and ask which fit this project. Several can be combined; later ones win on name clashes, and a template with a setup walks through scaffolding the project.",
+		"2. Run the same `mem init` command again with `--template <name>` for each choice (repeat the flag), or with `--no-template` if none fits.",
+	)
+	return nil
 }
 
 // ensureBranches creates missing branches in promotion order (staging from production, development from staging),

@@ -167,12 +167,34 @@ func TestInitInstallsTheTemplateSetupAndTemplateUseDoesNot(t *testing.T) {
 	run(t, later, "config", "user.email", "test@example.com")
 	commit(t, later, "README.md")
 	run(t, later, "push", "--quiet", "origin", "HEAD:main")
-	mem(t, later, "init", "--protect=false")
+	mem(t, later, "init", "--protect=false", "--no-template")
 	out := mem(t, later, "template", "use", "nextjs-web", "--template-source", library)
 	if _, err := os.Stat(filepath.Join(later, ".mem", "setup.md")); !os.IsNotExist(err) {
 		t.Fatalf("template use installed the setup: %v", err)
 	}
 	if !strings.Contains(out, "nextjs-web has a setup for new projects") {
 		t.Fatalf("template use does not mention the setup:\n%s", out)
+	}
+}
+
+func TestInitWithoutTemplateChoiceListsTemplatesAndChangesNothing(t *testing.T) {
+	base, library, _ := templateWorld(t)
+	remote := filepath.Join(base, "app.git")
+	run(t, base, "init", "--quiet", "--bare", "-b", "main", remote)
+	root := filepath.Join(base, "app")
+	run(t, base, "clone", "--quiet", remote, root)
+	commit(t, root, "README.md")
+	run(t, root, "push", "--quiet", "origin", "HEAD:main")
+
+	out := mem(t, root, "init", "--template-source", library)
+
+	if !strings.Contains(out, "nextjs-web") || !strings.Contains(out, "--no-template") {
+		t.Fatalf("init does not offer the templates:\n%s", out)
+	}
+	if status := run(t, root, "status", "--porcelain", "--ignored"); status != "" {
+		t.Fatalf("init changed the working tree:\n%s", status)
+	}
+	if branches := run(t, remote, "branch", "--list"); strings.Contains(branches, "dev") {
+		t.Fatalf("init published branches before a template was chosen:\n%s", branches)
 	}
 }

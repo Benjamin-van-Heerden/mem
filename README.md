@@ -28,6 +28,8 @@ In an existing Git repository:
 mem init
 ```
 
+Without `--template` or `--no-template`, init changes nothing: it lists the library's templates, and the agent asks you which fit before running it again with your choice (see below).
+
 This writes `.mem/config.toml`, adds mem's instructions and a memories section to `AGENTS.md` (existing content is kept), ignores `.mem/local/`, creates any missing development, staging and production branches (from the remote where they exist, otherwise from production), publishes them, switches to development, installs the Git hooks and adds mem's Claude Code hooks (the compaction catch-up and the work-log nudge at each message) to `.claude/settings.json`. A `CLAUDE.md` that only links to `AGENTS.md` is removed, since Claude Code reads `AGENTS.md` itself. Commit the result on the development branch and push it.
 
 Branch names default to `dev`, `test` and `main`:
@@ -36,9 +38,9 @@ Branch names default to `dev`, `test` and `main`:
 mem init --development development --staging test --production production
 ```
 
-Solo projects that do not want the hooks: `mem init --protect=false`.
+Solo projects that do not want the hooks: `mem init --no-template --protect=false`.
 
-To start from templates, name them and the template library:
+To start from templates, name them:
 
 ```sh
 mem init --template nextjs-web

@@ -159,6 +159,7 @@ use = ["base", "nextjs-web"]      # later templates win when two provide the sam
 exclude = ["skill:old-guide"]     # opt-outs, written by mem
 ```
 
+- `mem init` asks for templates first: without `--template` or `--no-template` it changes nothing, lists the library's templates and tells the agent to ask the user which fit before running it again.
 - `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`. Without `--template-source`, the library is github.com/Benjamin-van-Heerden/mem-templates; the project's `[templates] source` records whichever library it uses.
 - mem keeps one clone of each library in the user cache and pulls it at onboard (not with `--offline`).
 - `.mem/templates.lock` records, per item, the content it last shared with its template. Onboard compares project copy, template copy and that record: it adds missing items, updates items the project has not edited, reports local-only edits as promotion candidates, flags items edited on both sides, keeps items a template no longer provides, and turns a deleted item into an `exclude` entry. It never deletes project files, and it publishes its changes unless those paths already had uncommitted edits.
