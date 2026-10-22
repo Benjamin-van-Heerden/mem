@@ -68,6 +68,9 @@ func (a *app) share(cmd *cobra.Command, nudges []string) ([]string, error) {
 	if hasWarning(c.templates) {
 		lines = append(lines, "Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
 	}
+	if hasConventionTodo(c.templates) {
+		lines = append(lines, conventionTodoInstruction)
+	}
 	return lines, nil
 }
 

@@ -35,10 +35,20 @@ type lockFile struct {
 }
 
 // Result describes what a sync changed. Lines are for the user; lines that start
-// with ⚠️ need a decision. Paths are the repository paths that changed.
+// with ⚠️ need a decision. Paths are the repository paths that changed. Memories
+// are the conventions the sync added or replaced with the template's version.
 type Result struct {
-	Lines []string
-	Paths []string
+	Lines    []string
+	Paths    []string
+	Memories []MemoryChange
+}
+
+// MemoryChange is a template memory written into the project; Previous is empty for a new one.
+type MemoryChange struct {
+	Name     string
+	Template string
+	Body     string
+	Previous string
 }
 
 func (r *Result) changed(paths ...string) {
@@ -188,6 +198,7 @@ func (s *state) reconcile(item Item) error {
 			return nil
 		}
 		s.record(item, template)
+		s.noteMemory(item, "")
 		s.res.Lines = append(s.res.Lines, fmt.Sprintf("Added %s %s from %s.", item.Kind, item.Name, item.Template))
 	case StateDeleted:
 		delete(s.lock, key)
@@ -200,11 +211,13 @@ func (s *state) reconcile(item Item) error {
 			s.record(item, template)
 		}
 	case StateUpdated:
+		previous, _ := agentsmdMemories(s.agents)
 		if err := s.install(item); err != nil {
 			s.res.Lines = append(s.res.Lines, fmt.Sprintf("⚠️ Could not update %s %s from %s: %v. Tell the user; the template copy needs fixing.", item.Kind, item.Name, item.Template, err))
 			return nil
 		}
 		s.record(item, template)
+		s.noteMemory(item, previous[item.Name])
 		s.res.Lines = append(s.res.Lines, fmt.Sprintf("Updated %s %s from %s.", item.Kind, item.Name, item.Template))
 	case StateLocalEdits:
 		s.res.Lines = append(s.res.Lines, fmt.Sprintf("%s %s has local edits that %s does not have. If they would help similar projects, suggest promoting them to the user: %s.", capitalize(item.Kind), item.Name, item.Template, promote))
@@ -214,6 +227,14 @@ func (s *state) reconcile(item Item) error {
 		s.res.Lines = append(s.res.Lines, fmt.Sprintf("⚠️ This project already has a %s named %s that differs from the one in %s, so it was left as it is. Tell the user, and ask which to keep: this project's version (%s) or the template's (%s).", item.Kind, item.Name, item.Template, promote, reset))
 	}
 	return nil
+}
+
+func (s *state) noteMemory(item Item, previous string) {
+	if item.Kind != Memory {
+		return
+	}
+	body, _ := agentsmdMemories(s.agents)
+	s.res.Memories = append(s.res.Memories, MemoryChange{Name: item.Name, Template: item.Template, Body: strings.TrimSpace(body[item.Name]), Previous: strings.TrimSpace(previous)})
 }
 
 func (s *state) record(item Item, hash string) {

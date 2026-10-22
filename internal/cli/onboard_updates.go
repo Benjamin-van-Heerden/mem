@@ -132,7 +132,13 @@ func syncTemplates(ctx context.Context, p *project.Project, pull bool) ([]string
 	if err != nil {
 		return nil, err
 	}
+	todoLines, todoPaths, err := conventionTodos(*p, res.Memories)
+	if err != nil {
+		return nil, err
+	}
+	res.Paths = append(res.Paths, todoPaths...)
 	lines = append(lines, res.Lines...)
+	lines = append(lines, todoLines...)
 	switch {
 	case len(res.Paths) == 0:
 	case dirty != "":

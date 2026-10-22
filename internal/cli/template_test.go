@@ -175,6 +175,67 @@ func TestInitInstallsTheTemplateSetupAndTemplateUseDoesNot(t *testing.T) {
 	if !strings.Contains(out, "nextjs-web has a setup for new projects") {
 		t.Fatalf("template use does not mention the setup:\n%s", out)
 	}
+	todos, _ := filepath.Glob(filepath.Join(later, ".mem", "todos", "*.md"))
+	if len(todos) != 1 {
+		t.Fatalf("template use recorded %d todos, want one for the template's conventions:\n%s", len(todos), out)
+	}
+	todo, err := os.ReadFile(todos[0])
+	if err != nil || !strings.Contains(string(todo), "- `package-manager`: Use pnpm.") || !strings.Contains(out, "📌 Todo apply_") {
+		t.Fatalf("template use did not record a todo for the template's conventions (%v):\n%s\n%s", err, todo, out)
+	}
+}
+
+func TestTemplateMemoryChangesRecordTodosToCheckExistingCode(t *testing.T) {
+	base, library, libraryWork := templateWorld(t)
+	root := templateProject(t, base, "app", library)
+	push := func(message string) {
+		run(t, libraryWork, "add", "--all")
+		run(t, libraryWork, "commit", "--quiet", "-m", message)
+		run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
+	}
+	todoFiles := func() []string {
+		entries, _ := os.ReadDir(filepath.Join(root, ".mem", "todos"))
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		return names
+	}
+
+	writeFile(t, libraryWork, "nextjs-web/memories/package-manager.md", "Use bun.\n")
+	writeFile(t, libraryWork, "nextjs-web/memories/repositories.md", "Queries live in src/db/repositories.\n")
+	push("conventions")
+	out := mem(t, root, "onboard")
+
+	if !strings.Contains(out, "📌 The nextjs-web template changed the convention package-manager") || !strings.Contains(out, "📌 The nextjs-web template added the convention repositories") || !strings.Contains(out, "Tell the user about each 📌 item") {
+		t.Fatalf("onboard does not report the convention todos:\n%s", out)
+	}
+	changed, err := os.ReadFile(filepath.Join(root, ".mem", "todos", "apply_template_convention_package_manager.md"))
+	if err != nil || !strings.Contains(string(changed), "> Use bun.") || !strings.Contains(string(changed), "It used to read:\n\n> Use pnpm.") {
+		t.Fatalf("todo for the changed memory (%v):\n%s", err, changed)
+	}
+	if status := run(t, root, "status", "--porcelain"); status != "" {
+		t.Fatalf("the todos were not committed with the template sync:\n%s", status)
+	}
+
+	writeFile(t, libraryWork, "nextjs-web/memories/package-manager.md", "Use bun, never npm.\n")
+	push("reword")
+	mem(t, root, "onboard")
+	if got := todoFiles(); len(got) != 2 {
+		t.Fatalf("a second change to a memory with an open todo added another todo: %v", got)
+	}
+	if changed, _ := os.ReadFile(filepath.Join(root, ".mem", "todos", "apply_template_convention_package_manager.md")); !strings.Contains(string(changed), "> Use bun, never npm.") {
+		t.Fatalf("the open todo was not rewritten with the latest text:\n%s", changed)
+	}
+
+	writeFile(t, root, ".mem/setup.md", "# Setup\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n")
+	run(t, root, "add", ".mem/setup.md")
+	run(t, root, "commit", "--quiet", "-m", "setup")
+	writeFile(t, libraryWork, "nextjs-web/memories/env.md", "Read env through serverEnv.\n")
+	push("env")
+	if out := mem(t, root, "onboard"); strings.Contains(out, "📌 The nextjs-web template") || len(todoFiles()) != 2 {
+		t.Fatalf("a project still in its setup got a convention todo:\n%s", out)
+	}
 }
 
 func TestInitWithoutTemplateChoiceListsTemplatesAndChangesNothing(t *testing.T) {

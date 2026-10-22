@@ -66,6 +66,14 @@ func (a *app) templateUse() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			todoLine, todoPath, err := templateUseTodo(p, name, res.Memories)
+			if err != nil {
+				return err
+			}
+			if todoLine != "" {
+				res.Lines = append(res.Lines, todoLine)
+				res.Paths = append(res.Paths, todoPath)
+			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "🧩 TEMPLATE ADDED: "+name)
 			fmt.Fprintf(out, "Library: %s\nTemplates in use: %s\n", p.Config.Templates.Source, strings.Join(p.Config.Templates.Use, ", "))
@@ -251,6 +259,9 @@ func templateInstructions(res templates.Result, extra ...string) []string {
 	lines := []string{fmt.Sprintf("1. Show the user what changed (%s), then commit it.", strings.Join(slices.Compact(paths), ", "))}
 	if slices.ContainsFunc(res.Lines, func(l string) bool { return strings.HasPrefix(l, "⚠️") }) {
 		lines = append(lines, "2. Tell the user about each ⚠️ item above and settle it with them.")
+	}
+	if hasConventionTodo(res.Lines) {
+		lines = append(lines, fmt.Sprintf("%d. Tell the user about the 📌 todo above, and ask whether to check the existing code against the template's conventions now or later.", len(lines)+1))
 	}
 	return lines
 }
