@@ -179,3 +179,20 @@ func TestOnboardDeletesTheOldHarnessCLAUDECopyAndFlagsItsOwnFile(t *testing.T) {
 		})
 	}
 }
+
+func TestOnboardWarnsWhenTheCheckoutIsALinkedWorktree(t *testing.T) {
+	mine, _ := sharedProject(t)
+	if out := mem(t, mine, "onboard"); strings.Contains(out, "Git worktree") {
+		t.Fatalf("the main checkout is flagged as a worktree:\n%s", out)
+	}
+	tree := filepath.Join(t.TempDir(), "session")
+	run(t, mine, "worktree", "add", "--quiet", "-b", "claude/session", tree)
+	main, _ := filepath.EvalSymlinks(mine)
+
+	out := mem(t, tree, "onboard")
+	for _, want := range []string{"⚠️ This checkout is a Git worktree; the main checkout is " + main + ".", "Its work sits on claude/session", "Tell the user they are working in a worktree", "Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE."} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q:\n%s", want, out)
+		}
+	}
+}

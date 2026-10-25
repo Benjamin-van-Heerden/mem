@@ -42,6 +42,8 @@ type Report struct {
 	// Before and After are the upstream's revisions before and after the fetch;
 	// they differ when others pushed since this checkout last fetched.
 	Before, After string
+	// MainCheckout is the main working tree when this checkout is a linked worktree.
+	MainCheckout string
 	// devHandled records that followDevelopment already acted on or reported the branch's drift from development.
 	devHandled bool
 }
@@ -177,6 +179,18 @@ func Unpushed(r Report) string {
 	return fmt.Sprintf("%d local commit(s) on %s are not pushed to %s. Tell the user, and push them at the next sensible point (`git push`) so everyone works on the same code.", r.Ahead, r.Branch, r.Upstream)
 }
 
+// Worktree is the nudge for working in a linked worktree, or "" in the main checkout.
+func Worktree(r Report) string {
+	if r.MainCheckout == "" {
+		return ""
+	}
+	branch := ""
+	if r.Branch != "" && r.Branch != r.Dev {
+		branch = fmt.Sprintf(" Its work sits on %s and reaches everyone only once that is merged into %s.", r.Branch, r.Dev)
+	}
+	return fmt.Sprintf("This checkout is a Git worktree; the main checkout is %s. mem works toward one shared checkout on %s.%s Tell the user they are working in a worktree. If they intended it, carry on; if not, they should continue in the main checkout and turn off worktree sessions for this project in their coding agent.", r.MainCheckout, r.Dev, branch)
+}
+
 func inspect(ctx context.Context, p project.Project) Report {
 	remote, dev := p.Config.Git.Remote, p.Config.Git.Development
 	r := Report{Remote: remote, Dev: dev, Staging: p.Config.Git.Staging, Production: p.Config.Git.Production, Branch: git.CurrentBranch(ctx, p.Root), Development: remote + "/" + dev}
@@ -185,6 +199,7 @@ func inspect(ctx context.Context, p project.Project) Report {
 	r.Uncommitted, _ = structure.ChangesSince(ctx, p, "HEAD")
 	_, err := git.Run(ctx, p.Root, "remote", "get-url", remote)
 	r.HasRemote = err == nil
+	r.MainCheckout = git.MainCheckout(ctx, p.Root)
 	if r.Branch == "" {
 		return r
 	}

@@ -66,6 +66,9 @@ func (a *app) onboardCommand() *cobra.Command {
 				return err
 			}
 			report = afterUpdates(ctx, p, report)
+			if line := converge.Worktree(report); line != "" {
+				report.Nudges = append([]string{line}, report.Nudges...)
+			}
 
 			var buf bytes.Buffer
 			knowledgeChanged := renderKnowledgeChanges(&buf, before, readKnowledge(p))

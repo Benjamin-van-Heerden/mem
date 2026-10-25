@@ -44,6 +44,24 @@ func Toplevel(ctx context.Context, dir string) (string, error) {
 	return root, nil
 }
 
+// MainCheckout is the repository's main working tree when root is a linked worktree, and "" otherwise.
+func MainCheckout(ctx context.Context, root string) string {
+	dirs, err := Run(ctx, root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(dirs, "\n")
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == strings.TrimSpace(parts[1]) {
+		return ""
+	}
+	list, err := Run(ctx, root, "worktree", "list", "--porcelain")
+	if err != nil {
+		return ""
+	}
+	first, _, _ := strings.Cut(list, "\n")
+	return strings.TrimSpace(strings.TrimPrefix(first, "worktree "))
+}
+
 func CurrentBranch(ctx context.Context, root string) string {
 	branch, _ := Run(ctx, root, "branch", "--show-current")
 	return branch
