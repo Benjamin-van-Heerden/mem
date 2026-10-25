@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/agenthooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
-	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
@@ -86,7 +86,10 @@ func (a *app) initCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
-			if _, err := claude.SyncHooks(root, claude.Hooks{Compact: true, Prompt: true}); err != nil {
+			if _, err := agenthooks.SyncClaude(root, agenthooks.ClaudeHooks{Compact: true, Prompt: true}); err != nil {
+				return err
+			}
+			if _, err := agenthooks.SyncCursor(root, true); err != nil {
 				return err
 			}
 			removed, err := removeClaudeLink(root)
@@ -124,14 +127,15 @@ func (a *app) initCommand() *cobra.Command {
 			fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for teammates and agents without it")
 			fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
-			fmt.Fprintln(out, claude.SettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")
+			fmt.Fprintln(out, agenthooks.ClaudeSettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")
+			fmt.Fprintln(out, agenthooks.CursorHooksPath+"     Cursor hook that has the agent write a due work log when a turn ends")
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}
 			if removed {
 				fmt.Fprintln(out, claudeLinkRemoved)
 			}
-			if settingsIgnored(cmd.Context(), root) {
+			if settingsIgnored(cmd.Context(), root, agenthooks.ClaudeSettingsPath) {
 				fmt.Fprintln(out, sharedSettingsWarning)
 			}
 			if setup != "" {

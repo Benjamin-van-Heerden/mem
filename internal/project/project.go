@@ -23,6 +23,7 @@ type Config struct {
 	Structure   StructureConfig `toml:"structure,omitempty"`
 	Templates   TemplatesConfig `toml:"templates,omitempty"`
 	Claude      ClaudeConfig    `toml:"claude,omitempty"`
+	Cursor      CursorConfig    `toml:"cursor,omitempty"`
 	Release     ReleaseConfig   `toml:"release,omitempty"`
 }
 
@@ -46,6 +47,14 @@ type ClaudeConfig struct {
 func (c ClaudeConfig) CompactHookEnabled() bool { return c.CompactHook == nil || *c.CompactHook }
 
 func (c ClaudeConfig) PromptHookEnabled() bool { return c.PromptHook == nil || *c.PromptHook }
+
+// CursorConfig controls what mem installs for Cursor.
+type CursorConfig struct {
+	// StopHook turns the work-log follow-up at the end of a turn off when false; unset means on.
+	StopHook *bool `toml:"stop_hook,omitempty"`
+}
+
+func (c CursorConfig) StopHookEnabled() bool { return c.StopHook == nil || *c.StopHook }
 
 type GitConfig struct {
 	Remote      string `toml:"remote"`

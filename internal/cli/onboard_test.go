@@ -107,6 +107,34 @@ func TestOnboardInstallsTheClaudeHooksAndHonoursTheOptOut(t *testing.T) {
 	}
 }
 
+func TestOnboardInstallsTheCursorHookAndHonoursTheOptOut(t *testing.T) {
+	mine, _ := sharedProject(t)
+	hooksFile := filepath.Join(mine, ".cursor/hooks.json")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(string(data), `"command": "mem hook stop"`) {
+		t.Fatalf("init did not write the Cursor hook:\n%s", data)
+	}
+	run(t, mine, "rm", "--quiet", ".cursor/hooks.json")
+	run(t, mine, "commit", "--quiet", "-m", "Drop the Cursor hooks")
+	run(t, mine, "push", "--quiet")
+
+	out := mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(out, "Updated mem's Cursor hook in .cursor/hooks.json: the work-log follow-up when a turn ends.") || !strings.Contains(string(data), "mem hook stop") {
+		t.Fatalf("onboard output:\n%s\nhooks:\n%s", out, data)
+	}
+	if status := run(t, mine, "status", "--porcelain"); status != "" {
+		t.Fatalf("uncommitted after onboard:\n%s", status)
+	}
+
+	config := filepath.Join(mine, ".mem/config.toml")
+	data, _ := os.ReadFile(config)
+	os.WriteFile(config, append(data, []byte("\n[cursor]\nstop_hook = false\n")...), 0o644)
+	run(t, mine, "commit", "--quiet", "-am", "Turn the Cursor hook off")
+	out = mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(out, "turned off: the work-log follow-up when a turn ends ([cursor] stop_hook = false)") || strings.Contains(string(data), "mem hook stop") {
+		t.Fatalf("onboard output:\n%s\nhooks:\n%s", out, data)
+	}
+}
+
 func TestOnboardInstallsTheCompactionHookWhereClaudeSettingsAreIgnored(t *testing.T) {
 	mine, _ := sharedProject(t)
 	run(t, mine, "rm", "--quiet", ".claude/settings.json")

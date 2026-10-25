@@ -1,5 +1,4 @@
-// Package claude maintains mem's entries in a project's Claude Code settings.
-package claude
+package agenthooks
 
 import (
 	"bytes"
@@ -8,75 +7,47 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
-// SettingsPath is the project's shared Claude Code settings file, relative to the repository root.
-const SettingsPath = ".claude/settings.json"
-
-// CompactCommand runs mem's catch-up after compaction; PromptCommand reports the work since the last work log
-// when the user sends a message. Both do nothing where mem is not installed.
-const (
-	CompactCommand = "command -v mem >/dev/null 2>&1 && mem hook compact || true"
-	PromptCommand  = "command -v mem >/dev/null 2>&1 && mem hook prompt || true"
-)
-
-type hookEntry struct {
-	Matcher string        `json:"matcher,omitempty"`
-	Hooks   []hookCommand `json:"hooks"`
+// memEntry is one of mem's entries in an agent's hook file: the event list it belongs to, the entry, how to recognise
+// it among other entries and whether the project wants it.
+type memEntry struct {
+	event   string
+	entry   any
+	mine    func(json.RawMessage) bool
+	enabled bool
 }
 
-type hookCommand struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
-}
-
-// memHook is one of mem's entries: the event it belongs to and the command that identifies it.
-type memHook struct {
-	event, marker string
-	entry         hookEntry
-}
-
-var (
-	compactHook = memHook{"SessionStart", "mem hook compact", hookEntry{Matcher: "compact", Hooks: []hookCommand{{Type: "command", Command: CompactCommand, Timeout: 60}}}}
-	promptHook  = memHook{"UserPromptSubmit", "mem hook prompt", hookEntry{Hooks: []hookCommand{{Type: "command", Command: PromptCommand, Timeout: 10}}}}
-)
-
-// Hooks says which of mem's Claude Code hooks a project wants.
-type Hooks struct {
-	Compact, Prompt bool
-}
-
-// SyncHooks adds, updates or removes mem's hooks in .claude/settings.json: the SessionStart "compact" catch-up and
-// the UserPromptSubmit work-log nudge. It keeps every other setting and its order, writes only when mem's entries
-// change and reports whether it did.
-func SyncHooks(root string, want Hooks) (bool, error) {
-	path := filepath.Join(root, SettingsPath)
+// syncFile puts mem's entries in place in the lists under the "hooks" object of the JSON file at rel, removing the
+// disabled ones. It keeps every other key, event and entry in order and writes only on change. A missing file starts
+// from fresh, and is not created when no entry is enabled.
+func syncFile(root, rel, fresh string, entries []memEntry) (bool, error) {
+	path := filepath.Join(root, rel)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		if !want.Compact && !want.Prompt {
+		wanted := false
+		for _, e := range entries {
+			wanted = wanted || e.enabled
+		}
+		if !wanted {
 			return false, nil
 		}
-		data = []byte("{}")
+		data = []byte(fresh)
 	} else if err != nil {
 		return false, err
 	}
-	var settings object
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return false, fmt.Errorf("%s is not a JSON object: %w", SettingsPath, err)
+	var file object
+	if err := json.Unmarshal(data, &file); err != nil {
+		return false, fmt.Errorf("%s is not a JSON object: %w", rel, err)
 	}
 	var hooks object
-	if raw, ok := settings.get("hooks"); ok {
+	if raw, ok := file.get("hooks"); ok {
 		if err := json.Unmarshal(raw, &hooks); err != nil {
-			return false, fmt.Errorf("%s: hooks is not an object: %w", SettingsPath, err)
+			return false, fmt.Errorf("%s: hooks is not an object: %w", rel, err)
 		}
 	}
-	for _, h := range []struct {
-		hook    memHook
-		enabled bool
-	}{{compactHook, want.Compact}, {promptHook, want.Prompt}} {
-		if err := syncEntry(&hooks, h.hook, h.enabled); err != nil {
+	for _, e := range entries {
+		if err := syncEntry(&hooks, rel, e); err != nil {
 			return false, err
 		}
 	}
@@ -85,12 +56,12 @@ func SyncHooks(root string, want Hooks) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		settings.set("hooks", encoded)
+		file.set("hooks", encoded)
 	} else {
-		settings.remove("hooks")
+		file.remove("hooks")
 	}
 
-	updated, err := indent(settings)
+	updated, err := indent(file)
 	if err != nil {
 		return false, err
 	}
@@ -103,56 +74,43 @@ func SyncHooks(root string, want Hooks) (bool, error) {
 	return true, os.WriteFile(path, updated, 0o644)
 }
 
-// syncEntry puts h's entry in place of mem's existing one in its event's list, or appends it, or removes it.
-func syncEntry(hooks *object, h memHook, enabled bool) error {
+// syncEntry puts e's entry in place of mem's existing one in its event's list, or appends it, or removes it.
+func syncEntry(hooks *object, rel string, e memEntry) error {
 	var entries []json.RawMessage
-	if raw, ok := hooks.get(h.event); ok {
+	if raw, ok := hooks.get(e.event); ok {
 		if err := json.Unmarshal(raw, &entries); err != nil {
-			return fmt.Errorf("%s: hooks.%s is not a list: %w", SettingsPath, h.event, err)
+			return fmt.Errorf("%s: hooks.%s is not a list: %w", rel, e.event, err)
 		}
 	}
-	want, err := marshal(h.entry)
+	want, err := marshal(e.entry)
 	if err != nil {
 		return err
 	}
 	var kept []json.RawMessage
 	placed := false
 	for _, raw := range entries {
-		if !isEntry(raw, h.marker) {
+		if !e.mine(raw) {
 			kept = append(kept, raw)
 			continue
 		}
-		if enabled && !placed {
+		if e.enabled && !placed {
 			kept = append(kept, want)
 			placed = true
 		}
 	}
-	if enabled && !placed {
+	if e.enabled && !placed {
 		kept = append(kept, want)
 	}
 	if len(kept) == 0 {
-		hooks.remove(h.event)
+		hooks.remove(e.event)
 		return nil
 	}
 	list, err := marshal(kept)
 	if err != nil {
 		return err
 	}
-	hooks.set(h.event, list)
+	hooks.set(e.event, list)
 	return nil
-}
-
-func isEntry(raw json.RawMessage, marker string) bool {
-	var e hookEntry
-	if json.Unmarshal(raw, &e) != nil {
-		return false
-	}
-	for _, h := range e.Hooks {
-		if strings.Contains(h.Command, marker) {
-			return true
-		}
-	}
-	return false
 }
 
 // marshal encodes without HTML escaping, so shell operators such as && stay readable.

@@ -1,4 +1,4 @@
-package claude
+package agenthooks
 
 import (
 	"os"
@@ -9,16 +9,16 @@ import (
 
 func settings(t *testing.T, root string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, SettingsPath))
+	data, err := os.ReadFile(filepath.Join(root, ClaudeSettingsPath))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(data)
 }
 
-func TestSyncHooksInstallsIntoAFreshProject(t *testing.T) {
+func TestSyncClaudeInstallsIntoAFreshProject(t *testing.T) {
 	root := t.TempDir()
-	if changed, err := SyncHooks(root, Hooks{Compact: true, Prompt: true}); err != nil || !changed {
+	if changed, err := SyncClaude(root, ClaudeHooks{Compact: true, Prompt: true}); err != nil || !changed {
 		t.Fatalf("changed = %v, %v", changed, err)
 	}
 	got := settings(t, root)
@@ -53,12 +53,12 @@ func TestSyncHooksInstallsIntoAFreshProject(t *testing.T) {
 	if got != want {
 		t.Fatalf("settings:\n%s", got)
 	}
-	if changed, err := SyncHooks(root, Hooks{Compact: true, Prompt: true}); err != nil || changed {
+	if changed, err := SyncClaude(root, ClaudeHooks{Compact: true, Prompt: true}); err != nil || changed {
 		t.Fatalf("a second sync changed the file: %v, %v", changed, err)
 	}
 }
 
-func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
+func TestSyncClaudeKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 	root := t.TempDir()
 	existing := `{
   "permissions": {"allow": ["Bash(go test:*)"]},
@@ -69,9 +69,9 @@ func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
   "model": "opus"
 }`
 	os.MkdirAll(filepath.Join(root, ".claude"), 0o755)
-	os.WriteFile(filepath.Join(root, SettingsPath), []byte(existing), 0o644)
+	os.WriteFile(filepath.Join(root, ClaudeSettingsPath), []byte(existing), 0o644)
 
-	if _, err := SyncHooks(root, Hooks{Compact: true, Prompt: true}); err != nil {
+	if _, err := SyncClaude(root, ClaudeHooks{Compact: true, Prompt: true}); err != nil {
 		t.Fatal(err)
 	}
 	got := settings(t, root)
@@ -85,13 +85,13 @@ func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 		last = i
 	}
 
-	if changed, err := SyncHooks(root, Hooks{Prompt: true}); err != nil || !changed {
+	if changed, err := SyncClaude(root, ClaudeHooks{Prompt: true}); err != nil || !changed {
 		t.Fatalf("opting out of the compaction hook changed = %v, %v", changed, err)
 	}
 	if got = settings(t, root); strings.Contains(got, "mem hook compact") || !strings.Contains(got, "mem hook prompt") {
 		t.Fatalf("after opting out of the compaction hook:\n%s", got)
 	}
-	if changed, err := SyncHooks(root, Hooks{}); err != nil || !changed {
+	if changed, err := SyncClaude(root, ClaudeHooks{}); err != nil || !changed {
 		t.Fatalf("opting out changed = %v, %v", changed, err)
 	}
 	got = settings(t, root)
@@ -100,12 +100,12 @@ func TestSyncHooksKeepsOtherSettingsInOrderAndRemovesOnlyItsOwn(t *testing.T) {
 	}
 }
 
-func TestSyncHooksOptOutDoesNotCreateSettings(t *testing.T) {
+func TestSyncClaudeOptOutDoesNotCreateSettings(t *testing.T) {
 	root := t.TempDir()
-	if changed, err := SyncHooks(root, Hooks{}); err != nil || changed {
+	if changed, err := SyncClaude(root, ClaudeHooks{}); err != nil || changed {
 		t.Fatalf("changed = %v, %v", changed, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, SettingsPath)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ClaudeSettingsPath)); !os.IsNotExist(err) {
 		t.Fatal("opting out created .claude/settings.json")
 	}
 }

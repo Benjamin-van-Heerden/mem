@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/agenthooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
 	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
-	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
@@ -87,21 +87,29 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	if claudeTracked {
 		publishPaths = append(publishPaths, "CLAUDE.md")
 	}
-	settingsStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", claude.SettingsPath)
-	want := claude.Hooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
-	switch changed, err := claude.SyncHooks(p.Root, want); {
-	case err != nil:
-		lines = append(lines, fmt.Sprintf("⚠️ Could not update mem's Claude Code hooks: %v. Tell the user; fix the file, and the next onboard installs the hooks.", err))
-	case changed:
-		line := claudeHooksLine(want)
-		switch {
-		case settingsIgnored(ctx, p.Root):
-			lines = append(lines, line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs it in every checkout.")
-		case settingsStatus != "":
-			lines = append(lines, line+" It already had uncommitted edits, so commit it together with them.")
-		default:
-			lines = append(lines, line)
-			publishPaths = append(publishPaths, claude.SettingsPath)
+	claudeWant := agenthooks.ClaudeHooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
+	cursorStop := p.Config.Cursor.StopHookEnabled()
+	for _, h := range []struct {
+		path, agent, line string
+		sync              func() (bool, error)
+	}{
+		{agenthooks.ClaudeSettingsPath, "Claude Code", claudeHooksLine(claudeWant), func() (bool, error) { return agenthooks.SyncClaude(p.Root, claudeWant) }},
+		{agenthooks.CursorHooksPath, "Cursor", cursorHookLine(cursorStop), func() (bool, error) { return agenthooks.SyncCursor(p.Root, cursorStop) }},
+	} {
+		status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", h.path)
+		switch changed, err := h.sync(); {
+		case err != nil:
+			lines = append(lines, fmt.Sprintf("⚠️ Could not update mem's %s hooks: %v. Tell the user; fix the file, and the next onboard installs the hooks.", h.agent, err))
+		case changed:
+			switch {
+			case settingsIgnored(ctx, p.Root, h.path):
+				lines = append(lines, h.line+" .gitignore keeps it out of Git, so it stays on this machine; onboard installs it in every checkout.")
+			case status != "":
+				lines = append(lines, h.line+" It already had uncommitted edits, so commit it together with them.")
+			default:
+				lines = append(lines, h.line)
+				publishPaths = append(publishPaths, h.path)
+			}
 		}
 	}
 	if len(publishPaths) > 0 {
@@ -178,7 +186,7 @@ func afterUpdates(ctx context.Context, p project.Project, r converge.Report) con
 }
 
 // claudeHooksLine describes mem's Claude Code hooks after onboard changed them.
-func claudeHooksLine(want claude.Hooks) string {
+func claudeHooksLine(want agenthooks.ClaudeHooks) string {
 	var on, off []string
 	for _, h := range []struct {
 		enabled   bool
@@ -190,7 +198,7 @@ func claudeHooksLine(want claude.Hooks) string {
 			off = append(off, fmt.Sprintf("%s ([claude] %s = false)", h.name, h.key))
 		}
 	}
-	line := "Updated mem's Claude Code hooks in " + claude.SettingsPath
+	line := "Updated mem's Claude Code hooks in " + agenthooks.ClaudeSettingsPath
 	if len(on) > 0 {
 		line += ": " + strings.Join(on, " and ")
 	}
@@ -198,4 +206,13 @@ func claudeHooksLine(want claude.Hooks) string {
 		line += "; turned off: " + strings.Join(off, " and ")
 	}
 	return line + "."
+}
+
+// cursorHookLine describes mem's Cursor hook after onboard changed it.
+func cursorHookLine(stop bool) string {
+	line := "Updated mem's Cursor hook in " + agenthooks.CursorHooksPath
+	if !stop {
+		return line + "; turned off: the work-log follow-up when a turn ends ([cursor] stop_hook = false)."
+	}
+	return line + ": the work-log follow-up when a turn ends."
 }

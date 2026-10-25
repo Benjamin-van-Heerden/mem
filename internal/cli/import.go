@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/agenthooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
-	"github.com/Benjamin-van-Heerden/mem/internal/claude"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/importer"
@@ -36,7 +36,10 @@ func (a *app) importCommand() *cobra.Command {
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
 				return err
 			}
-			if _, err := claude.SyncHooks(root, claude.Hooks{Compact: true, Prompt: true}); err != nil {
+			if _, err := agenthooks.SyncClaude(root, agenthooks.ClaudeHooks{Compact: true, Prompt: true}); err != nil {
+				return err
+			}
+			if _, err := agenthooks.SyncCursor(root, true); err != nil {
 				return err
 			}
 			hookLines, err := hooks.Sync(cmd.Context(), sum.Project)
@@ -54,7 +57,8 @@ func (a *app) importCommand() *cobra.Command {
 				fmt.Fprintln(out, "Structure doc: codebase_and_structure.md moved to .mem/structure.md")
 			}
 			fmt.Fprintf(out, "Specs: %d open, %d archived\nTodos: %d\nWork logs: %d\n", sum.Specs, sum.Archived, sum.Todos, sum.Logs)
-			fmt.Fprintln(out, "Claude Code: "+claude.SettingsPath+" runs `mem hook compact` after compaction")
+			fmt.Fprintln(out, "Claude Code: "+agenthooks.ClaudeSettingsPath+" runs `mem hook compact` after compaction")
+			fmt.Fprintln(out, "Cursor: "+agenthooks.CursorHooksPath+" runs `mem hook stop`, which has the agent write a due work log when a turn ends")
 			fmt.Fprintln(out, "Install guide: "+agentsmd.GuidePath+", for teammates and agents without mem")
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
@@ -64,7 +68,7 @@ func (a *app) importCommand() *cobra.Command {
 			} else if line != "" {
 				sum.Notes = append(sum.Notes, line)
 			}
-			if settingsIgnored(cmd.Context(), root) {
+			if settingsIgnored(cmd.Context(), root, agenthooks.ClaudeSettingsPath) {
 				sum.Notes = append(sum.Notes, sharedSettingsWarning)
 			}
 			for _, line := range append(hookLines, sum.Notes...) {
@@ -98,10 +102,10 @@ func (a *app) importCommand() *cobra.Command {
 	return cmd
 }
 
-// settingsIgnored reports whether .gitignore keeps .claude/settings.json, and with it mem's Claude Code hooks, out of Git.
-func settingsIgnored(ctx context.Context, root string) bool {
-	_, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", claude.SettingsPath)
+// settingsIgnored reports whether .gitignore keeps an agent's settings file, and with it mem's hooks, out of Git.
+func settingsIgnored(ctx context.Context, root, path string) bool {
+	_, err := git.Run(ctx, root, "check-ignore", "--quiet", "--no-index", path)
 	return err == nil
 }
 
-const sharedSettingsWarning = "⚠️ .gitignore ignores " + claude.SettingsPath + ", so it is not shared. Each checkout's onboard still installs mem's hooks, but other project settings stay local. Tell the user; Claude Code's convention is to ignore only .claude/settings.local.json (personal settings) and commit " + claude.SettingsPath + "."
+const sharedSettingsWarning = "⚠️ .gitignore ignores " + agenthooks.ClaudeSettingsPath + ", so it is not shared. Each checkout's onboard still installs mem's hooks, but other project settings stay local. Tell the user; Claude Code's convention is to ignore only .claude/settings.local.json (personal settings) and commit " + agenthooks.ClaudeSettingsPath + "."
