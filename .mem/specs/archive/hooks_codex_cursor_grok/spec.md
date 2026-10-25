@@ -1,9 +1,11 @@
 ---
 title: Hooks for Codex, Cursor and Grok
-status: active
+status: abandoned
 assigned_to: benjamin_van_heerden
 created_at: "2026-10-25T15:29:17+02:00"
-updated_at: "2026-10-25T15:35:16+02:00"
+updated_at: "2026-10-25T15:38:49+02:00"
+completed_at: "2026-10-25T15:38:49+02:00"
+abandon_reason: Narrowed to Cursor only; Codex and Grok are deferred to a todo.
 ---
 
 ## Overview

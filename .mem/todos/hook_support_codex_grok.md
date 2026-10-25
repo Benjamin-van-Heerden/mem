@@ -1,0 +1,6 @@
+---
+title: Hook support for Codex and Grok
+created_at: "2026-10-25T15:38:59+02:00"
+---
+
+Deferred from the abandoned spec hooks_codex_cursor_grok (archived in .mem/specs/archive/, which holds the full research table and sources from 2026-10-25). Codex (CLI 0.164, also the IDE extension and the ChatGPT desktop app): <repo>/.codex/hooks.json takes the same JSON shape as Claude's hooks object, with SessionStart matcher compact and UserPromptSubmit whose plain stdout becomes developer context, so mem's two hooks map 1:1. Project hooks need project trust plus a per-hook approval in /hooks, bound to a hash of the entry, so the entries must stay stable. Codex stops reading AGENTS.md at project_doc_max_bytes (32 KiB); a project .codex/config.toml value raises it (verified with codex 0.153.4 via codex debug prompt-input). shannon's AGENTS.md was already over the limit. Grok Build (grok 1.0.67): it runs .claude/settings.json and .cursor/hooks.json hooks but discards SessionStart/UserPromptSubmit output and has no compaction injection; it reads AGENTS.md in full and restores it after compaction; it sets GROK_HOOK_EVENT, so mem hook prompt can return early there. Its Stop hook can block with feedback, the same lever as Cursor's stop follow-up.
