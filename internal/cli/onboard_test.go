@@ -188,6 +188,7 @@ func TestOnboardWarnsWhenTheCheckoutIsALinkedWorktree(t *testing.T) {
 	tree := filepath.Join(t.TempDir(), "session")
 	run(t, mine, "worktree", "add", "--quiet", "-b", "claude/session", tree)
 	main, _ := filepath.EvalSymlinks(mine)
+	main = filepath.ToSlash(main)
 
 	out := mem(t, tree, "onboard")
 	for _, want := range []string{"⚠️ This checkout is a Git worktree; the main checkout is " + main + ".", "Its work sits on claude/session", "Tell the user they are working in a worktree", "Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE."} {
