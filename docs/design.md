@@ -55,6 +55,9 @@ production_pr = true    # optional: release production through a pull request
 [claude]
 compact_hook = false    # optional: leave out the Claude Code post-compaction hook
 
+[cursor]
+stop_hook = false       # optional: leave out the Cursor work-log follow-up at the end of a turn
+
 [structure]
 ignore = ["migrations/**"]   # optional: files that do not count as work (drift detection, work-log nudges)
 include = ["*.md"]           # optional: files that count although the built-in rules leave them out
@@ -85,6 +88,23 @@ Identity is `git config user.name`, slugified.
 **After compaction.** In Claude Code, a `SessionStart` hook with the `compact` matcher runs `mem hook compact` after every compaction. It performs the same catch-up as `mem sync` and prints a short digest (under ~3 KB) that joins the agent's context next to the compaction summary: branch state and what the sync did, the user's active spec and next task, the user's work since their last work log or completed task (with the post-commit hook's wording, and once a log is due an instruction to write one at the next natural stopping point while the summary still holds the work), incoming changes, changed memories and nudges, and asks the agent to check the session's title against the work in progress and retitle it for the current work where its environment can rename sessions (see Session titles). It does not restate session progress, the structure doc, docs or logs; compaction keeps those. It never commits the user's work; like `mem sync`, it pushes committed work when the fetch succeeded and the branch is ahead and not behind (never staging or production), so a long session shares its commits at every compaction. It exits cleanly on any error. `init`, `import` and onboard keep the entry in `.claude/settings.json`, preserving other settings; `[claude] compact_hook = false` removes it.
 
 **At each user message.** A `UserPromptSubmit` hook runs `mem hook prompt`, whose output Claude Code adds to the agent's context with the message. It is silent until a work log is called for (see Checkpoint nudges), then prints one line: at the suggest level, write a log at the next natural stopping point; once a log is due, write one before taking up substantial new work, finishing a change in progress first, answering a quick question first and stopping if asked to. Both say that a log does not end the turn. It reads local state only (about 0.2 s) and exits cleanly on any error. The same commands keep it in `.claude/settings.json`; `[claude] prompt_hook = false` removes it.
+
+**In Cursor.** Cursor reads `AGENTS.md`, but its hooks cannot do what mem's Claude Code hooks do:
+- **After compaction:** `preCompact` only shows the user a message, and `sessionStart` does not fire again.
+- **With each message:** `beforeSubmitPrompt` can only allow or block the prompt.
+- **At session start:** `sessionStart`'s `additional_context` is dropped by a race in current releases, and `AGENTS.md` already asks for `mem onboard`.
+
+Cursor's one way to put mem's words in front of the agent is the `stop` hook, whose `followup_message` Cursor submits as the next user message. `init`, `import` and onboard keep `{"command": "mem hook stop", "timeout": 30}` under `stop` in `.cursor/hooks.json`, preserving other keys and hooks; `[cursor] stop_hook = false` removes it. The command has no POSIX guard, because Cursor runs hook commands through PowerShell on Windows; where mem is missing, the hook fails and Cursor carries on.
+
+`mem hook stop` reads Cursor's input and always answers with a JSON object. It sends a follow-up only when all of these hold:
+- the turn completed, so not after the user stopped it or after an error;
+- it is not already answering its own follow-up (`loop_count` 0);
+- a work log is due;
+- the work summary differs from the one it last asked about, which it keeps in `.mem/local/stop_nudge`, so an agent that put the log off is asked again only after more work.
+
+The follow-up says it comes from mem and not the user. It asks for the log now if the turn finished a piece of work. If the turn ended with a question for the user or mid-change, it asks the agent to say in one line that a log is due and end the turn, and not to start other work.
+
+Cursor also runs the hooks in `.claude/settings.json`. It rejects their plain-text output and may fire the `compact` entry at every session start, so `mem hook compact` and `mem hook prompt` return at once when `CURSOR_VERSION` is set. (`CLAUDE_PROJECT_DIR` cannot tell the agents apart, since Cursor sets it too.) The post-commit hook's nudge reaches Cursor's agent in its shell output, as for any agent.
 
 **Session titles.** The Claude desktop app titles sessions from their first message, often "Let's get to work", so mem asks agents to give sessions a short title for the work wherever they can rename them, at three points. The title leaves out the project: the app groups sessions by project folder. The onboard instruction asks for it as soon as the user has said what to work on: at once when their first message already did, otherwise as the first thing after their next one. When the context is long enough to go to `.mem/local/onboard.md`, the file ends with the same request under 🏷️ SESSION TITLE: the agent reads the file after the instruction, and an agent that ended its reading on the work log had forgotten the request by the user's next message. After compaction and at each work log, when the session may have moved on from what it was named for, the digest and `log new` ask the agent to look up the current title, compare it with the current work and rename the session if it no longer fits. Each instruction says that the desktop app's session tools address the current session as `"self"` and asks the agent to correct and retry a rename that fails: an agent once called the rename tool without a session id and moved on when it was refused. These are instructions in mem's output, not hooks.
 
