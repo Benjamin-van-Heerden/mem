@@ -1,9 +1,10 @@
 ---
 title: Cursor support
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-10-25T15:38:59+02:00"
-updated_at: "2026-10-25T15:40:13+02:00"
+updated_at: "2026-10-25T15:49:35+02:00"
+completed_at: "2026-10-25T15:49:35+02:00"
 ---
 
 ## Overview
