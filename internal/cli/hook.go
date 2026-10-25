@@ -67,6 +67,9 @@ func (a *app) hookCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Claude Code adds this output to the agent's context with the user's message; it stays silent until a
 			// work log is called for and never fails the prompt.
+			if underCursor() {
+				return nil
+			}
 			p, err := a.project(cmd)
 			if err != nil {
 				return nil
@@ -105,6 +108,13 @@ func (a *app) hookCommand() *cobra.Command {
 	})
 	cmd.AddCommand(a.compactHookCommand())
 	return cmd
+}
+
+// underCursor reports whether Cursor runs this hook. Cursor also runs the Claude Code hooks in .claude/settings.json,
+// but it rejects their plain-text output and may fire the compaction entry at every session start, so they step
+// aside. CLAUDE_PROJECT_DIR cannot tell the agents apart: Cursor sets it too.
+func underCursor() bool {
+	return os.Getenv("CURSOR_VERSION") != ""
 }
 
 // stopNudgePath records the work summary mem last sent a stop follow-up for, so an agent that put the log off is not

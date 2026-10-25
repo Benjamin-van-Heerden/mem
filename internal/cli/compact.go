@@ -30,6 +30,9 @@ func (a *app) compactHookCommand() *cobra.Command {
 		Use:  "compact",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if underCursor() {
+				return nil
+			}
 			out := cmd.OutOrStdout()
 			c, err := a.catchUp(cmd)
 			if err != nil {

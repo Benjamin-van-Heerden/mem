@@ -94,3 +94,20 @@ func TestStopHookAsksForADueWorkLogOncePerStateOfWork(t *testing.T) {
 		t.Fatalf("stop hook outside a mem project: %q", msg)
 	}
 }
+
+func TestClaudeHooksStayQuietWhenCursorRunsThem(t *testing.T) {
+	mine, _ := sharedProject(t)
+	commit(t, mine, "a.go")
+	writeFile(t, mine, "parser.go", strings.Repeat("x\n", 1200))
+	if out := mem(t, mine, "hook", "prompt"); out == "" {
+		t.Fatal("the prompt hook has nothing to say, so the test proves nothing")
+	}
+
+	t.Setenv("CURSOR_VERSION", "3.24.9")
+	if out := mem(t, mine, "hook", "prompt"); out != "" {
+		t.Fatalf("prompt hook spoke under Cursor:\n%s", out)
+	}
+	if out := mem(t, mine, "hook", "compact"); out != "" {
+		t.Fatalf("compaction hook spoke under Cursor:\n%s", out)
+	}
+}
