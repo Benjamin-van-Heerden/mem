@@ -64,11 +64,11 @@ func TestSinceCountsTheUsersWorkAndResetsAtCheckpoints(t *testing.T) {
 
 	// Uncommitted changes count, and lines alone can make a log due.
 	write(t, root, "parser.go", lines(600))
-	if w := since(); w.Lines != 630 || w.Level() != Suggested || !strings.Contains(MidTurnLine(w), "write a work log at the next natural stopping point") || !strings.Contains(TurnStartLine(w), "at the next natural stopping point in this turn") {
+	if w := since(); w.Lines != 630 || w.Level() != Suggested || !strings.Contains(MidTurnLine(w), "write a work log at the next natural stopping point") || !strings.Contains(TurnStartLine(w), "at the next natural stopping point in this turn") || TurnEndLine(w) != "" {
 		t.Fatalf("with uncommitted work: %+v %q", w, TurnStartLine(w))
 	}
 	write(t, root, "lexer.go", lines(600))
-	if w := since(); w.Level() != Due || !strings.Contains(MidTurnLine(w), "a work log is due") || strings.Contains(MidTurnLine(w), "now") || !strings.Contains(TurnStartLine(w), "before taking up substantial new work") {
+	if w := since(); w.Level() != Due || !strings.Contains(MidTurnLine(w), "a work log is due") || strings.Contains(MidTurnLine(w), "now") || !strings.Contains(TurnStartLine(w), "before taking up substantial new work") || !strings.Contains(TurnEndLine(w), "not a message from the user") {
 		t.Fatalf("past the line threshold: %+v %q", w, MidTurnLine(w))
 	}
 	commitAll(t, root, "Parse")

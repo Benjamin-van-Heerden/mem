@@ -305,6 +305,16 @@ func TurnStartLine(w Work) string {
 	return ""
 }
 
+// TurnEndLine is Cursor's follow-up when an agent ends its turn with a work log due. Cursor sends it as the next user
+// message, so it says where it comes from and leaves room for a turn that ended waiting on the user; it is empty
+// while no log is due.
+func TurnEndLine(w Work) string {
+	if w.Level() != Due {
+		return ""
+	}
+	return "This is an automatic follow-up from mem, not a message from the user. " + w.Summary() + ", and a work log is due. If your last turn finished a piece of work, write the log now (`mem log new`, then `mem log commit`) and then end your turn. If it ended with a question for the user or in the middle of a change, do not write it yet: say in one line that a work log is due and end your turn. Do not start other work."
+}
+
 // CommitLines are the nudges after a commit, from local state only: the work-log count after each of the user's
 // work commits, unpushed commits past a threshold, and a stale structure doc.
 func CommitLines(ctx context.Context, p project.Project, user, email string) []string {
