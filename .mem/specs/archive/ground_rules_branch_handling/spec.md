@@ -1,9 +1,10 @@
 ---
 title: Ground rules and branch handling
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-10-26T12:56:41+02:00"
-updated_at: "2026-10-26T12:58:18+02:00"
+updated_at: "2026-10-26T13:05:21+02:00"
+completed_at: "2026-10-26T13:05:21+02:00"
 ---
 
 ## Overview
