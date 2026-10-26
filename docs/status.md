@@ -30,7 +30,7 @@ Tested with disposable repositories and bare remotes; CI runs on Linux, macOS an
 
 ## Planned
 
-- **Template content.** The library at github.com/Benjamin-van-Heerden/mem-templates starts with few templates; profiles for further kinds of project (for example Rust + GPUI desktop, Go) are added as they are needed.
+- **Template content.** The library at github.com/Benjamin-van-Heerden/mem-templates has nextjs-web, tanstack-start, python, rust, rust-gpui and phoenix; profiles for further kinds of project (for example Go) are added as they are needed.
 
 ## Known limits
 
