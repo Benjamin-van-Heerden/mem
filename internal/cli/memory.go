@@ -61,7 +61,12 @@ func (a *app) memoryCommand() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Section(out, "💾 MEMORY SAVED")
 			fmt.Fprintf(out, "## %s\n%s\n", args[0], args[1])
-			output.Instruction(out, "Apply this convention for the rest of this session. AGENTS.md is updated for future sessions; commit it with your work.")
+			lines := []string{"Apply this convention for the rest of this session. AGENTS.md is updated for future sessions; commit it with your work."}
+			if warning := agentsSizeWarning(updated); warning != "" {
+				fmt.Fprintf(out, "\n%s\n", warning)
+				lines = append(lines, "Stop here: tell the user about the ⚠️ above and settle it with them before you continue with other work.")
+			}
+			output.Instruction(out, lines...)
 			return nil
 		},
 	})
@@ -92,4 +97,16 @@ func (a *app) memoryCommand() *cobra.Command {
 		},
 	})
 	return cmd
+}
+
+// agentsSizeLimit is the most of AGENTS.md that Codex reads by default (project_doc_max_bytes).
+const agentsSizeLimit = 32 << 10
+
+// agentsSizeWarning flags an AGENTS.md that agents may read only in part.
+// Memories and the project's own instructions follow mem's block, so a cut drops them first.
+func agentsSizeWarning(text string) string {
+	if len(text) <= agentsSizeLimit {
+		return ""
+	}
+	return fmt.Sprintf("⚠️ AGENTS.md is %.1f KiB, over 32 KiB. Some agent runtimes, such as Codex, read only the first 32 KiB of it and silently drop the rest: the project memories and instructions at the end of the file. Propose to the user which memories to merge, shorten or retire (`mem memory list` shows them all), and change them only as the user decides. For Codex alone, the project can instead raise `project_doc_max_bytes` in `.codex/config.toml`.", float64(len(text))/1024)
 }

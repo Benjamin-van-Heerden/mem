@@ -65,6 +65,13 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			agents, err := readAgents(p)
+			if err != nil {
+				return err
+			}
+			if warning := agentsSizeWarning(agents); warning != "" {
+				updates = append(updates, warning)
+			}
 			report = afterUpdates(ctx, p, report)
 			if line := converge.Worktree(report); line != "" {
 				report.Nudges = append([]string{line}, report.Nudges...)
