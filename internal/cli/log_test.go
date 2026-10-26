@@ -85,9 +85,10 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	mem(t, mine, "log", "new")
 	fillLog(t, mine)
 	writeFile(t, mine, "scratch.go", "package scratch\n")
+	writeFile(t, mine, ".mem/specs/other_session/spec.md", "---\ntitle: Another session's draft\nstatus: draft\n---\n")
 
-	out := mem(t, mine, "log", "commit")
-	if !strings.Contains(out, "Committed .mem/ records: Work log: Tidy the parser") || !strings.Contains(out, "Rebased") || !strings.Contains(out, "Pushed") {
+	out := mem(t, mine, "log", "commit", ".mem/todos/benchmark_parser.md")
+	if !strings.Contains(out, "Committed the log and the records you named: Work log: Tidy the parser") || !strings.Contains(out, "Rebased") || !strings.Contains(out, "Pushed") {
 		t.Fatalf("log commit output:\n%s", out)
 	}
 	if local, remote := run(t, mine, "rev-parse", "HEAD"), run(t, mine, "rev-parse", "origin/dev"); local != remote {
@@ -96,14 +97,21 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(mine, "theirs.txt")); err != nil {
 		t.Fatal("the teammate's commit was not brought in")
 	}
-	if status := run(t, mine, "status", "--porcelain"); status != "?? scratch.go" {
-		t.Fatalf("status after log commit = %q, want only the uncommitted scratch.go", status)
+	if status := run(t, mine, "status", "--porcelain", "--untracked-files=all"); status != "?? .mem/specs/other_session/spec.md\n?? scratch.go" {
+		t.Fatalf("status after log commit = %q, want only the other session's record and scratch.go", status)
 	}
 	if !strings.Contains(out, "⚠️ 1 file(s) outside .mem/ have uncommitted changes") || strings.Contains(out, "log is committed and pushed") {
 		t.Fatalf("uncommitted code was not reported:\n%s", out)
 	}
+	if !strings.Contains(out, "Records left uncommitted (not in the paths you named):\n  .mem/specs/other_session/spec.md") || !strings.Contains(out, "⚠️ Changed .mem/ records outside the paths you named") {
+		t.Fatalf("the record left uncommitted was not listed:\n%s", out)
+	}
 
 	os.Remove(filepath.Join(mine, "scratch.go"))
+	os.RemoveAll(filepath.Join(mine, ".mem/specs/other_session"))
+	if err := memErr(t, mine, "log", "commit", "parser.go"); err == nil || !strings.Contains(err.Error(), "parser.go is not a .mem/ record") {
+		t.Fatalf("log commit accepted a code path: %v", err)
+	}
 	if out := mem(t, mine, "log", "commit"); !strings.Contains(out, "already committed") || !strings.Contains(out, "the log is committed and pushed: dev matches origin/dev") || strings.Contains(out, "session is closed") {
 		t.Fatalf("a clean log commit was not confirmed:\n%s", out)
 	}

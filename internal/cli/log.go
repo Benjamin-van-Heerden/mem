@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -146,7 +147,7 @@ func (a *app) logCommit() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ref, paths, err := logCommitArgs(args)
+			ref, paths, err := logCommitArgs(p.Root, args)
 			if err != nil {
 				return err
 			}
@@ -236,15 +237,16 @@ func ignoreRule(ctx context.Context, root, path string) string {
 	return rule
 }
 
-// logCommitArgs splits log commit's arguments into the log reference, which is optional and never under .mem/, and
-// the .mem/ records to commit with the log. Code is committed with the work, never with a log.
-func logCommitArgs(args []string) (ref string, paths []string, err error) {
+// logCommitArgs splits log commit's arguments into the log reference, which is optional and names no file outside
+// .mem/, and the .mem/ records to commit with the log. Code is committed with the work, never with a log.
+func logCommitArgs(root string, args []string) (ref string, paths []string, err error) {
 	for _, arg := range args {
 		rel := path.Clean(filepath.ToSlash(arg))
+		_, statErr := os.Stat(filepath.Join(root, arg))
 		switch {
 		case strings.HasPrefix(rel, ".mem/"):
 			paths = append(paths, rel)
-		case ref == "" && len(paths) == 0 && !strings.Contains(rel, "/"):
+		case ref == "" && len(paths) == 0 && !strings.Contains(rel, "/") && statErr != nil:
 			ref = arg
 		default:
 			return "", nil, fmt.Errorf("%s is not a .mem/ record: log commit commits the log and .mem/ records only. Commit code with the work it belongs to", arg)
