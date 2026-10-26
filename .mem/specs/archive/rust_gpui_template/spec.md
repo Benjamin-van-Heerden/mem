@@ -1,9 +1,10 @@
 ---
 title: Rust GPUI template
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-10-26T13:04:31+02:00"
-updated_at: "2026-10-26T13:08:58+02:00"
+updated_at: "2026-10-26T14:31:31+02:00"
+completed_at: "2026-10-26T14:31:31+02:00"
 ---
 
 ## Overview
