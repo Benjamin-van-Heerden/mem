@@ -180,3 +180,23 @@ func TestPushStopsWhenWorkPushedDuringThePushConflicts(t *testing.T) {
 		t.Fatal("HEAD moved after the conflicting catch-up")
 	}
 }
+
+func TestSyncKeepsALocalMergeCommitInsteadOfRebasingIt(t *testing.T) {
+	other, p := clones(t)
+	run(t, p.Root, "switch", "--quiet", "-c", "released")
+	write(t, p.Root, "released.txt", "released\n")
+	run(t, p.Root, "add", ".")
+	run(t, p.Root, "commit", "--quiet", "-m", "released work")
+	run(t, p.Root, "switch", "--quiet", "dev")
+	run(t, p.Root, "merge", "--quiet", "--no-ff", "-m", "Merge released work", "released")
+	pushChange(t, other, "theirs.txt", "theirs\n")
+	head := run(t, p.Root, "rev-parse", "HEAD")
+
+	r := Sync(context.Background(), p)
+	if got := run(t, p.Root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("sync rewrote the local merge")
+	}
+	if !strings.Contains(strings.Join(r.Nudges, " "), "include a merge that rebasing would flatten") || !strings.Contains(strings.Join(r.Nudges, " "), "git merge --no-ff origin/dev") {
+		t.Fatalf("no merge nudge: %v", r.Nudges)
+	}
+}

@@ -141,3 +141,21 @@ func TestSyncDoesNotRestoreACommitDroppedFromARewrittenBranch(t *testing.T) {
 		t.Fatalf("laptop history after catching up with the rewritten branch:\n%s", log)
 	}
 }
+
+func TestSyncLeavesAFeatureBranchWithAMergeUnrebased(t *testing.T) {
+	other, p := clones(t)
+	featureBranch(t, p.Root)
+	pushChange(t, other, "first.txt", "first\n")
+	run(t, p.Root, "fetch", "--quiet")
+	run(t, p.Root, "merge", "--quiet", "--no-ff", "-m", "Merge dev", "origin/dev")
+	pushChange(t, other, "second.txt", "second\n")
+	head := run(t, p.Root, "rev-parse", "HEAD")
+
+	r := Sync(context.Background(), p)
+	if got := run(t, p.Root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("sync rebased a feature branch that holds a merge")
+	}
+	if !nudged(r, "include a merge that rebasing would flatten") {
+		t.Fatalf("report = %+v", r)
+	}
+}

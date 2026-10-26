@@ -101,6 +101,9 @@ func update(ctx context.Context, p project.Project, r Report) Report {
 	case r.Dirty:
 		r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)) and uncommitted changes prevent rebasing. Tell the user; commit the work in progress, then run `mem sync`.", r.Branch, r.Upstream, ahead, behind))
 		return r
+	case hasMerges(ctx, p.Root, r.Upstream+"..HEAD"):
+		r.Nudges = append(r.Nudges, fmt.Sprintf("%s has diverged from %s (%d local, %d incoming commit(s)), and the local commits include a merge that rebasing would flatten into copies, so mem left them unchanged. Tell the user; bring the incoming commits in with a merge (`git merge --no-ff %s`), then push with `git push`.", r.Branch, r.Upstream, ahead, behind, r.Upstream))
+		return r
 	default:
 		args := []string{"rebase", "--quiet", r.Upstream}
 		if rewritten(ctx, p.Root, r) {

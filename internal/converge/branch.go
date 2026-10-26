@@ -33,6 +33,10 @@ func followDevelopment(ctx context.Context, p project.Project, r Report) Report 
 			return r
 		}
 	}
+	if hasMerges(ctx, p.Root, r.Development+"..HEAD") {
+		r.Nudges = append(r.Nudges, fmt.Sprintf("%s is %d commit(s) behind %s, and its commits include a merge that rebasing would flatten into copies, so mem left it unchanged. Tell the user; bring %s in with a merge (`git merge --no-ff %s`).", r.Branch, behind, r.Development, r.Dev, r.Development))
+		return r
+	}
 	lease, _ := git.Run(ctx, p.Root, "rev-parse", "--verify", "--quiet", r.Upstream)
 	if _, err := git.Run(ctx, p.Root, "rebase", "--quiet", r.Development); err != nil {
 		conflicts, _ := git.Run(ctx, p.Root, "diff", "--name-only", "--diff-filter=U")
@@ -93,6 +97,12 @@ func countRange(ctx context.Context, root, rangeSpec string) int {
 	var n int
 	fmt.Sscanf(out, "%d", &n)
 	return n
+}
+
+// hasMerges reports whether rangeSpec holds a merge commit, which a rebase would flatten.
+func hasMerges(ctx context.Context, root, rangeSpec string) bool {
+	out, _ := git.Run(ctx, root, "rev-list", "--merges", "--max-count=1", rangeSpec)
+	return out != ""
 }
 
 func firstLine(s string) string {
