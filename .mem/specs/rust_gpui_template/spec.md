@@ -164,7 +164,9 @@ First verify that gpui-pre 0.3.10 has the feature and that `dx` copes with the `
 **Runnable `gpui-checks`.** It reads only `Cargo.lock` and `Cargo.toml`, no cargo invocations:
 - exactly one `gpui-pre` package in `Cargo.lock`;
 - its version matches the one the skills were written for;
-- `runtime_shaders` is enabled, or `xcrun metal --version` works.
+- `gpui-kit` is pinned exactly in `Cargo.toml`.
+
+It doesn't check `runtime_shaders`: gpui-kit 0.8.1 always enables that feature on its `gpui_platform` dependency, so it holds whenever the app depends on gpui-kit alone (decided during implementation).
 
 ### 4. Setup and starter files
 
