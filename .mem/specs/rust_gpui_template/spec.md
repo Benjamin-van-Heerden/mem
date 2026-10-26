@@ -230,6 +230,28 @@ Measured on an M4 Pro (12 cores, 24 GB), macOS 27, Xcode 27, Rust 1.96.1, with a
 | Cold check after a build | ~35 s | ~20 s |
 | Incremental build | ~1 s | ~1 s |
 
+**The reference app on the pinned stack**, measured 2026-10-26 with Rust 1.99.1, gpui-kit 0.8.1 and gpui-pre 0.3.10:
+- It has 796 crates in `Cargo.lock`, and 823 once gpui-kit's `test-support` is enabled for the screenshot test. That feature pulls the optional `gpui-fast` crates into resolution, but doesn't compile them.
+- Adding `test-support` to an existing lockfile failed to resolve (`taffy` and `unicode-properties` conflicts), and a fresh `cargo generate-lockfile` resolved. So the starter files ship with the dev-dependency from the start.
+
+| | Cargo default dev profile | Template profile (with taffy and resvg at `opt-level = 3`) |
+|---|---|---|
+| Cold `cargo build` | 38.3 s | 37.8 s |
+| Cold `cargo check --workspace --all-targets` after the build | 23.3 s | 22.1 s |
+| `target/` after build and check | 3.7 GB | 2.1 GB |
+
+With the template profile:
+- **Incremental, after a one-line edit:**
+  - `cargo check -q -p refapp-ui`: 0.3–0.6 s
+  - `cargo build`: 0.8–1.5 s
+  - `cargo test -q -p refapp-core`: 0.7 s
+- **The headless screenshot test:**
+  - its first build (GPUI with `test-support`) took 20 s and grew `target/` to 2.6 GB;
+  - later runs take about 3 s;
+  - the PNG is 960×640 (2× the 480×320 window) and shows the view's text.
+  - `border_1()` without a border colour drew nothing.
+- **`rust-checks`** ran in 0.11 s on a 5.8 GB target directory. The 10 GB limit leaves room for about four times a fresh app's `target/`.
+
 **Other settings:**
 - `opt-level = 1` or `3` for all dependencies: a cold build of 124–152 s. Zed optimises only the hot crates: taffy, resvg and proc macros.
 - `split-debuginfo = "packed"` adds ~2.9 s per link through dsymutil.
