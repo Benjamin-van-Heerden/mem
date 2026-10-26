@@ -1,5 +1,5 @@
-// Package templates draws memories, skills and docs from a Git template library
-// into a project, and promotes project items back into the library.
+// Package templates draws memories, skills, docs and runnables from a Git
+// template library into a project, and promotes project items back into the library.
 package templates
 
 import (
@@ -26,12 +26,13 @@ const networkTimeout = 20 * time.Second
 const DefaultSource = "https://github.com/Benjamin-van-Heerden/mem-templates.git"
 
 const (
-	Memory = "memory"
-	Skill  = "skill"
-	Doc    = "doc"
+	Memory   = "memory"
+	Skill    = "skill"
+	Doc      = "doc"
+	Runnable = "runnable"
 )
 
-var Kinds = []string{Memory, Skill, Doc}
+var Kinds = []string{Memory, Skill, Doc, Runnable}
 
 // Library is a local clone of a template library repository.
 type Library struct {
@@ -45,7 +46,7 @@ type Template struct {
 	HasSetup    bool
 }
 
-// Item is one memory, skill or doc provided by a template.
+// Item is one memory, skill, doc or runnable provided by a template.
 type Item struct {
 	Kind     string
 	Name     string
@@ -185,7 +186,7 @@ func (l Library) templateItems(name string) ([]Item, error) {
 
 // ItemPath is where an item of a template lives in the library.
 func (l Library) ItemPath(template, kind, name string) string {
-	if kind == Skill {
+	if kind == Skill || kind == Runnable {
 		return filepath.Join(l.Dir, template, kindDir(kind), name)
 	}
 	return filepath.Join(l.Dir, template, kindDir(kind), name+".md")
@@ -197,6 +198,8 @@ func kindDir(kind string) string {
 		return "memories"
 	case Skill:
 		return "skills"
+	case Runnable:
+		return "runnables"
 	default:
 		return "docs"
 	}
@@ -206,8 +209,11 @@ func itemName(kind string, e os.DirEntry) (string, bool) {
 	if strings.HasPrefix(e.Name(), ".") {
 		return "", false
 	}
-	if kind == Skill {
+	switch kind {
+	case Skill:
 		return e.Name(), e.IsDir()
+	case Runnable:
+		return e.Name(), !e.IsDir()
 	}
 	name, ok := strings.CutSuffix(e.Name(), ".md")
 	return name, ok && !e.IsDir()

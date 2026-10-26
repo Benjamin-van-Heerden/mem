@@ -17,8 +17,8 @@ import (
 func (a *app) templateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "template",
-		Short: "Draw memories, skills and docs from a template library, and promote them back",
-		Long:  "A template library is a Git repository with one directory per template (for example nextjs-web/), each holding template.toml, memories/<name>.md, skills/<name>/ and docs/<name>.md. Projects list the templates they use in .mem/config.toml; onboard keeps them in sync.",
+		Short: "Draw memories, skills, docs and runnables from a template library, and promote them back",
+		Long:  "A template library is a Git repository with one directory per template (for example nextjs-web/), each holding template.toml, memories/<name>.md, skills/<name>/, docs/<name>.md and runnables/<name> (scripts installed in .mem/runnables/, which onboard runs). Projects list the templates they use in .mem/config.toml; onboard keeps them in sync.",
 	}
 	cmd.AddCommand(a.templateUse(), a.templateList(), a.templatePromote(), a.templateReset())
 	return cmd
@@ -117,7 +117,7 @@ func (a *app) templateList() *cobra.Command {
 				fmt.Fprintln(out, "⚠️ "+warning)
 			}
 			if len(available) == 0 {
-				fmt.Fprintln(out, "\nThe library has no templates yet. A template is a directory with a template.toml; `mem template promote <memory|skill|doc> <name> --to <template>` creates one from a project item.")
+				fmt.Fprintln(out, "\nThe library has no templates yet. A template is a directory with a template.toml; `mem template promote <memory|skill|doc|runnable> <name> --to <template>` creates one from a project item.")
 			} else {
 				rows := [][]string{{"TEMPLATE", "USED HERE", "SETUP", "DESCRIPTION"}}
 				for _, t := range available {
@@ -180,8 +180,8 @@ func (a *app) templateList() *cobra.Command {
 func (a *app) templatePromote() *cobra.Command {
 	var to string
 	cmd := &cobra.Command{
-		Use:   "promote <memory|skill|doc> <name>",
-		Short: "Send a project memory, skill or doc to its template so similar projects receive it",
+		Use:   "promote <memory|skill|doc|runnable> <name>",
+		Short: "Send a project memory, skill, doc or runnable to its template so similar projects receive it",
 		Long:  "Copies the item into the template library, commits and pushes it. Every project that uses the template receives it at its next onboard. Items that did not come from a template go to the project's only template, or to the one named with --to, which is created if it does not exist.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -216,7 +216,7 @@ func (a *app) templatePromote() *cobra.Command {
 
 func (a *app) templateReset() *cobra.Command {
 	return &cobra.Command{
-		Use:   "reset <memory|skill|doc> <name>",
+		Use:   "reset <memory|skill|doc|runnable> <name>",
 		Short: "Replace the project's copy of a template item with the template's",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -175,7 +175,7 @@ Staging and production only ever fast-forward to commits that already exist on d
 
 ## Templates
 
-A template library is an ordinary Git repository with one directory per template, recognized by its `template.toml` (`description = "…"`), holding `memories/<name>.md`, `skills/<name>/` and `docs/<name>.md`. A project names its library and templates in `.mem/config.toml`:
+A template library is an ordinary Git repository with one directory per template, recognized by its `template.toml` (`description = "…"`), holding `memories/<name>.md`, `skills/<name>/`, `docs/<name>.md` and `runnables/<name>`. A project names its library and templates in `.mem/config.toml`:
 
 ```toml
 [templates]
@@ -185,11 +185,11 @@ exclude = ["skill:old-guide"]     # opt-outs, written by mem
 ```
 
 - `mem init` asks for templates first: without `--template` or `--no-template` it changes nothing, lists the library's templates and tells the agent to ask the user which fit before running it again.
-- `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`. Without `--template-source`, the library is github.com/Benjamin-van-Heerden/mem-templates; the project's `[templates] source` records whichever library it uses.
+- `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`, runnables into `.mem/runnables/` with LF line endings and the executable bit, so onboard runs a template's checks in every project that uses it. Without `--template-source`, the library is github.com/Benjamin-van-Heerden/mem-templates; the project's `[templates] source` records whichever library it uses.
 - mem keeps one clone of each library in the user cache and pulls it at onboard (not with `--offline`).
 - `.mem/templates.lock` records, per item, the content it last shared with its template. Onboard compares project copy, template copy and that record: it adds missing items, updates items the project has not edited, reports local-only edits as promotion candidates, flags items edited on both sides, keeps items a template no longer provides, and turns a deleted item into an `exclude` entry. It never deletes project files, and it publishes its changes unless those paths already had uncommitted edits.
 - A memory only guides new work, so when a sync adds a template memory to a project or replaces one with the template's new version, it also records a todo ("Apply the template convention <name>", with the memory's text and, for a change, its previous text) asking for the existing code to be checked against it. The todo is committed with the sync, so it is recorded once for everyone; a later change to a memory with an open todo rewrites that todo. Onboard, `mem sync` and the compaction digest mark it with 📌 and tell the agent to raise it with the user. A project still in its template setup gets none, since the setup builds the code from the current template. `mem template use` records one todo for all the memories the template brings.
-- `mem template promote <memory|skill|doc> <name> [--to <template>]` copies a project item into its template, commits and pushes the library, so every project using the template receives it at its next onboard. Promoting to a template that does not exist creates it.
+- `mem template promote <memory|skill|doc|runnable> <name> [--to <template>]` copies a project item into its template, commits and pushes the library, so every project using the template receives it at its next onboard. Promoting to a template that does not exist creates it.
 - `mem template reset <kind> <name>` takes the template's copy, and brings back an excluded item.
 - `mem template list` shows the library's templates, which of them have a setup, and the state of each of the project's template items.
 

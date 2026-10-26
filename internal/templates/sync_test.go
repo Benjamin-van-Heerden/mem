@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -185,5 +186,44 @@ func TestResetTakesTheTemplateCopyAndLiftsAnExclusion(t *testing.T) {
 	write(t, p.Root, ".mem/docs/untracked.md", "mine\n")
 	if _, err := Promote(context.Background(), p, lib, Doc, "untracked", ""); err == nil || !strings.Contains(err.Error(), "--to") {
 		t.Fatalf("promoting an untracked item with two templates did not ask for --to: %v", err)
+	}
+}
+
+func TestSyncInstallsRunnablesExecutableWithLFLineEndings(t *testing.T) {
+	source, work := library(t, map[string]string{
+		"rust/template.toml":     "description = \"Rust\"\n",
+		"rust/runnables/checks":  "#!/bin/sh\r\necho v1\r\n",
+		"rust/runnables/.hidden": "ignored\n",
+	})
+	p := newProject(t, "rust")
+	path := filepath.Join(p.Root, ".mem/runnables/checks")
+
+	res := sync(t, p, source)
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "#!/bin/sh\necho v1\n" || !mentions(res, "Added runnable checks from rust.") {
+		t.Fatalf("runnable not installed with LF line endings: %q %v %v", data, err, res.Lines)
+	}
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode()&0o111 == 0 {
+		t.Fatalf("runnable installed without the executable bit: %v", info.Mode())
+	}
+	if !slices.Contains(res.Paths, ".mem/runnables/checks") || !strings.Contains(read(t, p.Root, LockPath), "runnable") {
+		t.Fatalf("runnable not recorded: %v", res.Paths)
+	}
+	if _, err := os.Stat(filepath.Join(p.Root, ".mem/runnables/.hidden")); err == nil {
+		t.Fatal("a hidden file in runnables/ was installed")
+	}
+	if again := sync(t, p, source); len(again.Lines) != 0 {
+		t.Fatalf("a CRLF template runnable did not stay in sync: %v", again.Lines)
+	}
+
+	commitFiles(t, work, map[string]string{"rust/runnables/checks": "#!/bin/sh\necho v2\n"})
+	if res := sync(t, p, source); read(t, p.Root, ".mem/runnables/checks") != "#!/bin/sh\necho v2\n" || !mentions(res, "Updated runnable checks") {
+		t.Fatalf("an unedited runnable was not updated: %v", res.Lines)
+	}
+
+	write(t, p.Root, ".mem/runnables/checks", "#!/bin/sh\necho mine\n")
+	commitFiles(t, work, map[string]string{"rust/runnables/checks": "#!/bin/sh\necho v3\n"})
+	if res := sync(t, p, source); read(t, p.Root, ".mem/runnables/checks") != "#!/bin/sh\necho mine\n" || !mentions(res, "⚠️ Runnable checks was edited both") {
+		t.Fatalf("a locally edited runnable was overwritten or not flagged: %v", res.Lines)
 	}
 }

@@ -169,7 +169,7 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&config.Git.Development, "development", "dev", "Development branch, where day-to-day work happens")
 	cmd.Flags().StringVar(&config.Git.Staging, "staging", "test", "Staging branch, deployed as preview releases")
 	cmd.Flags().StringVar(&config.Git.Production, "production", "main", "Production branch")
-	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills and docs from; repeat for several (later ones win on name clashes)")
+	cmd.Flags().StringArrayVar(&templateNames, "template", nil, "Template to draw memories, skills, docs and runnables from; repeat for several (later ones win on name clashes)")
 	cmd.Flags().BoolVar(&noTemplate, "no-template", false, "Set up without templates (without --template or this flag, init only lists the library's templates)")
 	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to "+templates.DefaultSource+")")
 	cmd.Flags().BoolVar(&config.Release.ProductionPR, "production-pr", false, "Release production through a pull request, which mem completes by fast-forward")

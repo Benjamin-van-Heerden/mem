@@ -271,6 +271,12 @@ func (s *state) install(item Item) error {
 			s.res.changed(path)
 		}
 		return nil
+	case Runnable:
+		if err := installRunnable(item.Path, filepath.Join(s.p.Root, RunnablePath(item.Name))); err != nil {
+			return err
+		}
+		s.res.changed(filepath.ToSlash(RunnablePath(item.Name)))
+		return nil
 	default:
 		dest := filepath.Join(s.p.Root, DocPath(item.Name))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
@@ -296,10 +302,7 @@ func (s *state) localHash(kind, name string) (string, bool, error) {
 		}
 		return hashBytes([]byte(body)), true, nil
 	}
-	path := filepath.Join(s.p.Root, DocPath(name))
-	if kind == Skill {
-		path = filepath.Join(s.p.Root, SkillPath(name))
-	}
+	path := filepath.Join(s.p.Root, localPath(kind, name))
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		return "", false, nil
 	}
@@ -342,8 +345,26 @@ func (s *state) save() error {
 	return nil
 }
 
-func SkillPath(name string) string { return filepath.Join(".agents", "skills", name) }
-func DocPath(name string) string   { return filepath.Join(".mem", "docs", name+".md") }
+func SkillPath(name string) string    { return filepath.Join(".agents", "skills", name) }
+func DocPath(name string) string      { return filepath.Join(".mem", "docs", name+".md") }
+func RunnablePath(name string) string { return filepath.Join(".mem", "runnables", name) }
+
+// installRunnable writes a template's script with LF line endings, so its
+// shebang works from a CRLF checkout of the library, and with the executable
+// bit onboard requires before it runs a runnable.
+func installRunnable(from, to string) error {
+	data, err := os.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(to, bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n")), 0o755); err != nil {
+		return err
+	}
+	return os.Chmod(to, 0o755)
+}
 
 // linkSkill makes .claude/skills/<name> point at .agents/skills/<name> so Claude
 // Code finds the skill. It returns a warning line when the link cannot be made,

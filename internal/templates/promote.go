@@ -20,7 +20,7 @@ import (
 func Promote(ctx context.Context, p *project.Project, lib Library, kind, name, template string) (Result, error) {
 	var res Result
 	if !slices.Contains(Kinds, kind) {
-		return res, fmt.Errorf("unknown kind %q; use memory, skill or doc", kind)
+		return res, fmt.Errorf("unknown kind %q; use memory, skill, doc or runnable", kind)
 	}
 	s, err := load(p)
 	if err != nil {
@@ -117,6 +117,8 @@ func localPath(kind, name string) string {
 		return "AGENTS.md"
 	case Skill:
 		return SkillPath(name)
+	case Runnable:
+		return RunnablePath(name)
 	default:
 		return DocPath(name)
 	}
@@ -186,7 +188,7 @@ func (s *state) export(kind, name, dest string) error {
 		}
 		return copyTree(filepath.Join(s.p.Root, SkillPath(name)), dest)
 	default:
-		return copyFile(filepath.Join(s.p.Root, DocPath(name)), dest)
+		return copyFile(filepath.Join(s.p.Root, localPath(kind, name)), dest)
 	}
 }
 

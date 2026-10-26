@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -257,5 +258,39 @@ func TestInitWithoutTemplateChoiceListsTemplatesAndChangesNothing(t *testing.T) 
 	}
 	if branches := run(t, remote, "branch", "--list"); strings.Contains(branches, "dev") {
 		t.Fatalf("init published branches before a template was chosen:\n%s", branches)
+	}
+}
+
+func TestOnboardRunsTemplateRunnablesAndPromoteSendsThemBack(t *testing.T) {
+	base, library, libraryWork := templateWorld(t)
+	root := templateProject(t, base, "app", library)
+
+	writeFile(t, libraryWork, "nextjs-web/runnables/checks", "#!/bin/sh\necho checks from the template\n")
+	run(t, libraryWork, "add", "--all")
+	run(t, libraryWork, "commit", "--quiet", "-m", "add runnable")
+	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
+
+	out := mem(t, root, "onboard")
+	if !strings.Contains(out, "Added runnable checks from nextjs-web.") || !strings.Contains(out, "checks from the template") {
+		t.Fatalf("onboard did not install and run the template runnable:\n%s", out)
+	}
+	if status := run(t, root, "status", "--porcelain"); status != "" {
+		t.Fatalf("onboard left the runnable uncommitted:\n%s", status)
+	}
+	if mode := run(t, root, "ls-files", "--stage", ".mem/runnables/checks"); runtime.GOOS != "windows" && !strings.HasPrefix(mode, "100755") {
+		t.Fatalf("runnable committed without the executable bit: %s", mode)
+	}
+
+	writeFile(t, root, ".mem/runnables/checks", "#!/bin/sh\necho improved checks\n")
+	out = mem(t, root, "template", "promote", "runnable", "checks")
+	if !strings.Contains(out, "Pushed \"Promote runnable checks from app\"") {
+		t.Fatalf("promote output:\n%s", out)
+	}
+	run(t, libraryWork, "pull", "--quiet", "origin", "main")
+	if data, err := os.ReadFile(filepath.Join(libraryWork, "nextjs-web/runnables/checks")); err != nil || !strings.Contains(string(data), "improved checks") {
+		t.Fatalf("the promoted runnable did not reach the library: %v", err)
+	}
+	if list := mem(t, root, "template", "list"); !strings.Contains(list, "runnable   checks            nextjs-web   in sync") {
+		t.Fatalf("template list:\n%s", list)
 	}
 }
