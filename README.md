@@ -114,6 +114,7 @@ development = "dev"
 staging = "test"
 production = "main"
 protect = true
+# base = "main"             # optional, on a long-lived branch built on released code: onboard reports what it lacks and how to merge it in
 
 [structure]
 ignore = ["migrations/**"]   # optional: paths that do not count as work

@@ -48,6 +48,7 @@ development = "dev"
 staging = "test"
 production = "main"
 protect = true          # install hooks that keep staging and production promotion-only
+base = "main"           # optional, on a long-lived development branch built on released code, such as a partner's own main
 
 [release]
 production_pr = true    # optional: release production through a pull request
@@ -74,14 +75,18 @@ Identity is `git config user.name`, slugified.
    | Up to date | Nothing |
    | Behind | Fast-forward. Works with uncommitted changes unless incoming commits touch the same files. |
    | Unpushed local commits and remote moved | Clean tree: rebase onto upstream. Conflict: abort and instruct the agent to raise it with the user. |
+   | Local commits include a merge and the remote or development moved | Never rebase, since that would flatten the merge into copies: nudge to bring the incoming commits in with `git merge --no-ff`, then `git push`. |
    | Upstream rewritten (force-pushed elsewhere) | Rebase with `--fork-point`, replaying only the commits made here, so commits the rewrite dropped do not come back. |
    | Ahead only | Nudge to push at the next sensible point; `mem sync`, record completion and `log commit` push |
+   | Push rejected because others pushed first | Fetch, catch up as above and push again, up to three attempts; a conflict ends with the conflict nudge. |
    | Uncommitted changes block convergence | Nudge: commit, then `mem sync` |
    | Feature branch, development moved on | Clean tree: rebase onto `origin/<development>` and say to run the tests. Already pushed with only the user's commits on its remote copy: force-push with a lease pinned to the fetched commit. Commits by others: nudge, never rewrite. Conflict: abort and name the files. Development, staging and production are never rebased or force-pushed. |
    | Feature branch ahead of development | Nudge to merge it back soon; completing a spec on it instructs merging now (a fast-forward, since it follows development) |
 
 2. **Update.** Refresh the managed `AGENTS.md` block, apply pending project patches, and commit and push these mem-owned paths.
 3. **Build context,** in this order: project, structure doc (with a drift warning when stale), docs, runnable output, active specs in full with pending tasks, other open specs and todos as one-liners, a ⏳ CHECK THESE list of what has probably stopped being true (active specs whose record has not changed for 14 days, remote branches not merged into development and idle for 14 days), recent logs (current user first), git summary, and a final state-specific agent instruction. Memories are not repeated; they are already in `AGENTS.md`. Memories and skills that changed during this onboard's sync are shown instead, since the running agent loaded the older copies. Output over ~14k characters goes to `.mem/local/onboard.md` with an instruction to read all of it.
+
+**Long-lived branches built on released code.** A branch such as a partner's own main (`fundi` in studii-next) is its checkout's development branch, with its own `.mem/config.toml`, and is built on released code rather than on the shared development branch. `[git] base = "main"` says so. On that branch, onboard reports under 🌿 SHARED CODEBASE how many commits of `origin/main` it lacks and the rule: released commits come in only when the user asks, by a merge commit (`git merge --no-ff origin/main`, then `git push`); the branch is never rebased or force-pushed, since it is published and deployed, and unreleased work is never merged into it. When commits are missing, the agent instruction asks to mention them. Short-lived branches, by contrast, follow the development branch (see the table above).
 
 `mem sync` is the mid-session catch-up: it performs step 1, pushes when the branch is then ahead and not behind (never staging or production), syncs template items, and reports what others pushed since the checkout last fetched (their commits; specs, tasks and todos opened, started, completed or closed; changed memories and skills) and a newer mem release, without replacing the binary. Other commands print a short divergence nudge when local Git state shows drift.
 
@@ -194,7 +199,7 @@ Framework guides belong in templates as skills rather than docs: docs are printe
 
 ## Updates
 
-- The managed `AGENTS.md` block is refreshed from the executable on every onboard.
+- The managed `AGENTS.md` block is refreshed from the executable on every onboard. It opens with Ground Rules that hold in every session whatever a task description or a tool's defaults say: onboard first or stop; work on the development branch and push only through mem, with no pull requests or other branches unless the user asks; never touch staging or production, force-push or rewrite published history; release only when the user asks in the conversation; regenerate generated files rather than editing them, also on conflict; one package manager. The block is the same in every project and on every branch: branch-specific guidance, such as the base rule above, is printed by onboard instead, so a long-lived branch's AGENTS.md never conflicts with the development branch's when released code is merged in.
 - Project patches are numbered migrations keyed by `schema`, applied once at onboard.
 - Onboard checks the latest GitHub release (from the redirect of `releases/latest`, no API token) and, when it is newer than a release build of mem, downloads the binary for the platform, verifies it against `checksums.txt`, replaces the executable and re-runs onboard with it. `mem update` does the same on demand. `MEM_NO_UPDATE=1` turns the automatic update off; development builds never replace themselves.
 
