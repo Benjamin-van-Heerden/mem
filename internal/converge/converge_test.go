@@ -143,3 +143,40 @@ func TestLocalNudgesWhenUncommittedWorkGrowsLarge(t *testing.T) {
 		t.Fatalf("no nudge for large uncommitted work: %v", r.Nudges)
 	}
 }
+
+func TestPushCatchesUpWithWorkPushedDuringThePushAndRetries(t *testing.T) {
+	other, p := clones(t)
+	write(t, p.Root, "mine.txt", "mine\n")
+	run(t, p.Root, "add", ".")
+	run(t, p.Root, "commit", "--quiet", "-m", "mine")
+	ctx := context.Background()
+	r := Sync(ctx, p)
+	pushChange(t, other, "theirs.txt", "theirs\n")
+	r = Push(ctx, p, r)
+	if len(r.Nudges) != 0 || r.Ahead != 0 || !strings.Contains(strings.Join(r.Done, "\n"), "moved on during the push") {
+		t.Fatalf("report = %+v", r)
+	}
+	if remote := run(t, p.Root, "rev-parse", "origin/dev"); remote != run(t, p.Root, "rev-parse", "HEAD") {
+		t.Fatalf("origin/dev is %s, not HEAD", remote)
+	}
+	if files := run(t, p.Root, "ls-tree", "--name-only", "origin/dev"); !strings.Contains(files, "mine.txt") || !strings.Contains(files, "theirs.txt") {
+		t.Fatalf("origin/dev lacks a side's work: %s", files)
+	}
+}
+
+func TestPushStopsWhenWorkPushedDuringThePushConflicts(t *testing.T) {
+	other, p := clones(t)
+	write(t, p.Root, "shared.txt", "mine\n")
+	run(t, p.Root, "commit", "--quiet", "-am", "mine")
+	head := run(t, p.Root, "rev-parse", "HEAD")
+	ctx := context.Background()
+	r := Sync(ctx, p)
+	pushChange(t, other, "shared.txt", "theirs\n")
+	r = Push(ctx, p, r)
+	if !strings.Contains(strings.Join(r.Nudges, " "), "conflicts") {
+		t.Fatalf("no conflict nudge: %+v", r)
+	}
+	if got := run(t, p.Root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("HEAD moved after the conflicting catch-up")
+	}
+}

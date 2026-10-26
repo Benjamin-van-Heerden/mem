@@ -4,6 +4,7 @@ package converge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ import (
 
 const (
 	fetchTimeout = 20 * time.Second
+	// pushAttempts bounds how often a push is retried after others pushed first.
+	pushAttempts = 3
 	largeFiles   = 15
 	largeLines   = 800
 )
@@ -148,7 +151,8 @@ func standingNudges(r Report, behindAction string) []string {
 }
 
 // Push pushes the branch after a catch-up that left it ahead of its upstream and not behind, and reports the
-// outcome in place of the unpushed nudge. Staging and production only move through promotion, so they are never pushed.
+// outcome in place of the unpushed nudge. When others pushed in the meantime, it catches up and tries again, a few
+// times at most. Staging and production only move through promotion, so they are never pushed.
 func Push(ctx context.Context, p project.Project, r Report) Report {
 	if !r.Fetched || r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 || r.Branch == r.Staging || r.Branch == r.Production {
 		return r
@@ -160,14 +164,46 @@ func Push(ctx context.Context, p project.Project, r Report) Report {
 			nudges = append(nudges, line)
 		}
 	}
-	if err := git.Push(ctx, p.Root); err != nil {
+	for attempt := 1; ; attempt++ {
+		err := git.Push(ctx, p.Root)
+		if err == nil {
+			if attempt > 1 {
+				r.Done = append(r.Done, fmt.Sprintf("%s moved on during the push, so mem caught up and pushed again.", r.Upstream))
+			}
+			r.Done = append(r.Done, fmt.Sprintf("Pushed %d commit(s) to %s.", r.Ahead, r.Upstream))
+			r.Ahead = 0
+			break
+		}
+		if errors.Is(err, git.ErrRemoteAhead) && attempt < pushAttempts {
+			caught, ok := catchUp(ctx, p, r)
+			if ok {
+				r = caught
+				continue
+			}
+			if len(caught.Nudges) > 0 {
+				caught.Nudges = append(nudges, caught.Nudges...)
+				return caught
+			}
+		}
 		nudges = append(nudges, fmt.Sprintf("Pushing %s failed (%v). Tell the user; teammates will not see these commits until `git push` succeeds.", r.Branch, err))
-	} else {
-		r.Done = append(r.Done, fmt.Sprintf("Pushed %d commit(s) to %s.", r.Ahead, r.Upstream))
-		r.Ahead = 0
+		break
 	}
 	r.Nudges = nudges
 	return r
+}
+
+// catchUp brings in commits others pushed while this checkout was pushing, so the push can be tried again. It
+// reports false when the push should not be retried: the fetch failed, or catching up left a nudge.
+func catchUp(ctx context.Context, p project.Project, r Report) (Report, bool) {
+	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
+	defer cancel()
+	if _, err := git.Run(fetchCtx, p.Root, "fetch", "--quiet", r.Remote); err != nil {
+		return r, false
+	}
+	fresh := inspect(ctx, p)
+	fresh.Fetched, fresh.Done, fresh.Before, fresh.After = true, r.Done, r.Before, r.After
+	fresh = update(ctx, p, fresh)
+	return fresh, len(fresh.Nudges) == 0 && fresh.Behind == 0 && fresh.Ahead > 0
 }
 
 // Unpushed describes local commits that are not on the upstream yet. Checks that

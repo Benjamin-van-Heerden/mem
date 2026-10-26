@@ -82,6 +82,9 @@ const PushTimeout = 30 * time.Second
 // ErrPush reports that CommitPaths committed but could not push.
 var ErrPush = errors.New("push failed")
 
+// ErrRemoteAhead reports a push the remote rejected because it has commits this checkout does not have yet.
+var ErrRemoteAhead = errors.New("the remote has commits this checkout does not have yet")
+
 // Commit commits only the given paths, leaving any other changes in the
 // working tree and index untouched.
 func Commit(ctx context.Context, root, message string, paths ...string) error {
@@ -129,7 +132,7 @@ func Push(ctx context.Context, root string) error {
 		case pushCtx.Err() != nil:
 			err = fmt.Errorf("no response from the remote within %s", PushTimeout)
 		case strings.Contains(err.Error(), "(fetch first)") || strings.Contains(err.Error(), "(non-fast-forward)"):
-			err = errors.New("the remote has commits this checkout does not have yet")
+			err = ErrRemoteAhead
 		}
 		return pushError{err}
 	}
@@ -141,6 +144,7 @@ type pushError struct{ cause error }
 
 func (e pushError) Error() string        { return e.cause.Error() }
 func (e pushError) Is(target error) bool { return target == ErrPush }
+func (e pushError) Unwrap() error        { return e.cause }
 
 // CommitPaths commits only the given paths, then pushes when the branch has an
 // upstream. A failed or timed-out push wraps ErrPush; the commit is kept.
