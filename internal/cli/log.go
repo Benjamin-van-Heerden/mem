@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/checkpoint"
@@ -88,7 +89,7 @@ func (a *app) logNew() *cobra.Command {
 				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
 			step(retitleSession())
-			step("Run `mem log commit`: it commits the log and the other .mem/ records, syncs with the shared codebase and pushes.")
+			step("Run `mem log commit <path>...`, naming the .mem/ records you changed for this log, such as the todos you added or deleted and `.mem/structure.md` (`mem log commit` alone when there are none): it commits them with the log, syncs with the shared codebase and pushes. Other sessions' records stay out.")
 			output.Instruction(out, lines...)
 			driftNudges(cmd.Context(), out, p)
 			return nil
@@ -136,19 +137,22 @@ func (a *app) logList() *cobra.Command {
 
 func (a *app) logCommit() *cobra.Command {
 	return &cobra.Command{
-		Use:   "commit [<log>]",
-		Short: "Commit the log and .mem/ records, sync with the shared codebase and push",
-		Long:  "Commits the changed .mem/ records (the log, todos, specs, structure doc) with the log, brings the branch up to date with its upstream (fast-forward, or rebase when safe), and pushes. Code outside .mem/ is never committed; uncommitted work is reported. Without an argument it commits your newest log.",
-		Args:  cobra.MaximumNArgs(1),
+		Use:   "commit [<log>] [<.mem/ path>...]",
+		Short: "Commit the log and the records you name, sync with the shared codebase and push",
+		Long:  "Commits the log together with the .mem/ records you name, such as the todos you added or deleted for it or the structure doc, brings the branch up to date with its upstream (fast-forward, or rebase when safe), and pushes. Other changed records stay uncommitted and are listed, since another session may be working in this checkout. Code outside .mem/ is never committed; uncommitted work is reported. Without a log argument it commits your newest log.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			p, err := a.project(cmd)
 			if err != nil {
 				return err
 			}
+			ref, paths, err := logCommitArgs(args)
+			if err != nil {
+				return err
+			}
 			var l work.Log
-			if len(args) == 1 {
-				if l, err = work.FindLog(p, args[0]); err != nil {
+			if ref != "" {
+				if l, err = work.FindLog(p, ref); err != nil {
 					return err
 				}
 			} else {
@@ -178,18 +182,26 @@ func (a *app) logCommit() *cobra.Command {
 			output.Section(out, "📝 WORK LOG COMMITTED: "+l.Heading())
 			fmt.Fprintf(out, "Log: %s\n", p.Rel(l.Path))
 			var warnings []string
-			if status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", ".mem"); status != "" {
+			records := append([]string{p.Rel(l.Path)}, paths...)
+			if status, _ := git.Run(ctx, p.Root, append([]string{"status", "--porcelain", "--"}, records...)...); status != "" {
 				message := "Work log: " + l.Heading()
-				if err := git.Commit(ctx, p.Root, message, ".mem"); err != nil {
-					warnings = append(warnings, fmt.Sprintf("Could not commit the .mem/ records (%v). Tell the user, and commit them by hand.", err))
+				if err := git.Commit(ctx, p.Root, message, records...); err != nil {
+					warnings = append(warnings, fmt.Sprintf("Could not commit the log and the records you named (%v). Tell the user, and commit them by hand.", err))
 				} else {
-					fmt.Fprintf(out, "Committed .mem/ records: %s\n", message)
+					fmt.Fprintf(out, "Committed the log and the records you named: %s\n", message)
 					if notice := branchNotice(ctx, p); notice != "" {
 						fmt.Fprintln(out, notice)
 					}
 				}
 			} else {
-				fmt.Fprintln(out, "The .mem/ records were already committed.")
+				fmt.Fprintln(out, "The log and the records you named were already committed.")
+			}
+			if left := uncommittedRecords(ctx, p.Root); len(left) > 0 {
+				fmt.Fprintln(out, "\nRecords left uncommitted (not in the paths you named):")
+				for _, f := range left {
+					fmt.Fprintln(out, "  "+f)
+				}
+				warnings = append(warnings, "Changed .mem/ records outside the paths you named were left uncommitted (listed above). If any belong to this log, such as a todo you added or deleted for it, commit them now with `mem log commit <path>...`. Leave the others alone: another session may be working in this checkout.")
 			}
 
 			final := converge.Push(ctx, p, converge.Sync(ctx, p))
@@ -222,6 +234,34 @@ func ignoreRule(ctx context.Context, root, path string) string {
 	}
 	rule, _, _ := strings.Cut(out, "\t")
 	return rule
+}
+
+// logCommitArgs splits log commit's arguments into the log reference, which is optional and never under .mem/, and
+// the .mem/ records to commit with the log. Code is committed with the work, never with a log.
+func logCommitArgs(args []string) (ref string, paths []string, err error) {
+	for _, arg := range args {
+		rel := path.Clean(filepath.ToSlash(arg))
+		switch {
+		case strings.HasPrefix(rel, ".mem/"):
+			paths = append(paths, rel)
+		case ref == "" && len(paths) == 0 && !strings.Contains(rel, "/"):
+			ref = arg
+		default:
+			return "", nil, fmt.Errorf("%s is not a .mem/ record: log commit commits the log and .mem/ records only. Commit code with the work it belongs to", arg)
+		}
+	}
+	return ref, paths, nil
+}
+
+// uncommittedRecords lists changed and untracked files under .mem/, ignoring .DS_Store.
+func uncommittedRecords(ctx context.Context, root string) []string {
+	var files []string
+	for _, file := range uncommittedFiles(ctx, root) {
+		if strings.HasPrefix(file, ".mem/") {
+			files = append(files, file)
+		}
+	}
+	return files
 }
 
 // uncommittedOutsideMem counts changed and untracked files outside .mem/, ignoring .DS_Store.
