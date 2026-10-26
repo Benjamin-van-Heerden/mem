@@ -62,6 +62,9 @@ type GitConfig struct {
 	Staging     string `toml:"staging"`
 	Production  string `toml:"production"`
 	Protect     bool   `toml:"protect"`
+	// Base names the branch a long-lived development branch, such as a partner's own main, is built on: it takes in
+	// that branch's released code by merge commits only.
+	Base string `toml:"base,omitempty"`
 }
 
 // Stage returns the branch for a promotion stage and the branch it is promoted from.

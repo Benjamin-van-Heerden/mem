@@ -92,6 +92,10 @@ func (a *app) onboardCommand() *cobra.Command {
 			}
 			fmt.Fprintf(out, "Developer: %s\n", user)
 			renderReport(out, report, offline)
+			line, baseMissing := baseLine(ctx, p, report.Branch)
+			if line != "" {
+				fmt.Fprintln(out, line)
+			}
 			renderReleases(out, p, release.CurrentStatus(ctx, p))
 			if len(updates) > 0 {
 				output.Section(out, "🔄 UPDATES")
@@ -121,6 +125,7 @@ func (a *app) onboardCommand() *cobra.Command {
 				fmt.Fprintf(out, "The project context is %d lines long and was written to %s.\n", bytes.Count(buf.Bytes(), []byte("\n")), p.Rel(path))
 				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
 			}
+			state.baseMissing = baseMissing
 			state.updateWarnings = hasWarning(updates)
 			state.templateWarnings = hasWarning(templateLines)
 			state.conventionTodos = hasConventionTodo(templateLines)
@@ -171,6 +176,7 @@ type contextState struct {
 	knowledgeChanged bool
 	stale            bool
 	setup            setupState
+	baseMissing      int
 }
 
 func renderReleases(out io.Writer, p project.Project, st release.Status) {
@@ -412,6 +418,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	}
 	if len(r.Nudges) > 0 {
 		step("Tell the user about each ⚠️ item under 🌿 SHARED CODEBASE.")
+	}
+	if state.baseMissing > 0 {
+		step("Mention the released commits not merged in yet, under Base in 🌿 SHARED CODEBASE. Merge them only when the user asks, as described there.")
 	}
 	if state.updateWarnings {
 		step("Tell the user about each ⚠️ item under 🔄 UPDATES and settle it with them.")
