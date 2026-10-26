@@ -2,19 +2,26 @@ package cli
 
 import (
 	"os"
-	"strconv"
+	"path/filepath"
 	"testing"
 )
 
 // TestMain turns off Git's automatic maintenance for every git process the tests start. Newer Git runs it
 // detached after pushes and fetches, and a repack still writing into a test repository makes t.TempDir's
-// cleanup fail after the test itself has passed.
+// cleanup, or a clone running at the same time, fail after the test itself has passed. The settings go in a
+// system config file rather than GIT_CONFIG_COUNT, because Git clears GIT_CONFIG_* for the receiving side of a
+// push to a local path, which is where the test remotes' maintenance runs.
 func TestMain(m *testing.M) {
-	settings := [][2]string{{"maintenance.auto", "false"}, {"gc.auto", "0"}, {"receive.autogc", "false"}}
-	os.Setenv("GIT_CONFIG_COUNT", strconv.Itoa(len(settings)))
-	for i, s := range settings {
-		os.Setenv("GIT_CONFIG_KEY_"+strconv.Itoa(i), s[0])
-		os.Setenv("GIT_CONFIG_VALUE_"+strconv.Itoa(i), s[1])
+	dir, err := os.MkdirTemp("", "mem-cli-test-git")
+	if err != nil {
+		panic(err)
 	}
-	os.Exit(m.Run())
+	config := filepath.Join(dir, "gitconfig")
+	if err := os.WriteFile(config, []byte("[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n[receive]\n\tautogc = false\n"), 0o644); err != nil {
+		panic(err)
+	}
+	os.Setenv("GIT_CONFIG_SYSTEM", config)
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
 }
