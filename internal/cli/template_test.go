@@ -271,7 +271,8 @@ func TestOnboardRunsTemplateRunnablesAndPromoteSendsThemBack(t *testing.T) {
 	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
 
 	out := mem(t, root, "onboard")
-	if !strings.Contains(out, "Added runnable checks from nextjs-web.") || !strings.Contains(out, "checks from the template") {
+	// Windows cannot execute shell scripts directly, so there onboard only installs it.
+	if !strings.Contains(out, "Added runnable checks from nextjs-web.") || runtime.GOOS != "windows" && !strings.Contains(out, "checks from the template") {
 		t.Fatalf("onboard did not install and run the template runnable:\n%s", out)
 	}
 	if status := run(t, root, "status", "--porcelain"); status != "" {
