@@ -431,7 +431,7 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 		step("Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
 	}
 	if state.conventionTodos {
-		step(conventionTodoInstruction)
+		step(conventionTodoInstruction(state.setup.present))
 	}
 	if state.setup.present {
 		step(setupInstruction(state.setup))

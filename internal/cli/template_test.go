@@ -229,13 +229,37 @@ func TestTemplateMemoryChangesRecordTodosToCheckExistingCode(t *testing.T) {
 		t.Fatalf("the open todo was not rewritten with the latest text:\n%s", changed)
 	}
 
-	writeFile(t, root, ".mem/setup.md", "# Setup\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n")
-	run(t, root, "add", ".mem/setup.md")
-	run(t, root, "commit", "--quiet", "-m", "setup")
-	writeFile(t, libraryWork, "nextjs-web/memories/env.md", "Read env through serverEnv.\n")
-	push("env")
-	if out := mem(t, root, "onboard"); strings.Contains(out, "📌 The nextjs-web template") || len(todoFiles()) != 2 {
-		t.Fatalf("a project still in its setup got a convention todo:\n%s", out)
+	if !strings.Contains(string(changed), "ask whether to adopt it, as its own todo or spec, or to drop the convention with `mem memory remove package-manager`") {
+		t.Fatalf("the todo does not cover a convention the project has not adopted:\n%s", changed)
+	}
+}
+
+// The setup is copied from the template once, so a convention that arrives while it is pending may describe
+// something its steps never build.
+func TestConventionsArrivingDuringTheSetupRecordTodosForIt(t *testing.T) {
+	base, library, libraryWork := templateWorld(t)
+	writeFile(t, libraryWork, "nextjs-web/setup.md", "# Setup: nextjs-web\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n")
+	run(t, libraryWork, "add", "--all")
+	run(t, libraryWork, "commit", "--quiet", "-m", "setup")
+	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
+	root := templateProject(t, base, "app", library)
+
+	if out := mem(t, root, "onboard"); strings.Contains(out, "📌 The nextjs-web template") || !strings.Contains(out, "No open todos.") {
+		t.Fatalf("conventions installed with the setup recorded a todo:\n%s", out)
+	}
+
+	writeFile(t, libraryWork, "nextjs-web/memories/local-dev.md", "Serve the dev app through portless.\n")
+	run(t, libraryWork, "add", "--all")
+	run(t, libraryWork, "commit", "--quiet", "-m", "portless")
+	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
+	out := mem(t, root, "onboard")
+
+	if !strings.Contains(out, "📌 The nextjs-web template added the convention local-dev, so todo apply_template_convention_local_dev asks for it to be followed in the remaining setup steps") || !strings.Contains(out, "follow the convention in the remaining setup steps, and check the code against it once the setup is done") {
+		t.Fatalf("onboard does not lead the convention into the pending setup:\n%s", out)
+	}
+	todo, err := os.ReadFile(filepath.Join(root, ".mem", "todos", "apply_template_convention_local_dev.md"))
+	if err != nil || !strings.Contains(string(todo), "It arrived while .mem/setup.md was pending") {
+		t.Fatalf("todo for the convention that arrived during the setup (%v):\n%s", err, todo)
 	}
 }
 
