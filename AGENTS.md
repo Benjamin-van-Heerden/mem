@@ -261,6 +261,9 @@ The personal Claude Code mods (mission-control, replay-theater) live in ~/.claud
 
 ## mod-ui
 Lessons for mod UI on the desktop surface: Text has no font size, so Markdown headings (#, ##, ###) are the only way to size text, and the hierarchy must follow the sections; Text is proportional, so code that needs monospace or token colours is drawn as SVG (Code in diff format has no syntax colours there); draw such SVG as an image, not isInteractive: an interactive frame's text can be selected, but it flashes and drops the selection whenever the pane holds the keyboard, and handing the keyboard back to the prompt box after each press (writing the draft back with $.prompt.fill) only moves the problem, since the first click on a pane button then just focuses the pane; so code is drawn as images and is not selectable (the user preferred that to Copy buttons); a file is opened in the person's editor with $.process.run(['open', path]), since links to files do not open; a pane's width is e.props.bodyColumns, not e.viewport.columns (the whole window); $.ui.open's columns is only a request, and a width the person dragged wins; a pane made of buttons should not ask for focus; slash commands wait for the running turn unless registered immediate, so a button that acts across mods should be answered with a ui.press hook on the other mod's key rather than $.command.run; links from a mod open only for https: on remote surfaces; a pane has its own close mark, so draw no Close in it. Check layouts with $.ui.mount tests on both the terminal and desktop surfaces, and ask the user for a screenshot rather than assuming how the desktop draws.
+
+## keep-upstream-general
+mem's managed instructions and the template library stay general: they hold conventions that fit any project of their kind. A gotcha from one project's integrations, services or setup goes in that project's own memories or docs, not upstream.
 </memories>
 
 # Developing mem
