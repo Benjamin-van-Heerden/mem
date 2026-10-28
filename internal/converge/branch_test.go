@@ -159,3 +159,29 @@ func TestSyncLeavesAFeatureBranchWithAMergeUnrebased(t *testing.T) {
 		t.Fatalf("report = %+v", r)
 	}
 }
+
+func TestSyncNeitherRebasesNorPushesASingleBranchProjectsBase(t *testing.T) {
+	ctx := context.Background()
+	other, p := clones(t)
+	p.Config.Git.SingleBranch, p.Config.Git.Base = true, "main"
+	run(t, other, "push", "--quiet", "origin", "dev:main")
+	pushChange(t, other, "dev.txt", "dev\n")
+	run(t, p.Root, "fetch", "--quiet")
+	run(t, p.Root, "switch", "--quiet", "-c", "main", "--track", "origin/main")
+	write(t, p.Root, "mirror.txt", "mirror\n")
+	run(t, p.Root, "add", ".")
+	run(t, p.Root, "commit", "--quiet", "-m", "commit on the base")
+	head := run(t, p.Root, "rev-parse", "HEAD")
+	remoteMain := run(t, p.Root, "rev-parse", "origin/main")
+
+	r := Push(ctx, p, Sync(ctx, p))
+	if got := run(t, p.Root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("sync rebased the base branch onto development")
+	}
+	if got, _ := runErr(p.Root, "ls-remote", "origin", "refs/heads/main"); !strings.HasPrefix(got, remoteMain) {
+		t.Fatalf("the base branch was pushed: %s", got)
+	}
+	if !nudged(r, "You are on main, the base branch") {
+		t.Fatalf("report = %+v", r)
+	}
+}

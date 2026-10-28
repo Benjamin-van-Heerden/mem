@@ -59,7 +59,7 @@ func staleBranches(ctx context.Context, p project.Project, now time.Time) []stri
 			continue
 		}
 		branch := strings.TrimPrefix(fields[0], g.Remote+"/")
-		if branch == "HEAD" || branch == g.Remote || branch == g.Development || branch == g.Staging || branch == g.Production || strings.HasPrefix(branch, "promotion/") {
+		if branch == "HEAD" || branch == g.Remote || branch == g.Development || g.Guarded(branch) || strings.HasPrefix(branch, "promotion/") {
 			continue
 		}
 		unix, err := strconv.ParseInt(fields[1], 10, 64)

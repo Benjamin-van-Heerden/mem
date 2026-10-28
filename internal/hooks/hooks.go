@@ -1,5 +1,5 @@
-// Package hooks installs mem's Git hooks: pre-push and pre-commit keep staging and production promotion-only,
-// and post-commit reports checkpoint nudges. It implements the protection checks those hooks call.
+// Package hooks installs mem's Git hooks: pre-push and pre-commit keep staging and production promotion-only (in a
+// single-branch project, they keep the base branch free of commits), and post-commit reports checkpoint nudges. It implements the protection checks those hooks call.
 package hooks
 
 import (
@@ -63,7 +63,7 @@ func Sync(ctx context.Context, p project.Project) ([]string, error) {
 			lines = append(lines, fmt.Sprintf("Removed the mem %s hook (protect = false).", name))
 		case !wanted:
 		case err == nil && !ours && h.protection:
-			lines = append(lines, fmt.Sprintf("A %s hook that mem did not install already exists at %s. Tell the user; to keep staging and production promotion-only, add this line to it: mem hook %s \"$@\" || exit 1", name, path, name))
+			lines = append(lines, fmt.Sprintf("A %s hook that mem did not install already exists at %s. Tell the user; to %s, add this line to it: mem hook %s \"$@\" || exit 1", name, path, purpose(p), name))
 		case err == nil && !ours:
 			lines = append(lines, fmt.Sprintf("A %s hook that mem did not install already exists at %s. Tell the user; to get mem's checkpoint nudges after each commit, add this line to it: mem hook %s || true", name, path, name))
 		case string(existing) != script(h):
@@ -79,28 +79,48 @@ func Sync(ctx context.Context, p project.Project) ([]string, error) {
 	return lines, nil
 }
 
-// PrePush rejects pushes to staging or production that do not come from mem promote.
+// purpose says what the protection hooks are for in this project.
+func purpose(p project.Project) string {
+	if p.Config.Git.SingleBranch {
+		return "keep the base branch free of commits"
+	}
+	return "keep staging and production promotion-only"
+}
+
+// PrePush rejects pushes to staging or production that do not come from mem promote, and in a single-branch
+// project pushes to the base branch.
 func PrePush(p project.Project, remote string, refs io.Reader) error {
-	if os.Getenv(release.PromoteEnv) == "1" || remote != p.Config.Git.Remote {
+	g := p.Config.Git
+	if os.Getenv(release.PromoteEnv) == "1" || remote != g.Remote {
 		return nil
 	}
-	protected := map[string]bool{"refs/heads/" + p.Config.Git.Staging: true, "refs/heads/" + p.Config.Git.Production: true}
 	scanner := bufio.NewScanner(refs)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) == 4 && protected[fields[2]] {
-			branch := strings.TrimPrefix(fields[2], "refs/heads/")
-			return fmt.Errorf("%s only moves by promotion. Push your work to %s, then run `mem promote staging` or `mem promote production`", branch, p.Config.Git.Development)
+		if len(fields) != 4 || !strings.HasPrefix(fields[2], "refs/heads/") {
+			continue
+		}
+		branch := strings.TrimPrefix(fields[2], "refs/heads/")
+		switch {
+		case !g.Guarded(branch):
+		case g.SingleBranch:
+			return fmt.Errorf("%s is the base branch, which only takes in released code, so it is not pushed from here. Push your work to %s", branch, g.Development)
+		default:
+			return fmt.Errorf("%s only moves by promotion. Push your work to %s, then run `mem promote staging` or `mem promote production`", branch, g.Development)
 		}
 	}
 	return scanner.Err()
 }
 
-// PreCommit rejects commits made on staging or production.
+// PreCommit rejects commits made on staging or production, or on a single-branch project's base branch.
 func PreCommit(ctx context.Context, p project.Project) error {
+	g := p.Config.Git
 	branch := git.CurrentBranch(ctx, p.Root)
-	if branch == p.Config.Git.Staging || branch == p.Config.Git.Production {
-		return fmt.Errorf("%s only moves by promotion, so commits are not made on it. Switch to %s (`git switch %s`, which keeps your changes) and commit there", branch, p.Config.Git.Development, p.Config.Git.Development)
+	switch {
+	case !g.Guarded(branch):
+		return nil
+	case g.SingleBranch:
+		return fmt.Errorf("%s is the base branch, which only takes in released code, so commits are not made on it. Switch to %s (`git switch %s`, which keeps your changes) and commit there", branch, g.Development, g.Development)
 	}
-	return nil
+	return fmt.Errorf("%s only moves by promotion, so commits are not made on it. Switch to %s (`git switch %s`, which keeps your changes) and commit there", branch, g.Development, g.Development)
 }

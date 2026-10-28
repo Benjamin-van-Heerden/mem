@@ -59,16 +59,34 @@ func (c CursorConfig) StopHookEnabled() bool { return c.StopHook == nil || *c.St
 type GitConfig struct {
 	Remote      string `toml:"remote"`
 	Development string `toml:"development"`
-	Staging     string `toml:"staging"`
-	Production  string `toml:"production"`
-	Protect     bool   `toml:"protect"`
+	// SingleBranch marks a project with no staging or production branches: mem makes no releases in it.
+	SingleBranch bool   `toml:"single_branch,omitempty"`
+	Staging      string `toml:"staging,omitempty"`
+	Production   string `toml:"production,omitempty"`
+	Protect      bool   `toml:"protect"`
 	// Base names the branch a long-lived development branch, such as a partner's own main, is built on: it takes in
 	// that branch's released code by merge commits only.
 	Base string `toml:"base,omitempty"`
 }
 
-// Stage returns the branch for a promotion stage and the branch it is promoted from.
+// Guarded reports whether branch is one mem never commits to or pushes: staging and production, or in a
+// single-branch project the base branch.
+func (g GitConfig) Guarded(branch string) bool {
+	switch {
+	case branch == "":
+		return false
+	case g.SingleBranch:
+		return branch == g.Base
+	}
+	return branch == g.Staging || branch == g.Production
+}
+
+// Stage returns the branch for a promotion stage and the branch it is promoted from. A single-branch project has
+// no stages.
 func (g GitConfig) Stage(stage string) (branch, source string, ok bool) {
+	if g.SingleBranch {
+		return "", "", false
+	}
 	switch stage {
 	case "staging":
 		return g.Staging, g.Development, true
@@ -131,7 +149,24 @@ func Load(ctx context.Context, dir string) (Project, error) {
 	if config.Schema > Schema {
 		return Project{}, fmt.Errorf("this project uses mem schema %d but the installed mem supports schema %d; update mem", config.Schema, Schema)
 	}
+	if err := config.validate(); err != nil {
+		return Project{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
+	}
 	return Project{Root: root, Config: config}, nil
+}
+
+// validate rejects a single-branch config that still names release settings, so the mode is never half applied.
+func (c Config) validate() error {
+	if !c.Git.SingleBranch {
+		return nil
+	}
+	if c.Git.Staging != "" || c.Git.Production != "" {
+		return errors.New("[git] single_branch = true, so staging and production must not be set; remove them")
+	}
+	if c.Release.ProductionPR || c.Release.Notes {
+		return errors.New("[git] single_branch = true, so mem makes no releases and [release] production_pr and notes must not be set; remove them")
+	}
+	return nil
 }
 
 func WriteConfig(root string, config Config) error {

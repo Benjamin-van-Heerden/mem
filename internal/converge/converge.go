@@ -24,24 +24,26 @@ const (
 )
 
 type Report struct {
-	Remote      string
-	HasRemote   bool
-	Dev         string
-	Staging     string
-	Production  string
-	Branch      string
-	Upstream    string
-	Development string
-	Fetched     bool
-	FetchError  string
-	Dirty       bool
-	Uncommitted structure.Drift
-	Ahead       int
-	Behind      int
-	DevAhead    int
-	DevBehind   int
-	Done        []string
-	Nudges      []string
+	Remote    string
+	HasRemote bool
+	Dev       string
+	// Guarded marks a branch mem never commits to or pushes (project.GitConfig.Guarded); SingleBranch says
+	// whether that is the base branch of a single-branch project rather than staging or production.
+	Guarded      bool
+	SingleBranch bool
+	Branch       string
+	Upstream     string
+	Development  string
+	Fetched      bool
+	FetchError   string
+	Dirty        bool
+	Uncommitted  structure.Drift
+	Ahead        int
+	Behind       int
+	DevAhead     int
+	DevBehind    int
+	Done         []string
+	Nudges       []string
 	// Before and After are the upstream's revisions before and after the fetch;
 	// they differ when others pushed since this checkout last fetched.
 	Before, After string
@@ -142,7 +144,10 @@ func standingNudges(r Report, behindAction string) []string {
 	case behindAction == "" && Unpushed(r) != "":
 		nudges = append(nudges, Unpushed(r))
 	}
-	if r.Branch == r.Staging || r.Branch == r.Production {
+	if r.Guarded && r.SingleBranch {
+		return append(nudges, fmt.Sprintf("You are on %s, the base branch, which only takes in released code and is never committed to. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
+	}
+	if r.Guarded {
 		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `mem promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
 	}
 	if r.Branch != dev && r.DevBehind > 0 && !r.devHandled {
@@ -155,9 +160,10 @@ func standingNudges(r Report, behindAction string) []string {
 
 // Push pushes the branch after a catch-up that left it ahead of its upstream and not behind, and reports the
 // outcome in place of the unpushed nudge. When others pushed in the meantime, it catches up and tries again, a few
-// times at most. Staging and production only move through promotion, so they are never pushed.
+// times at most. Staging and production only move through promotion, and a single-branch project's base only takes
+// in released code, so guarded branches are never pushed.
 func Push(ctx context.Context, p project.Project, r Report) Report {
-	if !r.Fetched || r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 || r.Branch == r.Staging || r.Branch == r.Production {
+	if !r.Fetched || r.Upstream == "" || r.Ahead == 0 || r.Behind > 0 || r.Guarded {
 		return r
 	}
 	stale := Unpushed(r)
@@ -231,8 +237,10 @@ func Worktree(r Report) string {
 }
 
 func inspect(ctx context.Context, p project.Project) Report {
-	remote, dev := p.Config.Git.Remote, p.Config.Git.Development
-	r := Report{Remote: remote, Dev: dev, Staging: p.Config.Git.Staging, Production: p.Config.Git.Production, Branch: git.CurrentBranch(ctx, p.Root), Development: remote + "/" + dev}
+	g := p.Config.Git
+	remote, dev := g.Remote, g.Development
+	r := Report{Remote: remote, Dev: dev, SingleBranch: g.SingleBranch, Branch: git.CurrentBranch(ctx, p.Root), Development: remote + "/" + dev}
+	r.Guarded = g.Guarded(r.Branch)
 	status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--untracked-files=no")
 	r.Dirty = status != ""
 	r.Uncommitted, _ = structure.ChangesSince(ctx, p, "HEAD")

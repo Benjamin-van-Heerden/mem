@@ -96,7 +96,9 @@ func (a *app) onboardCommand() *cobra.Command {
 			if line != "" {
 				fmt.Fprintln(out, line)
 			}
-			renderReleases(out, p, release.CurrentStatus(ctx, p))
+			if !p.Config.Git.SingleBranch {
+				renderReleases(out, p, release.CurrentStatus(ctx, p))
+			}
 			if len(updates) > 0 {
 				output.Section(out, "🔄 UPDATES")
 				for _, line := range updates {
@@ -450,7 +452,11 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	if state.stale {
 		step("Go through each item under ⏳ CHECK THESE with the user: these records and branches have probably stopped being true. Update, complete, delete or keep each as they decide.")
 	}
-	step("Summarize the project state from the open specs, open todos and release status. Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
+	sources := "the open specs, open todos and release status"
+	if r.SingleBranch {
+		sources = "the open specs and open todos"
+	}
+	step("Summarize the project state from " + sources + ". Use tables where they help. Work logs are background: do not present what an old log planned as open work unless a spec or todo still holds it.")
 	step("Ask the user how they would like to proceed.")
 	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.", nameSession())
 	output.Instruction(out, lines...)

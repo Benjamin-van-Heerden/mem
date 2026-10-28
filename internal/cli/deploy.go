@@ -28,6 +28,9 @@ func (a *app) deployCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if p.Config.Git.SingleBranch {
+				return release.SingleBranchError(p)
+			}
 			if p.Config.Release.ProductionPR && !force {
 				return errors.New("this repository releases production through a pull request, so `mem deploy` cannot release it; use `mem promote staging` and `mem promote production`")
 			}

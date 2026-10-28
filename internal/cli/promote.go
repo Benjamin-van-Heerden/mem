@@ -33,6 +33,9 @@ func (a *app) promoteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if p.Config.Git.SingleBranch {
+				return release.SingleBranchError(p)
+			}
 			stage := args[0]
 			if stage == "production" && to != "" {
 				return fmt.Errorf("production always moves to what staging previewed; to release less, promote staging --to <commit> first")

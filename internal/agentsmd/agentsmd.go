@@ -9,10 +9,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 )
 
 //go:embed instructions.md
 var instructions string
+
+// instructionsTemplate numbers the Ground Rules with {{rule}} and leaves out with .Single what applies only to
+// projects with staging and production branches.
+var instructionsTemplate = template.Must(template.New("instructions.md").Funcs(template.FuncMap{"rule": func() int { return 0 }}).Parse(instructions))
 
 //go:embed install.md
 var installGuide string
@@ -52,12 +57,13 @@ type Memory struct {
 	Body string
 }
 
-// Install puts the managed block and an empty memories block ahead of existing AGENTS.md content.
-func Install(text, version string) (string, error) {
+// Install puts the managed block and an empty memories block ahead of existing AGENTS.md content. single selects
+// the instructions for a single-branch project.
+func Install(text, version string, single bool) (string, error) {
 	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	parts := []string{block(version)}
+	parts := []string{block(version, single)}
 	if !hasTag(text, memoriesOpen) {
 		parts = append(parts, renderMemories(nil))
 	}
@@ -76,7 +82,7 @@ func HasLegacy(text string) bool { return legacyBlock.MatchString(text) }
 
 // ReplaceLegacy swaps the Python coding harness's first managed block for the mem
 // block in the same position, drops any further harness blocks and adds an empty memories block.
-func ReplaceLegacy(text, version string) (string, error) {
+func ReplaceLegacy(text, version string, single bool) (string, error) {
 	loc := legacyBlock.FindStringIndex(text)
 	if loc == nil {
 		return "", errors.New("AGENTS.md has no <core_instructions> block from the Python coding harness")
@@ -84,16 +90,16 @@ func ReplaceLegacy(text, version string) (string, error) {
 	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	updated := text[:loc[0]] + block(version) + extraLegacyBlock.ReplaceAllString(text[loc[1]:], "")
+	updated := text[:loc[0]] + block(version, single) + extraLegacyBlock.ReplaceAllString(text[loc[1]:], "")
 	if !hasTag(updated, memoriesOpen) {
 		updated = strings.TrimRight(updated, "\n") + "\n\n" + renderMemories(nil) + "\n"
 	}
 	return updated, nil
 }
 
-// Refresh replaces the managed block with the instructions shipped in this
-// executable. A block written by a newer mem is left alone and its version returned.
-func Refresh(text, version string) (updated string, newer string, err error) {
+// Refresh replaces the managed block with the instructions shipped in this executable, for a single-branch project
+// when single is set. A block written by a newer mem is left alone and its version returned.
+func Refresh(text, version string, single bool) (updated string, newer string, err error) {
 	start, end, err := span(text, blockOpen, blockClose)
 	if err != nil {
 		return text, "", err
@@ -101,12 +107,23 @@ func Refresh(text, version string) (updated string, newer string, err error) {
 	if m := stampVersion.FindStringSubmatch(text[start:end]); m != nil && semverLess(version, m[1]) {
 		return text, m[1], nil
 	}
-	return text[:start] + block(version) + text[end:], "", nil
+	return text[:start] + block(version, single) + text[end:], "", nil
 }
 
-func block(version string) string {
-	body := strings.TrimPrefix(strings.TrimSpace(instructions), blockOpen)
+func block(version string, single bool) string {
+	body := strings.TrimPrefix(strings.TrimSpace(render(single)), blockOpen)
 	return blockOpen + "\n<!-- Managed by mem " + version + ". Edits inside this block are replaced on onboard. -->" + body
+}
+
+// render executes the instructions template; it can only fail on a mistake in instructions.md, which tests catch.
+func render(single bool) string {
+	rule := 0
+	t := template.Must(instructionsTemplate.Clone()).Funcs(template.FuncMap{"rule": func() int { rule++; return rule }})
+	var b strings.Builder
+	if err := t.Execute(&b, struct{ Single bool }{single}); err != nil {
+		panic(err)
+	}
+	return b.String()
 }
 
 // semverLess reports whether a < b; versions that are not x.y.z never compare as less.

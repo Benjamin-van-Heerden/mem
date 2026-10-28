@@ -137,7 +137,7 @@ func convertAgents(root, version, memoriesDir string, sum *Summary) (string, err
 	if err != nil {
 		return "", err
 	}
-	text, err := agentsmd.ReplaceLegacy(string(data), version)
+	text, err := agentsmd.ReplaceLegacy(string(data), version, false)
 	if err != nil {
 		return "", err
 	}

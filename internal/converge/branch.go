@@ -9,10 +9,10 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
 
-// feature reports whether r is on a branch that follows development: a named branch other than development,
-// staging and production, with the remote development branch known.
+// feature reports whether r is on a branch that follows development: a named branch other than development and
+// the guarded branches, with the remote development branch known.
 func feature(r Report) bool {
-	return r.Branch != "" && r.Branch != r.Dev && r.Branch != r.Staging && r.Branch != r.Production && r.HasRemote
+	return r.Branch != "" && r.Branch != r.Dev && !r.Guarded && r.HasRemote
 }
 
 // followDevelopment rebases a feature branch onto a development branch that has moved on, so the branch never

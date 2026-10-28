@@ -44,9 +44,17 @@ func remoteRef(p project.Project, branch string) string {
 	return p.Config.Git.Remote + "/" + branch
 }
 
+// SingleBranchError refuses a release in a project without staging and production branches.
+func SingleBranchError(p project.Project) error {
+	return fmt.Errorf("this project is single-branch ([git] single_branch = true), so mem makes no releases and pushes no tags here. Work on %s reaches everyone through `mem sync`", p.Config.Git.Development)
+}
+
 // Prepare fetches and works out what promoting stage would ship. to optionally
 // selects an earlier commit of the source branch.
 func Prepare(ctx context.Context, p project.Project, stage, to string) (Plan, error) {
+	if p.Config.Git.SingleBranch {
+		return Plan{}, SingleBranchError(p)
+	}
 	branch, source, ok := p.Config.Git.Stage(stage)
 	if !ok {
 		return Plan{}, fmt.Errorf("unknown stage %q; use staging or production", stage)

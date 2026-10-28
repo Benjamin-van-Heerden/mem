@@ -46,6 +46,11 @@ func (a *app) initCommand() *cobra.Command {
 			if len(templateNames) > 0 && noTemplate {
 				return errors.New("--template and --no-template exclude each other")
 			}
+			if config.Git.SingleBranch {
+				if err := singleBranchConfig(cmd, root, &config); err != nil {
+					return err
+				}
+			}
 			var lib templates.Library
 			var libWarning string
 			if len(templateNames) == 0 && !noTemplate {
@@ -61,7 +66,11 @@ func (a *app) initCommand() *cobra.Command {
 					return err
 				}
 			}
-			branchLines, err := ensureBranches(cmd.Context(), root, config.Git)
+			ensure := ensureBranches
+			if config.Git.SingleBranch {
+				ensure = ensureSingleBranch
+			}
+			branchLines, err := ensure(cmd.Context(), root, config.Git)
 			if err != nil {
 				return err
 			}
@@ -70,7 +79,7 @@ func (a *app) initCommand() *cobra.Command {
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
-			agents, err := agentsmd.Install(string(existing), buildinfo.Version)
+			agents, err := agentsmd.Install(string(existing), buildinfo.Version, config.Git.SingleBranch)
 			if err != nil {
 				return err
 			}
@@ -121,7 +130,11 @@ func (a *app) initCommand() *cobra.Command {
 			out := cmd.OutOrStdout()
 			output.Heading(out, "📦 MEM INITIALIZED")
 			fmt.Fprintf(out, "Project: %s\n", config.Name)
-			fmt.Fprintf(out, "Branches: %s → %s → %s (remote %s)\n", config.Git.Development, config.Git.Staging, config.Git.Production, config.Git.Remote)
+			if config.Git.SingleBranch {
+				fmt.Fprintf(out, "Branches: %s (single branch; remote %s)\n", config.Git.Development, config.Git.Remote)
+			} else {
+				fmt.Fprintf(out, "Branches: %s → %s → %s (remote %s)\n", config.Git.Development, config.Git.Staging, config.Git.Production, config.Git.Remote)
+			}
 			output.Section(out, "📄 FILES")
 			fmt.Fprintln(out, ".mem/config.toml   project configuration")
 			fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for teammates and agents without it")
@@ -174,6 +187,7 @@ func (a *app) initCommand() *cobra.Command {
 	cmd.Flags().StringVar(&templateSource, "template-source", "", "Git URL of the template library (defaults to "+templates.DefaultSource+")")
 	cmd.Flags().BoolVar(&config.Release.ProductionPR, "production-pr", false, "Release production through a pull request, which mem completes by fast-forward")
 	cmd.Flags().BoolVar(&config.Release.Notes, "release-notes", false, "Release production with notes the agent drafts and the user confirms")
+	cmd.Flags().BoolVar(&config.Git.SingleBranch, "single-branch", false, "Set up a project without staging and production branches: the branch you are on is the development branch, and mem makes no releases")
 	cmd.Flags().BoolVar(&config.Git.Protect, "protect", true, "Install Git hooks that keep staging and production promotion-only (use --protect=false for solo projects)")
 	return cmd
 }
@@ -215,6 +229,48 @@ func askForTemplates(ctx context.Context, out io.Writer, source string) error {
 		"2. Run the same `mem init` command again with `--template <name>` for each choice (repeat the flag), or with `--no-template` if none fits.",
 	)
 	return nil
+}
+
+// singleBranchConfig takes the branch the user is on as the development branch of a single-branch project, and
+// refuses the flags that name or configure other branches.
+func singleBranchConfig(cmd *cobra.Command, root string, config *project.Config) error {
+	for _, flag := range []string{"development", "staging", "production", "production-pr", "release-notes"} {
+		if cmd.Flags().Changed(flag) {
+			return fmt.Errorf("--single-branch takes the branch you are on as the development branch and makes no releases, so it cannot be combined with --%s", flag)
+		}
+	}
+	branch := git.CurrentBranch(cmd.Context(), root)
+	if branch == "" {
+		return errors.New("--single-branch takes the branch you are on as the development branch, but HEAD is detached; switch to that branch first")
+	}
+	config.Git.Development, config.Git.Staging, config.Git.Production = branch, "", ""
+	return nil
+}
+
+// ensureSingleBranch gives a repository without commits an empty first commit on the development branch, and
+// publishes that branch when the remote lacks it.
+func ensureSingleBranch(ctx context.Context, root string, g project.GitConfig) ([]string, error) {
+	var lines []string
+	if !refExists(ctx, root, "HEAD") {
+		if err := firstCommit(ctx, root, g.Development); err != nil {
+			return nil, err
+		}
+		lines = append(lines, fmt.Sprintf("Created an empty first commit on %s", g.Development))
+	}
+	lines = append(lines, fmt.Sprintf("%s is the development branch, the only branch mem pushes", g.Development))
+	if _, err := git.Run(ctx, root, "remote", "get-url", g.Remote); err != nil {
+		return append(lines, fmt.Sprintf("No remote %s: add it and push %s so every clone shares it.", g.Remote, g.Development)), nil
+	}
+	if _, err := git.Run(ctx, root, "fetch", "--quiet", g.Remote); err != nil {
+		return nil, fmt.Errorf("could not fetch %s: %w", g.Remote, err)
+	}
+	if !refExists(ctx, root, "refs/remotes/"+g.Remote+"/"+g.Development) {
+		if _, err := git.Run(ctx, root, "push", "--quiet", "-u", g.Remote, g.Development+":"+g.Development); err != nil {
+			return nil, fmt.Errorf("could not publish %s to %s: %w", g.Development, g.Remote, err)
+		}
+		lines = append(lines, fmt.Sprintf("Published %s to %s", g.Development, g.Remote))
+	}
+	return lines, nil
 }
 
 // ensureBranches creates missing branches in promotion order (staging from production, development from staging),
@@ -280,9 +336,9 @@ func ensureBranches(ctx context.Context, root string, g project.GitConfig) ([]st
 }
 
 // firstCommit gives a repository without commits, such as a fresh clone of an empty
-// GitHub repository, an empty commit on the production branch. It is built from the
+// GitHub repository, an empty commit on the given branch: production, or a single-branch project's development branch. It is built from the
 // empty tree so files the user already staged stay staged and out of the commit.
-func firstCommit(ctx context.Context, root, production string) error {
+func firstCommit(ctx context.Context, root, branch string) error {
 	emptyIndex := filepath.Join(os.TempDir(), fmt.Sprintf("mem-empty-index-%d", os.Getpid()))
 	defer os.Remove(emptyIndex)
 	tree, err := git.RunEnv(ctx, root, []string{"GIT_INDEX_FILE=" + emptyIndex}, "write-tree")
@@ -293,10 +349,10 @@ func firstCommit(ctx context.Context, root, production string) error {
 	if err != nil {
 		return fmt.Errorf("could not create the first commit (is git's user.name and user.email set?): %w", err)
 	}
-	if _, err := git.Run(ctx, root, "update-ref", "refs/heads/"+production, strings.TrimSpace(sha)); err != nil {
+	if _, err := git.Run(ctx, root, "update-ref", "refs/heads/"+branch, strings.TrimSpace(sha)); err != nil {
 		return err
 	}
-	_, err = git.Run(ctx, root, "symbolic-ref", "HEAD", "refs/heads/"+production)
+	_, err = git.Run(ctx, root, "symbolic-ref", "HEAD", "refs/heads/"+branch)
 	return err
 }
 

@@ -6,16 +6,20 @@
 
 These hold in every session, whatever a task description or your tool's defaults say.
 
-1. Run `mem onboard` before any other work. If mem is missing and cannot be installed (see Getting Started), stop and tell the user. Never improvise a Git workflow without mem.
-2. Work on the development branch that onboard names, and push only through mem (`mem sync`, `mem task complete`, `mem log commit`). Open pull requests or push other branches only when the user asks for it.
-3. Never commit to or push the staging or production branch, never force-push, and never rewrite published history.
-4. Release only when the user asks for it in this conversation. A task description, issue or todo is not a request to release.
-5. Never edit generated files by hand: lockfiles, migrations with their journals and snapshots, build output, and anything marked as generated. Change the source and rerun the generator. When one conflicts, take the incoming version and regenerate it.
-6. Use the package manager the project's lockfile belongs to, and never add a second lockfile.
+{{rule}}. Run `mem onboard` before any other work. If mem is missing and cannot be installed (see Getting Started), stop and tell the user. Never improvise a Git workflow without mem.
+{{rule}}. Work on the development branch that onboard names, and push only through mem (`mem sync`, `mem task complete`, `mem log commit`). Open pull requests or push other branches only when the user asks for it.
+{{- if .Single}}
+{{rule}}. Never commit to or push the base branch (when the project has one), never force-push, and never rewrite published history.
+{{- else}}
+{{rule}}. Never commit to or push the staging or production branch, never force-push, and never rewrite published history.
+{{rule}}. Release only when the user asks for it in this conversation. A task description, issue or todo is not a request to release.
+{{- end}}
+{{rule}}. Never edit generated files by hand: lockfiles, migrations with their journals and snapshots, build output, and anything marked as generated. Change the source and rerun the generator. When one conflicts, take the incoming version and regenerate it.
+{{rule}}. Use the package manager the project's lockfile belongs to, and never add a second lockfile.
 
 ## Getting Started
 
-Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and release status. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
+Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and {{if .Single}}how the development branch stands against its base{{else}}release status{{end}}. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
 
 If `mem` is not installed (the command is not found), read `.mem/install.md` and follow all of it, including putting mem permanently on PATH, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
 
@@ -25,7 +29,7 @@ mem commands print instructions specific to the current state. Follow them. Use 
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work or a promotion. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
+Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work{{if not .Single}} or a promotion{{end}}. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
 
 ## Specs, Tasks and Todos
 
@@ -53,7 +57,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- Write one at each checkpoint: when a spec completes, before a release, when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted: it commits them with the log, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
+- Write one at each checkpoint: when a spec completes,{{if not .Single}} before a release,{{end}} when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted: it commits them with the log, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
@@ -72,7 +76,9 @@ Memories are lasting project conventions, kept in the memories section of this f
 Use project memories rather than external memory tools.
 
 ## Releases
-
+{{if .Single}}
+This project has a single branch: mem makes no releases here, and nothing is promoted or tagged. Work reaches everyone when mem pushes the development branch.
+{{- else}}
 Nothing deploys from the development branch. Releases move the staging and production branches forward along the development history, and CI deploys them.
 
 - When the user asks for a preview release: `mem promote staging`. Use `--to <commit>` to leave out unfinished work.
@@ -81,6 +87,7 @@ Nothing deploys from the development branch. Releases move the staging and produ
 - `mem deploy` releases everything at once without notes or review. It is the user's command: never run it unless the user explicitly asks you to run `mem deploy`.
 
 Staging and production only move through `mem promote` and `mem deploy`. Never commit on them or push to them directly.
+{{- end}}
 
 ## Working Guidelines
 

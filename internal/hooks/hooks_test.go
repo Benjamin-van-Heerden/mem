@@ -86,3 +86,33 @@ func TestInstalledHookIsInertWithoutAMemThatSupportsHooks(t *testing.T) {
 		t.Fatalf("hook blocked a commit when mem has no hook command: %v", err)
 	}
 }
+
+func TestProtectionGuardsTheBaseBranchOnlyInASingleBranchProject(t *testing.T) {
+	ctx := context.Background()
+	p := testProject(t, true)
+	p.Config.Git = project.GitConfig{Remote: "origin", Development: "dev", SingleBranch: true, Base: "main", Protect: true}
+	toMain := "refs/heads/main abc refs/heads/main def\n"
+	if err := PrePush(p, "origin", strings.NewReader(toMain)); err == nil || !strings.Contains(err.Error(), "base branch") {
+		t.Fatalf("push to the base branch: %v", err)
+	}
+	if err := PrePush(p, "origin", strings.NewReader("refs/heads/dev abc refs/heads/dev def\n")); err != nil {
+		t.Fatalf("push to dev blocked: %v", err)
+	}
+	if err := PreCommit(ctx, p); err != nil {
+		t.Fatalf("commit on dev blocked: %v", err)
+	}
+	if _, err := git.Run(ctx, p.Root, "switch", "--quiet", "-c", "main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := PreCommit(ctx, p); err == nil || !strings.Contains(err.Error(), "switch dev") {
+		t.Fatalf("commit on the base branch: %v", err)
+	}
+
+	p.Config.Git = project.GitConfig{Remote: "origin", Development: "dev", Staging: "test", Production: "release", Base: "main", Protect: true}
+	if err := PreCommit(ctx, p); err != nil {
+		t.Fatalf("a staged project's base branch is guarded: %v", err)
+	}
+	if err := PrePush(p, "origin", strings.NewReader(toMain)); err != nil {
+		t.Fatalf("a staged project's base branch is guarded on push: %v", err)
+	}
+}
