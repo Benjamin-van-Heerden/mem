@@ -15,32 +15,17 @@ import (
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
-	"github.com/pelletier/go-toml/v2"
 )
-
-const LockPath = ".mem/templates.lock"
-
-// LockItem records the content hash an installed item last had in common with its template.
-type LockItem struct {
-	Kind     string `toml:"kind"`
-	Name     string `toml:"name"`
-	Template string `toml:"template"`
-	Hash     string `toml:"hash"`
-}
-
-func (l LockItem) Key() string { return l.Kind + ":" + l.Name }
-
-type lockFile struct {
-	Items []LockItem `toml:"item"`
-}
 
 // Result describes what a sync changed. Lines are for the user; lines that start
 // with ⚠️ need a decision. Paths are the repository paths that changed. Memories
-// are the conventions the sync added or replaced with the template's version.
+// are the conventions the sync added or replaced with the template's version, and
+// Changes the change notes the project has not seen.
 type Result struct {
 	Lines    []string
 	Paths    []string
 	Memories []MemoryChange
+	Changes  []Change
 }
 
 // MemoryChange is a template memory written into the project; Previous is empty for a new one.
@@ -61,8 +46,11 @@ func (r *Result) changed(paths ...string) {
 
 // Sync reconciles the project with the items of the templates it uses: it
 // installs missing items, updates items the project has not edited, records
-// deletions as opt-outs and reports everything that needs a decision.
-func Sync(p *project.Project, lib Library) (Result, error) {
+// deletions as opt-outs and reports everything that needs a decision. It returns
+// the change notes the project has not seen, except those of the adopted
+// templates: a project that takes a template now starts from its current state,
+// so their notes are only recorded.
+func Sync(p *project.Project, lib Library, adopted ...string) (Result, error) {
 	var res Result
 	items, notes, err := lib.Items(p.Config.Templates.Use)
 	if err != nil {
@@ -90,6 +78,11 @@ func Sync(p *project.Project, lib Library) (Result, error) {
 		s.lockChanged = true
 		res.Lines = append(res.Lines, fmt.Sprintf("%s %s is no longer provided by the project's templates. The project copy stays as an ordinary %s.", rec.Kind, rec.Name, rec.Kind))
 	}
+	changes, err := lib.Changes(p.Config.Templates.Use)
+	if err != nil {
+		return res, err
+	}
+	s.reconcileChanges(changes, adopted)
 	return res, s.save()
 }
 
@@ -97,6 +90,7 @@ type state struct {
 	p             *project.Project
 	agents        string
 	lock          map[string]LockItem
+	seen          map[string]LockChange
 	res           *Result
 	agentsChanged bool
 	lockChanged   bool
@@ -336,7 +330,7 @@ func (s *state) save() error {
 		s.res.changed(".mem/config.toml")
 	}
 	if s.lockChanged {
-		if err := writeLock(s.p.Root, s.lock); err != nil {
+		if err := writeLock(s.p.Root, s.lock, s.seen); err != nil {
 			return err
 		}
 		s.res.changed(LockPath)
@@ -460,39 +454,6 @@ func copyFile(from, to string) error {
 		return err
 	}
 	return os.WriteFile(to, data, info.Mode().Perm())
-}
-
-func readLock(root string) (map[string]LockItem, error) {
-	lock := map[string]LockItem{}
-	data, err := os.ReadFile(filepath.Join(root, LockPath))
-	if errors.Is(err, os.ErrNotExist) {
-		return lock, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var file lockFile
-	if err := toml.Unmarshal(data, &file); err != nil {
-		return nil, fmt.Errorf("invalid %s: %w", LockPath, err)
-	}
-	for _, item := range file.Items {
-		lock[item.Key()] = item
-	}
-	return lock, nil
-}
-
-func writeLock(root string, lock map[string]LockItem) error {
-	var file lockFile
-	for _, item := range lock {
-		file.Items = append(file.Items, item)
-	}
-	sort.Slice(file.Items, func(i, j int) bool { return file.Items[i].Key() < file.Items[j].Key() })
-	data, err := toml.Marshal(file)
-	if err != nil {
-		return err
-	}
-	header := "# Written by mem: the content each template item last had in common with its template.\n\n"
-	return os.WriteFile(filepath.Join(root, LockPath), append([]byte(header), data...), 0o644)
 }
 
 func capitalize(s string) string {

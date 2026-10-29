@@ -113,7 +113,7 @@ func (a *app) initCommand() *cobra.Command {
 			var synced templates.Result
 			var setup string
 			if len(templateNames) > 0 {
-				if synced, err = templates.Sync(&p, lib); err != nil {
+				if synced, err = templates.Sync(&p, lib, templateNames...); err != nil {
 					return err
 				}
 				if setup, err = lib.Setup(templateNames); err != nil {

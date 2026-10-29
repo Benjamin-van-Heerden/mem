@@ -159,7 +159,7 @@ func Reset(p *project.Project, lib Library, kind, name string) (Result, error) {
 }
 
 func load(p *project.Project) (*state, error) {
-	lock, err := readLock(p.Root)
+	lock, seen, err := readLock(p.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func load(p *project.Project) (*state, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &state{p: p, agents: string(agents), lock: lock, res: &Result{}}, nil
+	return &state{p: p, agents: string(agents), lock: lock, seen: seen, res: &Result{}}, nil
 }
 
 // export writes the project's copy of an item to dest in the library.

@@ -62,7 +62,7 @@ func (a *app) templateUse() *cobra.Command {
 			if err := project.WriteConfig(p.Root, p.Config); err != nil {
 				return err
 			}
-			res, err := templates.Sync(&p, lib)
+			res, err := templates.Sync(&p, lib, name)
 			if err != nil {
 				return err
 			}

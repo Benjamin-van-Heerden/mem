@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -47,6 +48,30 @@ func (l Library) Changes(names []string) ([]Change, error) {
 		}
 	}
 	return changes, nil
+}
+
+// reconcileChanges records every note it is given as seen and returns the newly seen ones in the result,
+// except those of adopted templates. Records of notes no longer given, deleted or from a template the
+// project stopped using, are dropped.
+func (s *state) reconcileChanges(changes []Change, adopted []string) {
+	given := map[string]bool{}
+	for _, c := range changes {
+		given[c.Key()] = true
+		if _, ok := s.seen[c.Key()]; ok {
+			continue
+		}
+		s.seen[c.Key()] = LockChange{Template: c.Template, Name: c.Name}
+		s.lockChanged = true
+		if !slices.Contains(adopted, c.Template) {
+			s.res.Changes = append(s.res.Changes, c)
+		}
+	}
+	for key := range s.seen {
+		if !given[key] {
+			delete(s.seen, key)
+			s.lockChanged = true
+		}
+	}
 }
 
 // parseChange takes the title from a first-line `# ` heading, or falls back to the note's name.
