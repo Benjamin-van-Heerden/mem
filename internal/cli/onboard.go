@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
+	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
@@ -47,23 +48,37 @@ func (a *app) onboardCommand() *cobra.Command {
 				return err
 			}
 			before := readKnowledge(p)
+			branchLines, stuck := leaveGuardedBranch(ctx, p)
+			if branchLines != nil && !stuck {
+				// Development may hold a different config than the branch the checkout was on.
+				if p, err = a.project(cmd); err != nil {
+					return err
+				}
+			}
 			report := converge.Local(ctx, p)
-			if !offline {
+			if !offline && !stuck {
 				report = converge.Sync(ctx, p)
 				if p, err = a.project(cmd); err != nil {
 					return err
 				}
 			}
-			updates, err := applyUpdates(ctx, p)
-			if err != nil {
-				return err
+			var updates, templateLines []string
+			if stuck {
+				// Still on staging or production: no commits, so nothing lands there. The guards still go in.
+				if updates, err = hooks.Sync(ctx, p); err != nil {
+					return err
+				}
+			} else {
+				if updates, err = applyUpdates(ctx, p); err != nil {
+					return err
+				}
+				if templateLines, err = syncTemplates(ctx, &p, !offline); err != nil {
+					return err
+				}
 			}
+			updates = append(branchLines, updates...)
 			if updateLine != "" {
 				updates = append([]string{updateLine}, updates...)
-			}
-			templateLines, err := syncTemplates(ctx, &p, !offline)
-			if err != nil {
-				return err
 			}
 			agents, err := readAgents(p)
 			if err != nil {

@@ -112,11 +112,16 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 			}
 		}
 	}
+	// The protection hooks go in before onboard's first commit, so a fresh clone is guarded from the start.
+	hookLines, err := hooks.Sync(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	lines = append(lines, hookLines...)
 	if len(publishPaths) > 0 {
 		lines = append(lines, publish(ctx, p, checkpoint.ProjectFilesCommit, publishPaths...))
 	}
-	hookLines, err := hooks.Sync(ctx, p)
-	return append(lines, hookLines...), err
+	return lines, nil
 }
 
 var templatePaths = []string{"AGENTS.md", ".agents/skills", ".claude/skills", ".mem/docs", templates.LockPath, ".mem/config.toml"}
