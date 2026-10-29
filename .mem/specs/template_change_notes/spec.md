@@ -1,8 +1,9 @@
 ---
 title: Template change notes
-status: draft
+status: active
+assigned_to: benjamin_van_heerden
 created_at: "2026-10-29T08:24:47+02:00"
-updated_at: "2026-10-29T08:24:47+02:00"
+updated_at: "2026-10-29T08:29:49+02:00"
 ---
 
 ## Overview
