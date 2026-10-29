@@ -130,7 +130,7 @@ func (a *app) onboardCommand() *cobra.Command {
 			state.baseMissing = baseMissing
 			state.updateWarnings = hasWarning(updates)
 			state.templateWarnings = hasWarning(templateLines)
-			state.conventionTodos = hasConventionTodo(templateLines)
+			state.templateTodos = hasTemplateTodo(templateLines)
 			renderOnboardInstruction(out, report, state)
 			return nil
 		},
@@ -174,7 +174,7 @@ type contextState struct {
 	drift            structure.Drift
 	updateWarnings   bool
 	templateWarnings bool
-	conventionTodos  bool
+	templateTodos    bool
 	knowledgeChanged bool
 	stale            bool
 	setup            setupState
@@ -430,8 +430,8 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	if state.templateWarnings {
 		step("Tell the user about each ⚠️ item under 🧩 TEMPLATES and settle it with them.")
 	}
-	if state.conventionTodos {
-		step(conventionTodoInstruction(state.setup.present))
+	if state.templateTodos {
+		step(templateTodoInstruction(state.setup.present))
 	}
 	if state.setup.present {
 		step(setupInstruction(state.setup))

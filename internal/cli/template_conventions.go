@@ -9,19 +9,20 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 )
 
-// conventionTodoMark starts the lines that report a recorded convention todo, so instructions can refer to them.
-const conventionTodoMark = "📌"
+// templateTodoMark starts the lines that report a todo recorded by a template sync, for a convention or a change
+// note, so instructions can refer to them.
+const templateTodoMark = "📌"
 
-// conventionTodoInstruction is the step that follows 📌 lines. A pending setup was copied from the template before
-// these conventions arrived, so they belong in its remaining steps.
-func conventionTodoInstruction(setupPending bool) string {
-	text := "Tell the user about each 📌 item under 🧩 TEMPLATES: a template convention arrived, and its todo asks for the existing code to be checked against it. "
+// templateTodoInstruction is the step that follows 📌 lines. A pending setup was copied from the template before
+// these arrived, so they belong in its remaining steps.
+func templateTodoInstruction(setupPending bool) string {
+	text := "Tell the user about each 📌 item under 🧩 TEMPLATES: a template convention arrived or the template changed, and its todo asks for the existing code to be checked against the convention or changed as the template's note describes. "
 	if setupPending {
-		text += fmt.Sprintf("The setup in %s was copied from the template before the convention arrived, so its steps may not build what the convention describes: follow the convention in the remaining setup steps, and check the code against it once the setup is done.", templates.SetupPath)
+		text += fmt.Sprintf("The setup in %s was copied from the template before these arrived, so its steps may not build what they describe: follow them in the remaining setup steps, and check the code once the setup is done.", templates.SetupPath)
 	} else {
-		text += "Ask whether to do that now or later; until then, follow the convention in new work."
+		text += "Ask whether to do that now or later; until then, follow them in new work."
 	}
-	return text + " If it relies on tooling or setup this project has not adopted, say so and ask the user whether to adopt it or drop the convention, as its todo describes."
+	return text + " If one relies on tooling or setup this project has not adopted, say so and ask the user whether to adopt it or set it aside, as its todo describes."
 }
 
 // conventionFit covers a convention that cannot simply be checked against the code, because the project never
@@ -66,7 +67,7 @@ func conventionTodos(p project.Project, changes []templates.MemoryChange) (lines
 			return nil, nil, err
 		}
 		paths = append(paths, p.Rel(todo.Path))
-		lines = append(lines, fmt.Sprintf("%s The %s template %s the convention %s, so todo %s %s.", conventionTodoMark, change.Template, verb, change.Name, todo.Slug, check))
+		lines = append(lines, fmt.Sprintf("%s The %s template %s the convention %s, so todo %s %s.", templateTodoMark, change.Template, verb, change.Name, todo.Slug, check))
 	}
 	return lines, paths, nil
 }
@@ -86,7 +87,7 @@ func templateUseTodo(p project.Project, name string, changes []templates.MemoryC
 	if err != nil {
 		return "", "", err
 	}
-	return fmt.Sprintf("%s Todo %s asks for the existing code to be checked against the %d conventions %s added.", conventionTodoMark, todo.Slug, len(changes), name), p.Rel(todo.Path), nil
+	return fmt.Sprintf("%s Todo %s asks for the existing code to be checked against the %d conventions %s added.", templateTodoMark, todo.Slug, len(changes), name), p.Rel(todo.Path), nil
 }
 
 func upsertTodo(p project.Project, title, body string) (work.Todo, error) {
@@ -107,9 +108,9 @@ func quote(text string) string {
 	return "> " + strings.ReplaceAll(strings.TrimSpace(text), "\n", "\n> ")
 }
 
-func hasConventionTodo(lines []string) bool {
+func hasTemplateTodo(lines []string) bool {
 	for _, line := range lines {
-		if strings.HasPrefix(line, conventionTodoMark) {
+		if strings.HasPrefix(line, templateTodoMark) {
 			return true
 		}
 	}

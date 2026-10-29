@@ -74,6 +74,12 @@ func (a *app) templateUse() *cobra.Command {
 				res.Lines = append(res.Lines, todoLine)
 				res.Paths = append(res.Paths, todoPath)
 			}
+			// The sync also records unseen notes of the project's other templates, so they become todos here or never.
+			changeLines, changePaths, err := changeTodos(p, res.Changes)
+			if err != nil {
+				return err
+			}
+			res.Lines, res.Paths = append(res.Lines, changeLines...), append(res.Paths, changePaths...)
 			out := cmd.OutOrStdout()
 			output.Section(out, "🧩 TEMPLATE ADDED: "+name)
 			fmt.Fprintf(out, "Library: %s\nTemplates in use: %s\n", p.Config.Templates.Source, strings.Join(p.Config.Templates.Use, ", "))
@@ -260,8 +266,8 @@ func templateInstructions(res templates.Result, extra ...string) []string {
 	if slices.ContainsFunc(res.Lines, func(l string) bool { return strings.HasPrefix(l, "⚠️") }) {
 		lines = append(lines, "2. Tell the user about each ⚠️ item above and settle it with them.")
 	}
-	if hasConventionTodo(res.Lines) {
-		lines = append(lines, fmt.Sprintf("%d. Tell the user about the 📌 todo above, and ask whether to check the existing code against the template's conventions now or later.", len(lines)+1))
+	if hasTemplateTodo(res.Lines) {
+		lines = append(lines, fmt.Sprintf("%d. Tell the user about each 📌 todo above, and ask whether to do what it asks now or later: check the existing code against the template's conventions, or apply a template change to this project.", len(lines)+1))
 	}
 	return lines
 }

@@ -254,7 +254,7 @@ func TestConventionsArrivingDuringTheSetupRecordTodosForIt(t *testing.T) {
 	run(t, libraryWork, "push", "--quiet", "origin", "HEAD:main")
 	out := mem(t, root, "onboard")
 
-	if !strings.Contains(out, "📌 The nextjs-web template added the convention local-dev, so todo apply_template_convention_local_dev asks for it to be followed in the remaining setup steps") || !strings.Contains(out, "follow the convention in the remaining setup steps, and check the code against it once the setup is done") {
+	if !strings.Contains(out, "📌 The nextjs-web template added the convention local-dev, so todo apply_template_convention_local_dev asks for it to be followed in the remaining setup steps") || !strings.Contains(out, "follow them in the remaining setup steps, and check the code once the setup is done") {
 		t.Fatalf("onboard does not lead the convention into the pending setup:\n%s", out)
 	}
 	todo, err := os.ReadFile(filepath.Join(root, ".mem", "todos", "apply_template_convention_local_dev.md"))

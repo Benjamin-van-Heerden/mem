@@ -144,6 +144,11 @@ func syncTemplates(ctx context.Context, p *project.Project, pull bool) ([]string
 	if err != nil {
 		return nil, err
 	}
+	changeLines, changePaths, err := changeTodos(*p, res.Changes)
+	if err != nil {
+		return nil, err
+	}
+	todoLines, todoPaths = append(todoLines, changeLines...), append(todoPaths, changePaths...)
 	res.Paths = append(res.Paths, todoPaths...)
 	lines = append(lines, res.Lines...)
 	lines = append(lines, todoLines...)

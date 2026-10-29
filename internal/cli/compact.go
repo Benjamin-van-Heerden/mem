@@ -135,8 +135,8 @@ func writeDigest(out io.Writer, c catchUp, user string, since checkpoint.Work) {
 	if len(r.Nudges) > 0 || hasWarning(c.templates) {
 		lines = append(lines, "Tell the user about each ⚠️ item above.")
 	}
-	if hasConventionTodo(c.templates) {
-		lines = append(lines, "Tell the user about each 📌 item above at the next natural stopping point: its todo asks for the existing code to be checked against a new template convention.")
+	if hasTemplateTodo(c.templates) {
+		lines = append(lines, "Tell the user about each 📌 item above at the next natural stopping point: its todo asks for the existing code to be checked against a new template convention, or changed as a template change note describes.")
 	}
 	output.Instruction(out, strings.Join(lines, " "))
 }
