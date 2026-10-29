@@ -101,7 +101,8 @@ func (a *app) promoteCommand() *cobra.Command {
 					return openPromotionPR(ctx, out, p, gh, pl, notes)
 				}
 			}
-			if err := release.Execute(ctx, p, pl, notes); err != nil {
+			local, err := release.Execute(ctx, p, pl, notes)
+			if err != nil {
 				return err
 			}
 			if pl.Tag != "" {
@@ -115,9 +116,11 @@ func (a *app) promoteCommand() *cobra.Command {
 					tagged = "the release notes"
 				}
 				fmt.Fprintf(out, "Released %s: %s/%s is now at %s, tagged with %s.\n", pl.Tag, remote, pl.Branch, pl.To[:7], tagged)
+				printLine(out, local)
 				output.Instruction(out, "Tell the user the release is out. Where CI deploys production, check the deployment before reporting it as live.")
 			} else {
 				fmt.Fprintf(out, "%s/%s is now at %s.\n", remote, pl.Branch, pl.To[:7])
+				printLine(out, local)
 				output.Instruction(out, "Tell the user staging is updated. If this project deploys staging, check the preview before releasing; release with `mem promote production` when the user asks for it.")
 			}
 			return nil
@@ -126,6 +129,13 @@ func (a *app) promoteCommand() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "Promote staging only up to this development commit")
 	cmd.Flags().BoolVar(&confirm, "confirm", false, "Release production with the reviewed notes in "+release.NotesPath+", or complete an approved release pull request")
 	return cmd
+}
+
+// printLine prints a line that may be empty, such as release.Execute's note on the local branch.
+func printLine(out io.Writer, line string) {
+	if line != "" {
+		fmt.Fprintln(out, line)
+	}
 }
 
 func renderPlan(out io.Writer, p project.Project, pl release.Plan) {

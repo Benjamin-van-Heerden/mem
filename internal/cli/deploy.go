@@ -90,7 +90,8 @@ func deployStage(ctx context.Context, out io.Writer, p project.Project, stage st
 	if pl.Tag != "" {
 		notes = release.GeneratedMessage(ctx, p, pl)
 	}
-	if err := release.Execute(ctx, p, pl, notes); err != nil {
+	local, err := release.Execute(ctx, p, pl, notes)
+	if err != nil {
 		return err
 	}
 	renderPlan(out, p, pl)
@@ -99,5 +100,6 @@ func deployStage(ctx context.Context, out io.Writer, p project.Project, stage st
 	} else {
 		fmt.Fprintf(out, "\n%s/%s is now at %s.\n", remote, pl.Branch, pl.To[:7])
 	}
+	printLine(out, local)
 	return nil
 }

@@ -19,6 +19,10 @@ func TestProductionReleaseWithoutNotesTagsAGeneratedSummary(t *testing.T) {
 	if main, test := run(t, mine, "rev-parse", "origin/main"), run(t, mine, "rev-parse", "origin/test"); main != test {
 		t.Fatalf("main %s, test %s", main, test)
 	}
+	// init created local copies of both stage branches; releases keep them at the remote's.
+	if run(t, mine, "rev-parse", "main") != run(t, mine, "rev-parse", "origin/main") || run(t, mine, "rev-parse", "test") != run(t, mine, "rev-parse", "origin/test") || !strings.Contains(out, "The local main branch is at") {
+		t.Fatalf("the local stage branches did not follow the release:\n%s", out)
+	}
 	tag := run(t, mine, "describe", "--tags", "--exact-match", "origin/main")
 	if notes := run(t, mine, "for-each-ref", "--format=%(contents)", "refs/tags/"+tag); !strings.HasPrefix(notes, "Release "+tag) || !strings.Contains(notes, "Commits:") {
 		t.Fatalf("tag message = %q", notes)

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -114,8 +115,16 @@ func Prepare(ctx context.Context, p project.Project, stage, to string) (Plan, er
 	return pl, err
 }
 
-// Execute pushes the stage branch, and for production an annotated tag with the notes, in one atomic push.
-func Execute(ctx context.Context, p project.Project, pl Plan, notes string) error {
+// Execute pushes the stage branch, and for production an annotated tag with the notes, in one atomic push. It then
+// brings the local copy of the stage branch along, and returns a line about it for the user, empty when there is none.
+func Execute(ctx context.Context, p project.Project, pl Plan, notes string) (string, error) {
+	if err := push(ctx, p, pl, notes); err != nil {
+		return "", err
+	}
+	return followLocal(ctx, p.Root, pl.Branch, pl.To), nil
+}
+
+func push(ctx context.Context, p project.Project, pl Plan, notes string) error {
 	if pl.UpToDate || pl.BehindStage || len(pl.Diverged) > 0 {
 		return errors.New("nothing to promote")
 	}
@@ -141,6 +150,32 @@ func Execute(ctx context.Context, p project.Project, pl Plan, notes string) erro
 		return fmt.Errorf("push failed and nothing was promoted; if someone else just promoted, run the command again: %w", err)
 	}
 	return nil
+}
+
+// followLocal fast-forwards the local copy of a released branch to what was pushed, so it does not fall behind the
+// remote. It leaves a branch checked out in a worktree, whose files would change under someone, and one with commits
+// the release does not contain. A project without a local copy keeps having none.
+func followLocal(ctx context.Context, root, branch, to string) string {
+	ref := "refs/heads/" + branch
+	local, err := commitOf(ctx, root, ref)
+	if err != nil || local == to {
+		return ""
+	}
+	if checkedOut(ctx, root, ref) {
+		return fmt.Sprintf("⚠️ The local %s branch is checked out, so it was left at %s. Switch back to the development branch; releases never need %s checked out.", branch, local[:7], branch)
+	}
+	if !isAncestor(ctx, root, local, to) {
+		return fmt.Sprintf("⚠️ The local %s branch has commits the release does not contain, so it was left at %s. Tell the user: %s only moves through releases.", branch, local[:7], branch)
+	}
+	if _, err := git.Run(ctx, root, "update-ref", ref, to, local); err != nil {
+		return fmt.Sprintf("⚠️ Could not move the local %s branch to the release: %v", branch, err)
+	}
+	return fmt.Sprintf("The local %s branch is at %s too.", branch, to[:7])
+}
+
+func checkedOut(ctx context.Context, root, ref string) bool {
+	out, err := git.Run(ctx, root, "worktree", "list", "--porcelain")
+	return err == nil && slices.Contains(strings.Split(out, "\n"), "branch "+ref)
 }
 
 // nextTag returns today's next date tag, e.g. v2026.09.24.2.

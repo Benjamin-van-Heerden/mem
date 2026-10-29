@@ -12,11 +12,11 @@ func TestDraftNotesDescribeTheReleaseFromSpecsLogsAndCommits(t *testing.T) {
 	ctx := context.Background()
 	p := setup(t)
 	pl, _ := Prepare(ctx, p, "staging", "")
-	if err := Execute(ctx, p, pl, ""); err != nil {
+	if _, err := Execute(ctx, p, pl, ""); err != nil {
 		t.Fatal(err)
 	}
 	pl, _ = Prepare(ctx, p, "production", "")
-	if err := Execute(ctx, p, pl, "First"); err != nil {
+	if _, err := Execute(ctx, p, pl, "First"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -30,7 +30,7 @@ func TestDraftNotesDescribeTheReleaseFromSpecsLogsAndCommits(t *testing.T) {
 	run(t, p.Root, "commit", "--quiet", "-m", "Add password login")
 	run(t, p.Root, "push", "--quiet")
 	pl, _ = Prepare(ctx, p, "staging", "")
-	if err := Execute(ctx, p, pl, ""); err != nil {
+	if _, err := Execute(ctx, p, pl, ""); err != nil {
 		t.Fatal(err)
 	}
 	pl, _ = Prepare(ctx, p, "production", "")

@@ -96,12 +96,14 @@ func promotionPR(ctx context.Context, out io.Writer, p project.Project, gh *gith
 	if notes == "" {
 		notes = release.GeneratedMessage(ctx, p, pl)
 	}
-	if err := release.Execute(ctx, p, pl, notes); err != nil {
+	local, err := release.Execute(ctx, p, pl, notes)
+	if err != nil {
 		return true, err
 	}
 	renderPlan(out, p, pl)
 	output.Section(out, "✅ PROMOTED")
 	fmt.Fprintf(out, "Released %s: %s/%s is now at %s, the head of #%d.\n", pl.Tag, g.Remote, g.Production, pl.To[:7], pr.Number)
+	printLine(out, local)
 	// GitHub marks the pull request merged once it sees its head on the base branch. Delete the snapshot branch
 	// only after that, or GitHub may close the pull request as unmerged.
 	if !waitMerged(ctx, gh, pr.Number) {
