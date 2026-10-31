@@ -185,3 +185,46 @@ func TestSyncNeitherRebasesNorPushesASingleBranchProjectsBase(t *testing.T) {
 		t.Fatalf("report = %+v", r)
 	}
 }
+
+func TestSyncLeavesAStagedProjectsBaseOffDevelopment(t *testing.T) {
+	ctx := context.Background()
+	other, p := clones(t)
+	p.Config.Git.Staging, p.Config.Git.Production, p.Config.Git.Base = "test", "main", "upstream"
+	run(t, other, "push", "--quiet", "origin", "dev:upstream")
+	pushChange(t, other, "dev.txt", "dev\n")
+	run(t, p.Root, "fetch", "--quiet")
+	run(t, p.Root, "switch", "--quiet", "-c", "upstream", "--track", "origin/upstream")
+	// Pushed and all the user's own, which is the case a feature branch would be force-pushed in.
+	write(t, p.Root, "released.txt", "released\n")
+	run(t, p.Root, "add", ".")
+	run(t, p.Root, "commit", "--quiet", "-m", "released code")
+	run(t, p.Root, "push", "--quiet")
+	head := run(t, p.Root, "rev-parse", "HEAD")
+
+	r := Sync(ctx, p)
+	if got := run(t, p.Root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("sync rebased the base branch onto development")
+	}
+	if got, _ := runErr(p.Root, "ls-remote", "origin", "refs/heads/upstream"); !strings.HasPrefix(got, head) {
+		t.Fatalf("the base branch was force-pushed: %s", got)
+	}
+	if !nudged(r, "You are on upstream, the base branch") || nudged(r, "bring origin/dev into it") {
+		t.Fatalf("report = %+v", r)
+	}
+	if reasons := r.Unsettled(); len(reasons) != 0 {
+		t.Fatalf("Unsettled() = %v", reasons)
+	}
+}
+
+func TestSyncKeepsThePromotionNudgeWhenTheBaseIsAStage(t *testing.T) {
+	other, p := clones(t)
+	p.Config.Git.Staging, p.Config.Git.Production, p.Config.Git.Base = "test", "main", "main"
+	run(t, other, "push", "--quiet", "origin", "dev:main")
+	run(t, p.Root, "fetch", "--quiet")
+	run(t, p.Root, "switch", "--quiet", "-c", "main", "--track", "origin/main")
+
+	r := Sync(context.Background(), p)
+	if !nudged(r, "only moves by `mem promote`") || nudged(r, "the base branch") {
+		t.Fatalf("report = %+v", r)
+	}
+}

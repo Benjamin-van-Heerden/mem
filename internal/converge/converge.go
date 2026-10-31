@@ -31,19 +31,21 @@ type Report struct {
 	// whether that is the base branch of a single-branch project rather than staging or production.
 	Guarded      bool
 	SingleBranch bool
-	Branch       string
-	Upstream     string
-	Development  string
-	Fetched      bool
-	FetchError   string
-	Dirty        bool
-	Uncommitted  structure.Drift
-	Ahead        int
-	Behind       int
-	DevAhead     int
-	DevBehind    int
-	Done         []string
-	Nudges       []string
+	// Base marks the [git] base branch, which never follows development, guarded or not.
+	Base        bool
+	Branch      string
+	Upstream    string
+	Development string
+	Fetched     bool
+	FetchError  string
+	Dirty       bool
+	Uncommitted structure.Drift
+	Ahead       int
+	Behind      int
+	DevAhead    int
+	DevBehind   int
+	Done        []string
+	Nudges      []string
 	// Before and After are the upstream's revisions before and after the fetch;
 	// they differ when others pushed since this checkout last fetched.
 	Before, After string
@@ -144,11 +146,11 @@ func standingNudges(r Report, behindAction string) []string {
 	case behindAction == "" && Unpushed(r) != "":
 		nudges = append(nudges, Unpushed(r))
 	}
-	if r.Guarded && r.SingleBranch {
-		return append(nudges, fmt.Sprintf("You are on %s, the base branch, which only takes in released code and is never committed to. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
-	}
-	if r.Guarded {
+	if r.Guarded && !r.SingleBranch {
 		return append(nudges, fmt.Sprintf("You are on %s, which only moves by `mem promote`. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
+	}
+	if r.Base {
+		return append(nudges, fmt.Sprintf("You are on %s, the base branch, which only takes in released code and is never committed to. Tell the user, and switch to %s (`git switch %s`) before making changes.", r.Branch, dev, dev))
 	}
 	if r.Branch != dev && r.DevBehind > 0 && !r.devHandled {
 		nudges = append(nudges, fmt.Sprintf("You are on %s, not the development branch %s, and it is %d commit(s) behind %s. Tell the user this branch is drifting from the shared codebase; bring %s into it soon and merge it back into %s as early as possible.", r.Branch, dev, r.DevBehind, r.Development, r.Development, dev))
@@ -241,6 +243,7 @@ func inspect(ctx context.Context, p project.Project) Report {
 	remote, dev := g.Remote, g.Development
 	r := Report{Remote: remote, Dev: dev, SingleBranch: g.SingleBranch, Branch: git.CurrentBranch(ctx, p.Root), Development: remote + "/" + dev}
 	r.Guarded = g.Guarded(r.Branch)
+	r.Base = r.Branch != "" && r.Branch == g.Base
 	status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--untracked-files=no")
 	r.Dirty = status != ""
 	r.Uncommitted, _ = structure.ChangesSince(ctx, p, "HEAD")
