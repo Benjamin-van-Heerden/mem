@@ -29,6 +29,32 @@ func (a *app) structureCommand() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			switch {
+			case p.Folder() && !d.Missing:
+				output.Section(out, "🗺️ STRUCTURE DOC")
+				fmt.Fprintf(out, "%s is kept by hand in this folder: onboard includes it, and mem does not measure how far it has moved.\n", structure.RelPath)
+				output.Instruction(out, "Update the sections your work changes when it changes how the folder is organised.")
+			case p.Folder():
+				if err := os.MkdirAll(filepath.Dir(structure.Path(p)), 0o755); err != nil {
+					return err
+				}
+				if err := os.WriteFile(structure.Path(p), []byte(structure.FolderTemplate), 0o644); err != nil {
+					return err
+				}
+				tree, err := structure.Tree(ctx, p)
+				if err != nil {
+					return err
+				}
+				output.Section(out, "🗺️ STRUCTURE DOC CREATED")
+				fmt.Fprintf(out, "File: %s\n", structure.RelPath)
+				output.Section(out, "🌲 FILE TREE")
+				fmt.Fprintln(out, tree)
+				output.Instruction(out,
+					fmt.Sprintf("Look through this folder and replace every placeholder in %s. It is a factual map that every future session reads at onboard.", structure.RelPath),
+					"",
+					"1. Orient yourself with the file tree above. Read what explains the folder: any README, the scripts, and a sample of the documents in each area. Do not read everything.",
+					"2. Write the doc. Use actual paths and names, and only state what you confirmed. Omit sections that do not apply, and keep it short.",
+					"3. Show the user what you wrote and ask whether it is accurate.",
+				)
 			case d.Missing:
 				if err := os.MkdirAll(filepath.Dir(structure.Path(p)), 0o755); err != nil {
 					return err

@@ -62,6 +62,9 @@ func (a *app) memoryCommand() *cobra.Command {
 			output.Section(out, "💾 MEMORY SAVED")
 			fmt.Fprintf(out, "## %s\n%s\n", args[0], args[1])
 			lines := []string{"Apply this convention for the rest of this session. AGENTS.md is updated for future sessions; commit it with your work."}
+			if p.Folder() {
+				lines = []string{"Apply this convention for the rest of this session. AGENTS.md is updated for future sessions."}
+			}
 			if warning := agentsSizeWarning(updated); warning != "" {
 				fmt.Fprintf(out, "\n%s\n", warning)
 				lines = append(lines, "Stop here: tell the user about the ⚠️ above and settle it with them before you continue with other work.")

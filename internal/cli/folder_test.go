@@ -218,3 +218,38 @@ func TestInitFolderRefusesGitFlags(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestFolderCommandsNeverTalkAboutGit(t *testing.T) {
+	blockGit(t)
+	root := t.TempDir()
+	mem(t, root, "init", "--folder", "--user", "Test Person")
+	var out strings.Builder
+	for _, args := range [][]string{
+		{"onboard", "--offline"},
+		{"structure"},
+		{"structure"},
+		{"todo", "new", "Chase Acme", "Invoice 12 is overdue"},
+		{"todo", "list"},
+		{"todo", "delete", "chase_acme"},
+		{"memory", "set", "invoices", "Number invoices in one sequence."},
+		{"memory", "list"},
+		{"memory", "remove", "invoices"},
+		{"log", "new"},
+		{"log", "list"},
+		{"hook", "prompt"},
+		{"hook", "compact"},
+	} {
+		out.WriteString(mem(t, root, args...))
+	}
+	lower := strings.ToLower(out.String())
+	for _, word := range []string{"commit", "push", "branch", "release", "repository", "codebase", "git"} {
+		if strings.Contains(lower, word) {
+			i := strings.Index(lower, word)
+			t.Errorf("folder output mentions %q: ...%s...", word, out.String()[max(0, i-60):min(len(lower), i+60)])
+		}
+	}
+	doc, err := os.ReadFile(filepath.Join(root, ".mem", "structure.md"))
+	if err != nil || !strings.Contains(string(doc), "# Folder Structure") {
+		t.Fatalf("structure doc: %v\n%s", err, doc)
+	}
+}

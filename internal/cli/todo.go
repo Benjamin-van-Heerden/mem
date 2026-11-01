@@ -116,7 +116,11 @@ func (a *app) todoDelete() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📌 TODO DELETED")
-			fmt.Fprintf(out, "Deleted %s (%s). Commit the removal with your next commit.\n", t.Meta.Title, t.Slug)
+			fmt.Fprintf(out, "Deleted %s (%s).", t.Meta.Title, t.Slug)
+			if !p.Folder() {
+				fmt.Fprint(out, " Commit the removal with your next commit.")
+			}
+			fmt.Fprintln(out)
 			return nil
 		},
 	}

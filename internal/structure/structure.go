@@ -56,6 +56,25 @@ const Template = `# Codebase and Structure
 {Describe patterns that would help an agent or developer make fitting changes in this codebase. Only include patterns confirmed from the code.}
 `
 
+// FolderTemplate is the structure doc of a folder project, which holds documents and records rather than a codebase.
+const FolderTemplate = `# Folder Structure
+
+## Overview
+{What this folder is for, in a few factual sentences.}
+
+## Layout
+{Annotated tree of the top-level and important nested folders: what lives in each, and which hold originals, working files and generated output. Do not list every file.}
+
+## Key Documents and Records
+{The documents or records work usually starts from or feeds into, and where the current state of things is kept.}
+
+## Tools and Commands
+{Scripts and commands used here, and how to run them. Omit this section if there are none.}
+
+## Conventions
+{Naming, numbering and layout patterns confirmed from the files.}
+`
+
 var (
 	excludedDirs = map[string]bool{
 		".git": true, ".mem": true, ".agent_core": true, ".next": true, ".nuxt": true, ".pytest_cache": true, ".ruff_cache": true,
