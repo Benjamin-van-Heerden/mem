@@ -88,7 +88,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 ## Commands and Workflows
 
 - `go test ./internal/<pkg>/ -run <Test>` for focused tests; `go vet ./internal/<pkg>` for affected packages.
-- CI (`.github/workflows/ci.yml`): on every push and pull request, `go test ./...`, `go vet ./...` and `go build` on ubuntu, macos and windows.
+- CI (`.github/workflows/ci.yml`): on pushes to `test` and on pull requests, not on `dev`, `main` or tags, `go test ./...`, `go vet ./...` and `go build` on ubuntu, macos and windows.
 - Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`. `GORELEASER_CURRENT_TAG` is set to the pushed tag, because the date tag from `mem promote production` sits on the same commit. mem's own date tags from `mem promote production` do not match. Installed release builds pick up a new release at their next onboard.
 - Branches for this repository: `dev` → `test` → `main` with `protect = true`.
 
@@ -108,7 +108,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 - Colocated `_test.go` files per package: `agentsmd`, `agenthooks`, `cli` (`init`, `log`, `onboard`, `onboard_setup`, `sync`, `compact`, `session_title`, `template`, `promote`, `promote_pr` (a fake GitHub API backed by the test's bare repository) and `deploy` tests driving `New()` end to end), `converge`, `git`, `github` (an `httptest` API), `hooks`, `importer`, `release`, `selfupdate` (an `httptest` release server), `structure`, `templates`, `work`. There is no `tests/` directory yet.
 - Tests build throwaway repositories in `t.TempDir()`, often with a bare repository as the remote or template library, and drive the real `git` executable. Tests that touch the user cache set `HOME` (and clear `XDG_CACHE_HOME`) to a temp directory. They must not touch GitHub or need credentials.
 - For end-to-end checks of `init`, `import` or onboard, run `dist/mem-dev` in a disposable repository, never in this checkout. Checks against real GitHub use throwaway repositories that are deleted afterwards.
-- CI runs on Windows too, and catches what macOS does not (CRLF checkouts, path lengths): check the run after every push to `dev`, not only before a release.
+- CI runs on Windows too, and catches what macOS does not (CRLF checkouts, path lengths). It is the only regular run of the full suite and nothing enforces it: after `mem promote staging`, wait for the run on `test` to pass before `mem promote production`.
 
 ## Conventions and Patterns
 
