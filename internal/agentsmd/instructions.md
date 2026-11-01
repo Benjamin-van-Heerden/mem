@@ -41,7 +41,6 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
 - `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that. A started spec is worked through to the end: do not stop for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
 - `mem task complete <task> "<what was done and how it was verified>" <path>...`: record a finished task. It commits the paths you name, relative to the repository root, together with the task record, using the task title and your note as the commit message, then syncs and pushes. Name the files and directories you changed for the task: another session may be working in the same checkout, and its changes must stay out of your commit. mem lists what it left uncommitted; commit anything of yours among it as a follow-up. Without paths it commits every change in the working tree. Then continue with the next task without waiting for approval.
-- Keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`.
 - `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes. It refuses until the branch is in step with the shared codebase: resolve any conflicts it names, with the user, first.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
@@ -57,7 +56,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- Write one at each checkpoint: when a spec completes,{{if not .Single}} before a release,{{end}} when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted: it commits them with the log, syncs with the shared codebase and pushes. A log does not end the session; carry on afterwards.
+- Write one at each checkpoint: when a spec completes,{{if not .Single}} before a release,{{end}} when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted: it commits them with the log, syncs with the shared codebase and pushes.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
@@ -93,6 +92,7 @@ Staging and production only move through `mem promote` and `mem deploy`. Never c
 
 - Run commands from the repository root unless instructed otherwise.
 - Preserve changes you did not make and incorporate them into your understanding.
+- Keep local artifacts, secrets and generated files out of the working tree or in `.gitignore`.
 - When the user asks you to stop, stop immediately and wait for instructions.
 - Keep commit messages descriptive, without agent names or co-authorship attribution.
 
@@ -121,6 +121,7 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 - Avoid print statements apart from ad-hoc testing, when necessary defer to formal logging
 - Follow established patterns and conventions in the codebase
 - Prioritize clarity and maintainability over cleverness
+- Use robust error handling wherever applicable.
 
 ## Performance Considerations
 - Chunked processing for batch operations when applicable
@@ -135,7 +136,6 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 - Keep helpers and types close to the domain that owns them. Move code into shared modules only when it serves multiple areas; avoid catch-all `utils`, `helpers`, or `common` files.
 - Prefer descriptive names that make a file's purpose clear without opening it.
 - Keep dependencies between modules explicit. Avoid circular imports and splits that require unrelated modules to coordinate through shared mutable state.
-- Use robust error handling wherever applicable.
 
 ### File Size and Refactoring
 
@@ -152,7 +152,7 @@ Keep refactoring within the requested scope. If an existing oversized file needs
 - OOP is only used when it provides clear benefits
 - Minimal abstractions - prefer explicit over implicit, declarative over imperative
 
-### Source Formatting
+## Source Formatting
 
 - Do not hard-wrap lines just to satisfy an arbitrary line length. This project assumes modern editors with line wrapping.
 - Keep user-facing strings, command strings, markdown output fragments, and simple expressions on one line when that is clearer.
