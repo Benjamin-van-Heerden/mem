@@ -79,7 +79,7 @@ Notes on the draft:
 - **Rule 5** is generic, so it also covers migrations. The template-specific part ("generate Drizzle migrations with `bun run db:generate`; on a journal conflict, delete yours and regenerate") belongs in nextjs-web's `additive-migrations` memory in mem-templates, which you'd change there.
 - **Rule 7** cannot be met in Cursor cloud, whose `Co-authored-by` trailer is not configurable. Either accept that, or drop the rule for platform-added trailers.
 - **Studii's HARD RULES block:** its generic rules (1–4 and 6) are what this section provides for every project. Once a mem release with it reaches studii-next, the block can shrink to the Fundi rule, and `no-github-prs` and `studii-shipping` can be retired. That is your call for studii-next.
-- **Size:** this adds about 1.3 KB to a block that is already 16 KB. It should land together with the `slim_managed_agents_md_block` todo, for example by moving the general principles out of the always-on block, so the total shrinks.
+- **Size:** this adds about 1.3 KB to a block that is already 16 KB.
 
 ## 2. Cloud Agents
 
@@ -167,4 +167,4 @@ I read your intent as the second kind: a long-lived branch's upstream is release
 - Work branches are based on the development branch. Long-lived product branches take in `main` only by merge commit, never by rebase or force-push (`[git] base`).
 - Cloud agents are deferred, including refusing releases there, `MEM_USER`, environment setup, and switching or landing the platform branch.
 - Replacing studii-next's HARD RULES block with the Ground Rules (keeping its Fundi rule) is up to the project owner once a mem release with them reaches it.
-- Slimming the managed block stays a separate todo (`slim_managed_agents_md_block`).
+- The managed block is not slimmed for size, and the general principles stay always on. Codex's 32 KiB cut reaches the memories at the end of `AGENTS.md`, not the block, and `project_doc_max_bytes` covers it.
