@@ -3,4 +3,6 @@ title: Move work and finance into folder mode
 created_at: "2026-11-01T15:13:25+02:00"
 ---
 
-A manual migration, after a mem release with folder mode. For each of ~/Documents/work and ~/Documents/yhat/finance: move the folder into iCloud Drive, carry over logs, memories and docs from .agent_core by hand, run mem init --folder, remove .agent_core, .git, .gitignore and the old AGENT_CORE block in AGENTS.md, and delete the GitHub repository. work's two .typ reference docs in .agent_core/docs become Typst skills under .claude/skills (letterhead, layout, invoice), with each new document self-contained; recurring work such as setting up a new client becomes skills too, with scripts for the mechanical steps; set [structure] ignore = ['_generated/**'] in work.
+work is done: it lives at iCloud Drive/work as a folder project with skills for its Typst formats. What is left for work is the user's decision to delete ~/Documents/work and the GitHub repository Benjamin-van-Heerden/work once the new folder has proven itself.
+
+For ~/Documents/yhat/finance, follow the same steps: copy the folder into iCloud Drive, leaving out .git, .agent_core and .gitignore; compare checksums; run mem init --folder; carry over logs, memories and docs from .agent_core by hand; turn reusable formats into skills under .claude/skills, with each new document self-contained; and list generated output under [structure] ignore. Delete the GitHub repository only when the user says so.
