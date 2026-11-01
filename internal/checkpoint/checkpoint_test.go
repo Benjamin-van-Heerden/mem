@@ -30,6 +30,7 @@ func repo(t *testing.T) string {
 }
 
 func TestSinceCountsTheUsersWorkAndResetsAtCheckpoints(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root := repo(t)
 	p := project.Project{Root: root}

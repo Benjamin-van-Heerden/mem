@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,6 +20,8 @@ import (
 const PromoteEnv = "MEM_PROMOTE"
 
 const networkTimeout = 60 * time.Second
+
+var versionTag = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 
 type Commit struct {
 	Hash    string
@@ -176,6 +179,19 @@ func followLocal(ctx context.Context, root, branch, to string) string {
 func checkedOut(ctx context.Context, root, ref string) bool {
 	out, err := git.Run(ctx, root, "worktree", "list", "--porcelain")
 	return err == nil && slices.Contains(strings.Split(out, "\n"), "branch "+ref)
+}
+
+// CheckVersion validates the --version given to a production release against the project's tag style.
+func CheckVersion(p project.Project, version string) error {
+	switch {
+	case !p.Config.Release.VersionTags && version != "":
+		return errors.New("this project tags releases by date; leave out --version, or set [release] version_tags = true")
+	case p.Config.Release.VersionTags && version == "":
+		return errors.New("this project names releases after their version ([release] version_tags = true); run `mem promote production --version vX.Y.Z` with the next version")
+	case p.Config.Release.VersionTags && !versionTag.MatchString(version):
+		return fmt.Errorf("%q is not a release version; use the form v1.4.0", version)
+	}
+	return nil
 }
 
 // nextTag returns today's next date tag, e.g. v2026.09.24.2.

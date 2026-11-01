@@ -80,6 +80,7 @@ func mentions(res Result, text string) bool {
 }
 
 func TestSyncInstallsUpdatesAndRespectsLocalDecisions(t *testing.T) {
+	t.Parallel()
 	source, work := library(t, map[string]string{
 		"web/template.toml":          "description = \"Web\"\n",
 		"web/memories/logging.md":    "Use the logger.\n",
@@ -143,6 +144,7 @@ func TestSyncInstallsUpdatesAndRespectsLocalDecisions(t *testing.T) {
 }
 
 func TestSyncLeavesAnExistingDifferentItemAndFlagsIt(t *testing.T) {
+	t.Parallel()
 	source, _ := library(t, map[string]string{
 		"web/template.toml":          "description = \"Web\"\n",
 		"web/skills/review/SKILL.md": "template\n",
@@ -157,6 +159,7 @@ func TestSyncLeavesAnExistingDifferentItemAndFlagsIt(t *testing.T) {
 }
 
 func TestResetTakesTheTemplateCopyAndLiftsAnExclusion(t *testing.T) {
+	t.Parallel()
 	source, _ := library(t, map[string]string{
 		"web/template.toml":        "description = \"Web\"\n",
 		"base/template.toml":       "description = \"Base\"\n",
@@ -190,6 +193,7 @@ func TestResetTakesTheTemplateCopyAndLiftsAnExclusion(t *testing.T) {
 }
 
 func TestSyncInstallsRunnablesExecutableWithLFLineEndings(t *testing.T) {
+	t.Parallel()
 	source, work := library(t, map[string]string{
 		"rust/template.toml":     "description = \"Rust\"\n",
 		"rust/runnables/checks":  "#!/bin/sh\r\necho v1\r\n",

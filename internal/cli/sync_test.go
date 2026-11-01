@@ -10,6 +10,7 @@ import (
 )
 
 func TestSyncReportsWhatTeammatesPushed(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	run(t, teammate, "config", "user.name", "Alice")
 	run(t, teammate, "config", "user.email", "alice@example.com")
@@ -44,6 +45,7 @@ func TestSyncReportsWhatTeammatesPushed(t *testing.T) {
 }
 
 func TestSyncInstallsAndReportsPromotedTemplateItems(t *testing.T) {
+	t.Parallel()
 	base, library, _ := templateWorld(t)
 	a := templateProject(t, base, "a", library)
 	b := templateProject(t, base, "b", library)

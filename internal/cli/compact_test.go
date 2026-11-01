@@ -6,6 +6,7 @@ import (
 )
 
 func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	mem(t, mine, "spec", "new", "Parser")
 	mem(t, mine, "task", "new", "Tokenize", "Split input into tokens.", "--spec", "parser")
@@ -52,6 +53,7 @@ func TestCompactHookSyncsAndPrintsAShortDigest(t *testing.T) {
 }
 
 func TestCompactHookNeverFailsOutsideAMemProject(t *testing.T) {
+	t.Parallel()
 	out := mem(t, t.TempDir(), "hook", "compact")
 	if !strings.Contains(out, "mem could not sync this checkout after compaction") {
 		t.Fatalf("output:\n%s", out)
@@ -59,6 +61,7 @@ func TestCompactHookNeverFailsOutsideAMemProject(t *testing.T) {
 }
 
 func TestCompactHookAsksForAWorkLogOnceWorkHasGathered(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	for _, file := range []string{"a.go", "b.go"} {
 		commit(t, mine, file)

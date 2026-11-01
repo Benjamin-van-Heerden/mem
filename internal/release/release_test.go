@@ -26,6 +26,7 @@ func setup(t *testing.T) project.Project {
 }
 
 func TestPromotionMovesStagesAlongDevelopmentAndTagsReleases(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	p := setup(t)
 	first := run(t, p.Root, "rev-parse", "HEAD")
@@ -69,6 +70,7 @@ func TestPromotionMovesStagesAlongDevelopmentAndTagsReleases(t *testing.T) {
 }
 
 func TestPromotionStopsWhenStageHasCommitsOutsideDevelopment(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	p := setup(t)
 	pl, _ := Prepare(ctx, p, "staging", "")
@@ -92,6 +94,7 @@ func TestPromotionStopsWhenStageHasCommitsOutsideDevelopment(t *testing.T) {
 }
 
 func TestPromotionStopsWhenStageHasOnlyAMergeOutsideDevelopment(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	p := setup(t)
 	pl, _ := Prepare(ctx, p, "staging", "")
@@ -143,6 +146,7 @@ func run(t *testing.T, dir string, args ...string) string {
 }
 
 func TestReleasesBringTheLocalStageBranchAlong(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	p := setup(t)
 	run(t, p.Root, "branch", "test")

@@ -12,6 +12,7 @@ import (
 )
 
 func TestEnsureBranchesTracksRemoteCreatesMissingPublishesAndSwitches(t *testing.T) {
+	t.Parallel()
 	base := t.TempDir()
 	remote := filepath.Join(base, "remote.git")
 	run(t, base, "init", "--quiet", "--bare", remote)

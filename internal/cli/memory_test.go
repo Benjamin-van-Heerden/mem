@@ -6,6 +6,7 @@ import (
 )
 
 func TestAnAgentsMdOverCodexsLimitIsFlaggedAtMemorySetAndOnboard(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	out := mem(t, teammate, "memory", "set", "logging", "Use the structured logger.")
 	if strings.Contains(out, "⚠️ AGENTS.md is") || strings.Contains(out, "Stop here") {

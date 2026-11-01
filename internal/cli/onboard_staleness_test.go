@@ -22,6 +22,7 @@ func oldCommit(t *testing.T, dir string, daysAgo int, message string) {
 }
 
 func TestOnboardFlagsSpecsAndBranchesThatStoppedMoving(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 
 	// A spec started 20 days ago that has not changed since.

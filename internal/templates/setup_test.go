@@ -7,6 +7,7 @@ import (
 )
 
 func TestSetupJoinsTemplateSetupsInOrderAndSkipsTemplatesWithout(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	for rel, content := range map[string]string{
 		"web/template.toml":  "description = \"Web\"\n",
@@ -49,6 +50,7 @@ func TestSetupJoinsTemplateSetupsInOrderAndSkipsTemplatesWithout(t *testing.T) {
 }
 
 func TestSetupProgressCountsTickedStepHeadings(t *testing.T) {
+	t.Parallel()
 	text := "# Setup\n\n## [x] 1. Scaffold\n\n- [ ] not a step\n\n## [X] 2. Install\n\n## [ ] 3. Verify\n\n### [ ] a sub-heading\n"
 	if done, total := SetupProgress(text); done != 2 || total != 3 {
 		t.Fatalf("progress = %d of %d, want 2 of 3", done, total)

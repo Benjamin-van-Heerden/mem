@@ -11,3 +11,4 @@ protect = true
 
 [release]
 notes = true
+version_tags = true

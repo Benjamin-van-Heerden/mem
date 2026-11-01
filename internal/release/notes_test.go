@@ -9,6 +9,7 @@ import (
 )
 
 func TestDraftNotesDescribeTheReleaseFromSpecsLogsAndCommits(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	p := setup(t)
 	pl, _ := Prepare(ctx, p, "staging", "")

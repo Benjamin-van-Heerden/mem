@@ -9,11 +9,28 @@ permissions:
   contents: read
 
 jobs:
+  # Ubuntu is the fastest runner, so it goes first: a broken change fails in under a minute, and the other systems only run on code that passes here.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Build
+        run: go build -o dist/ ./cmd/mem
+
   test:
+    needs: check
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -22,8 +39,4 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test
-        run: go test ./...
-      - name: Vet
-        run: go vet ./...
-      - name: Build
-        run: go build -o dist/ ./cmd/mem
+        run: go test -parallel 8 ./...

@@ -42,6 +42,9 @@ type ReleaseConfig struct {
 	// Notes makes production releases wait for release notes the agent drafts and the user confirms. Without
 	// them, a release is tagged with a generated summary of its specs and commits.
 	Notes bool `toml:"notes,omitempty"`
+	// VersionTags names each production release after the version given to promote, such as v1.4.0, for a project
+	// whose CI publishes tags. Without it, a release gets a date tag.
+	VersionTags bool `toml:"version_tags,omitempty"`
 }
 
 // ClaudeConfig controls what mem installs for Claude Code.
@@ -218,14 +221,17 @@ func (c Config) validate() error {
 		}
 		return nil
 	}
+	if c.Release.VersionTags && c.Release.ProductionPR {
+		return errors.New("[release] version_tags and production_pr cannot be combined; remove one")
+	}
 	if !c.Git.SingleBranch {
 		return nil
 	}
 	if c.Git.Staging != "" || c.Git.Production != "" {
 		return errors.New("[git] single_branch = true, so staging and production must not be set; remove them")
 	}
-	if c.Release.ProductionPR || c.Release.Notes {
-		return errors.New("[git] single_branch = true, so mem makes no releases and [release] production_pr and notes must not be set; remove them")
+	if c.Release != (ReleaseConfig{}) {
+		return errors.New("[git] single_branch = true, so mem makes no releases and [release] must not be set; remove it")
 	}
 	return nil
 }

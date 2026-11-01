@@ -31,6 +31,7 @@ func changeTodo(t *testing.T, root string) (path, body string) {
 }
 
 func TestTemplateChangeNotesBecomeTodosOnceForProjectsBuiltBeforeThem(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	pushLibrary(t, libraryWork, map[string]string{"nextjs-web/changes/2026-10-01-env-schema.md": "# Env schema split\n\nSplit the schema.\n"})
 	root := templateProject(t, base, "app", library)
@@ -67,6 +68,7 @@ func TestTemplateChangeNotesBecomeTodosOnceForProjectsBuiltBeforeThem(t *testing
 // template use takes the new template as it is now, but the same sync also sees the notes the project's other
 // templates gained since the last one.
 func TestTemplateUseRecordsTheNewTemplatesNotesButNotTheOthers(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	root := templateProject(t, base, "app", library)
 	pushLibrary(t, libraryWork, map[string]string{
@@ -86,6 +88,7 @@ func TestTemplateUseRecordsTheNewTemplatesNotesButNotTheOthers(t *testing.T) {
 }
 
 func TestTemplateChangesArrivingDuringTheSetupAreLedIntoIt(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	pushLibrary(t, libraryWork, map[string]string{"nextjs-web/setup.md": "# Setup: nextjs-web\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n"})
 	root := templateProject(t, base, "app", library)

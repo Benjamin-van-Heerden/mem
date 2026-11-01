@@ -6,6 +6,7 @@ import (
 )
 
 func TestRecordChangesOnAFeatureBranchStayThereAndSaySo(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	draft := func(title, slug string) {
 		mem(t, mine, "spec", "new", title)
@@ -33,6 +34,7 @@ func TestRecordChangesOnAFeatureBranchStayThereAndSaySo(t *testing.T) {
 }
 
 func TestSpecCompletedOnAFeatureBranchAsksToMergeItBack(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	run(t, mine, "switch", "--quiet", "-c", "refunds")
 	mem(t, mine, "spec", "new", "Refunds")

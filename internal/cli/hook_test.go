@@ -27,6 +27,7 @@ func TestPostCommitHookNudgesAfterWorkCommitsAndStaysQuietForMem(t *testing.T) {
 }
 
 func TestPromptHookStaysQuietUntilAWorkLogIsCalledFor(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	commit(t, mine, "a.go")
 	if out := mem(t, mine, "hook", "prompt"); out != "" {
@@ -57,6 +58,7 @@ func memWithInput(t *testing.T, root, stdin string, args ...string) string {
 }
 
 func TestStopHookAsksForADueWorkLogOncePerStateOfWork(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	const completed = `{"status": "completed", "loop_count": 0}`
 	followUp := func(stdin string) string {

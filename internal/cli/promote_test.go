@@ -9,6 +9,7 @@ import (
 )
 
 func TestProductionReleaseWithoutNotesTagsAGeneratedSummary(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	mem(t, mine, "promote", "staging")
 
@@ -33,6 +34,7 @@ func TestProductionReleaseWithoutNotesTagsAGeneratedSummary(t *testing.T) {
 }
 
 func TestProductionReleaseDraftsNotesAndReleasesThemOnConfirm(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	releaseConfig(t, mine, "notes = true")
 	draft := filepath.Join(mine, ".mem", "local", "release-notes.md")
@@ -79,6 +81,35 @@ func TestProductionReleaseDraftsNotesAndReleasesThemOnConfirm(t *testing.T) {
 	mem(t, mine, "promote", "staging")
 	if err := memErr(t, mine, "promote", "production", "--confirm"); err == nil || !strings.Contains(err.Error(), "drafted for") {
 		t.Fatalf("confirm with a stale draft: %v", err)
+	}
+}
+
+func TestVersionTaggedReleaseUsesItsVersionAsTheOnlyTag(t *testing.T) {
+	t.Parallel()
+	mine, _ := sharedProject(t)
+	releaseConfig(t, mine, "notes = true\nversion_tags = true")
+	mem(t, mine, "promote", "staging")
+
+	if err := memErr(t, mine, "promote", "production"); err == nil || !strings.Contains(err.Error(), "--version vX.Y.Z") {
+		t.Fatalf("a release without a version: %v", err)
+	}
+	if err := memErr(t, mine, "promote", "production", "--version", "1.4"); err == nil || !strings.Contains(err.Error(), "not a release version") {
+		t.Fatalf("a malformed version: %v", err)
+	}
+	if err := memErr(t, mine, "deploy"); err == nil || !strings.Contains(err.Error(), "--version vX.Y.Z") {
+		t.Fatalf("deploy would make a date tag: %v", err)
+	}
+	out := mem(t, mine, "promote", "production", "--version", "v1.4.0")
+	if !strings.Contains(out, "RELEASE v1.4.0") || !strings.Contains(out, "--version v1.4.0 --confirm") {
+		t.Fatalf("draft output:\n%s", out)
+	}
+	mem(t, mine, "promote", "production", "--version", "v1.4.0", "--confirm")
+	tags := run(t, mine, "ls-remote", "--tags", "origin", "v*")
+	if !strings.Contains(tags, "refs/tags/v1.4.0") || strings.Count(tags, "refs/tags/") != 2 {
+		t.Fatalf("remote tags, expecting v1.4.0 and its peeled commit only:\n%s", tags)
+	}
+	if body := run(t, mine, "cat-file", "-p", "v1.4.0"); !strings.Contains(body, "# Release v1.4.0") {
+		t.Fatalf("the tag lost the notes:\n%s", body)
 	}
 }
 

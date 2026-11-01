@@ -8,6 +8,7 @@ import (
 )
 
 func TestOnboardReportsReleasedCommitsALongLivedBranchHasNotMergedIn(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	if out := mem(t, mine, "onboard"); strings.Contains(out, "Base:") {
 		t.Fatalf("onboard reports a base the project does not set:\n%s", out)

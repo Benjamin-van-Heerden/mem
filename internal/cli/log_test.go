@@ -15,7 +15,6 @@ import (
 func sharedProject(t *testing.T) (mine, teammate string) {
 	t.Helper()
 	base := t.TempDir()
-	t.Setenv("HOME", filepath.Join(base, "home"))
 	remote := filepath.Join(base, "remote.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", remote)
 	mine = filepath.Join(base, "mine")
@@ -50,6 +49,7 @@ func fillLog(t *testing.T, root string) string {
 }
 
 func TestLogCommitRefusesAnUnfilledLog(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	mem(t, mine, "log", "new")
 	cmd := New()
@@ -61,6 +61,7 @@ func TestLogCommitRefusesAnUnfilledLog(t *testing.T) {
 }
 
 func TestLogCommitRefusesALogThatGitIgnores(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	writeFile(t, mine, ".gitignore", "logs/\n")
 	run(t, mine, "add", ".gitignore")
@@ -76,6 +77,7 @@ func TestLogCommitRefusesALogThatGitIgnores(t *testing.T) {
 }
 
 func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	commit(t, teammate, "theirs.txt")
 	run(t, teammate, "push", "--quiet")
@@ -118,6 +120,7 @@ func TestLogCommitCommitsRecordsSyncsAndPushes(t *testing.T) {
 }
 
 func TestLogNewListsTheFilesAndCommitsSinceTheLastLog(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	commit(t, mine, "lexer.go")
 	commit(t, mine, "parser.go")
@@ -151,6 +154,7 @@ func writeLog(t *testing.T, root, name, user string, created time.Time, title st
 }
 
 func TestOnboardShowsTheUsersRecentLogsInFullAndListsOthers(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	now := time.Now()
 	writeLog(t, mine, "test_user_older", "test_user", now.AddDate(0, 0, -20), "Older work")
@@ -177,6 +181,7 @@ func TestOnboardShowsTheUsersRecentLogsInFullAndListsOthers(t *testing.T) {
 }
 
 func TestOnboardRemovesTodoClaimsFromOlderProjects(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	config := filepath.Join(mine, ".mem", "config.toml")
 	data, _ := os.ReadFile(config)
@@ -201,6 +206,7 @@ func TestOnboardRemovesTodoClaimsFromOlderProjects(t *testing.T) {
 }
 
 func TestRecentLogsStopsShowingLogsInFullAtTheSizeCap(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	logAt := func(name string, daysAgo int, size int) work.Log {
 		return work.Log{Name: name, Body: strings.Repeat("x", size), Meta: work.LogMeta{User: "me", Created: now.AddDate(0, 0, -daysAgo).Format(time.RFC3339)}}

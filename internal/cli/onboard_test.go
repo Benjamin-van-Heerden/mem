@@ -8,6 +8,7 @@ import (
 )
 
 func TestOnboardShowsMemoriesAndSkillsThatArriveDuringTheSync(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	mem(t, teammate, "memory", "set", "logging", "Use the structured logger.")
 	writeFile(t, teammate, ".mem/docs/glossary.md", strings.Repeat("A long project doc that pushes the context into a file.\n", 300))
@@ -36,6 +37,7 @@ func TestOnboardShowsMemoriesAndSkillsThatArriveDuringTheSync(t *testing.T) {
 }
 
 func TestOnboardRestoresTheLocalIgnoreAndPublishesIt(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	if err := os.WriteFile(filepath.Join(mine, ".gitignore"), []byte("node_modules/\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -60,6 +62,7 @@ func TestOnboardRestoresTheLocalIgnoreAndPublishesIt(t *testing.T) {
 }
 
 func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	if _, err := os.Stat(filepath.Join(mine, ".mem", "install.md")); err != nil {
 		t.Fatalf("init did not write the install guide: %v", err)
@@ -83,6 +86,7 @@ func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
 }
 
 func TestOnboardInstallsTheClaudeHooksAndHonoursTheOptOut(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	settings := filepath.Join(mine, ".claude/settings.json")
 	run(t, mine, "rm", "--quiet", ".claude/settings.json")
@@ -108,6 +112,7 @@ func TestOnboardInstallsTheClaudeHooksAndHonoursTheOptOut(t *testing.T) {
 }
 
 func TestOnboardInstallsTheCursorHookAndHonoursTheOptOut(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	hooksFile := filepath.Join(mine, ".cursor/hooks.json")
 	if data, _ := os.ReadFile(hooksFile); !strings.Contains(string(data), `"command": "mem hook stop"`) {
@@ -136,6 +141,7 @@ func TestOnboardInstallsTheCursorHookAndHonoursTheOptOut(t *testing.T) {
 }
 
 func TestOnboardInstallsTheCompactionHookWhereClaudeSettingsAreIgnored(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	run(t, mine, "rm", "--quiet", ".claude/settings.json")
 	writeFile(t, mine, ".gitignore", "/.mem/local/\n.claude/\n")
@@ -150,9 +156,9 @@ func TestOnboardInstallsTheCompactionHookWhereClaudeSettingsAreIgnored(t *testin
 }
 
 func TestInitRemovesACLAUDELinkButKeepsItsOwnFile(t *testing.T) {
+	t.Parallel()
 	for _, own := range []bool{false, true} {
 		base := t.TempDir()
-		t.Setenv("HOME", filepath.Join(base, "home"))
 		repo := filepath.Join(base, "repo")
 		run(t, base, "init", "--quiet", "-b", "main", repo)
 		writeFile(t, repo, "AGENTS.md", "# Notes\n")
@@ -171,6 +177,7 @@ func TestInitRemovesACLAUDELinkButKeepsItsOwnFile(t *testing.T) {
 }
 
 func TestOnboardDeletesTheOldHarnessCLAUDECopyAndFlagsItsOwnFile(t *testing.T) {
+	t.Parallel()
 	harnessCopy := "# Project\n\n<core_instructions>\nRun harness/main.py onboard.\n</core_instructions>\n"
 	for _, c := range []struct {
 		name, content string
@@ -209,6 +216,7 @@ func TestOnboardDeletesTheOldHarnessCLAUDECopyAndFlagsItsOwnFile(t *testing.T) {
 }
 
 func TestOnboardWarnsWhenTheCheckoutIsALinkedWorktree(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	if out := mem(t, mine, "onboard"); strings.Contains(out, "Git worktree") {
 		t.Fatalf("the main checkout is flagged as a worktree:\n%s", out)

@@ -32,6 +32,7 @@ func productionClone(t *testing.T) (mine, clone string) {
 }
 
 func TestOnboardSwitchesAFreshCloneOffProductionBeforeCommitting(t *testing.T) {
+	t.Parallel()
 	_, clone := productionClone(t)
 	published := run(t, clone, "rev-parse", "origin/main")
 	writeFile(t, clone, "hotfix.txt", "local fix\n")
@@ -59,6 +60,7 @@ func TestOnboardSwitchesAFreshCloneOffProductionBeforeCommitting(t *testing.T) {
 }
 
 func TestOnboardCommitsNothingWhenItCannotLeaveProduction(t *testing.T) {
+	t.Parallel()
 	mine, clone := productionClone(t)
 	writeFile(t, mine, "README.md", "changed on dev\n")
 	run(t, mine, "commit", "--quiet", "--all", "-m", "readme on dev")

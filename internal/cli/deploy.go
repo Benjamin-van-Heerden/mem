@@ -31,6 +31,9 @@ func (a *app) deployCommand() *cobra.Command {
 			if p.Config.Git.SingleBranch {
 				return release.SingleBranchError(p)
 			}
+			if p.Config.Release.VersionTags {
+				return fmt.Errorf("this project names releases after their version ([release] version_tags = true), so it releases through `mem promote production --version vX.Y.Z`")
+			}
 			if p.Config.Release.ProductionPR && !force {
 				return errors.New("this repository releases production through a pull request, so `mem deploy` cannot release it; use `mem promote staging` and `mem promote production`")
 			}

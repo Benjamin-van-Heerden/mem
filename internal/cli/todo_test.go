@@ -6,6 +6,7 @@ import (
 )
 
 func TestTodoListShowsEveryOpenTodoWithItsAge(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	mem(t, mine, "todo", "new", "Parser docs", "Document the grammar.")
 	mem(t, mine, "todo", "new", "Flaky CI", "The cache step fails sometimes.")

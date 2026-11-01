@@ -40,6 +40,7 @@ func pushChange(t *testing.T, dir, file, content string) {
 }
 
 func TestSyncFastForwardsCleanCheckout(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	pushChange(t, other, "shared.txt", "theirs\n")
 	r := Sync(context.Background(), p)
@@ -49,6 +50,7 @@ func TestSyncFastForwardsCleanCheckout(t *testing.T) {
 }
 
 func TestPushPublishesCommitsRebasedOntoIncomingWork(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	pushChange(t, other, "theirs.txt", "theirs\n")
 	write(t, p.Root, "mine.txt", "mine\n")
@@ -65,6 +67,7 @@ func TestPushPublishesCommitsRebasedOntoIncomingWork(t *testing.T) {
 }
 
 func TestSyncRebasesUnpushedCommitsOntoIncomingWork(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	pushChange(t, other, "theirs.txt", "theirs\n")
 	write(t, p.Root, "mine.txt", "mine\n")
@@ -80,6 +83,7 @@ func TestSyncRebasesUnpushedCommitsOntoIncomingWork(t *testing.T) {
 }
 
 func TestSyncAbortsConflictingRebaseAndLeavesCheckoutUnchanged(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	pushChange(t, other, "shared.txt", "theirs\n")
 	write(t, p.Root, "shared.txt", "mine\n")
@@ -98,6 +102,7 @@ func TestSyncAbortsConflictingRebaseAndLeavesCheckoutUnchanged(t *testing.T) {
 }
 
 func TestSyncKeepsOverlappingUncommittedWork(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	pushChange(t, other, "shared.txt", "theirs\n")
 	write(t, p.Root, "shared.txt", "work in progress\n")
@@ -130,6 +135,7 @@ func write(t *testing.T, root, rel, content string) {
 }
 
 func TestLocalNudgesWhenUncommittedWorkGrowsLarge(t *testing.T) {
+	t.Parallel()
 	_, p := clones(t)
 	for i := range largeFiles {
 		write(t, p.Root, fmt.Sprintf("f%d.go", i), "package f\n")
@@ -145,6 +151,7 @@ func TestLocalNudgesWhenUncommittedWorkGrowsLarge(t *testing.T) {
 }
 
 func TestPushCatchesUpWithWorkPushedDuringThePushAndRetries(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	write(t, p.Root, "mine.txt", "mine\n")
 	run(t, p.Root, "add", ".")
@@ -165,6 +172,7 @@ func TestPushCatchesUpWithWorkPushedDuringThePushAndRetries(t *testing.T) {
 }
 
 func TestPushStopsWhenWorkPushedDuringThePushConflicts(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	write(t, p.Root, "shared.txt", "mine\n")
 	run(t, p.Root, "commit", "--quiet", "-am", "mine")
@@ -182,6 +190,7 @@ func TestPushStopsWhenWorkPushedDuringThePushConflicts(t *testing.T) {
 }
 
 func TestSyncKeepsALocalMergeCommitInsteadOfRebasingIt(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	run(t, p.Root, "switch", "--quiet", "-c", "released")
 	write(t, p.Root, "released.txt", "released\n")

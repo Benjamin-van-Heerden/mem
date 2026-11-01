@@ -11,7 +11,6 @@ import (
 func singleBranchProject(t *testing.T) (root, initOut string) {
 	t.Helper()
 	base := t.TempDir()
-	t.Setenv("HOME", filepath.Join(base, "home"))
 	remote := filepath.Join(base, "remote.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", remote)
 	root = filepath.Join(base, "mine")
@@ -29,6 +28,7 @@ func singleBranchProject(t *testing.T) (root, initOut string) {
 }
 
 func TestSingleBranchProjectHasNoStagesReleasesOrReleaseInstructions(t *testing.T) {
+	t.Parallel()
 	root, out := singleBranchProject(t)
 	if !strings.Contains(out, "Branches: dev (single branch; remote origin)") || !strings.Contains(out, "Published dev to origin") {
 		t.Fatalf("init output:\n%s", out)
@@ -69,6 +69,7 @@ func TestSingleBranchProjectHasNoStagesReleasesOrReleaseInstructions(t *testing.
 }
 
 func TestSingleBranchInitRefusesOtherBranchFlagsAndADetachedHead(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	run(t, root, "init", "--quiet", "-b", "dev")
 	commit(t, root, "README.md")

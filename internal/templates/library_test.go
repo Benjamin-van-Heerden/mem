@@ -10,13 +10,10 @@ import (
 )
 
 // library creates a bare library repository with the given files and a
-// working clone to push further changes from, and isolates the user cache.
+// working clone to push further changes from.
 func library(t *testing.T, files map[string]string) (source, work string) {
 	t.Helper()
 	base := t.TempDir()
-	t.Setenv("HOME", filepath.Join(base, "home"))
-	t.Setenv("XDG_CACHE_HOME", "")
-	t.Setenv("LocalAppData", filepath.Join(base, "home", "cache"))
 	source = filepath.Join(base, "library.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", source)
 	work = filepath.Join(base, "library")
@@ -56,6 +53,7 @@ func run(t *testing.T, dir string, args ...string) string {
 }
 
 func TestLibraryClonesPullsAndLetsLaterTemplatesOverride(t *testing.T) {
+	t.Parallel()
 	source, work := library(t, map[string]string{
 		"base/template.toml":          "description = \"Shared\"\n",
 		"base/memories/logging.md":    "Use the logger.\n",

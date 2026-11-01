@@ -10,6 +10,7 @@ import (
 )
 
 func TestCommitPathsCommitsOnlyGivenPathsAndPushes(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	base := t.TempDir()
 	remote, repo := filepath.Join(base, "remote.git"), filepath.Join(base, "repo")
@@ -41,6 +42,7 @@ func TestCommitPathsCommitsOnlyGivenPathsAndPushes(t *testing.T) {
 }
 
 func TestCommitTakesPathsAlreadyRemovedOrMovedInTheIndex(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	repo := t.TempDir()
 	mustRun(t, repo, "init", "--quiet", "-b", "dev")
@@ -78,6 +80,7 @@ func TestCommitTakesPathsAlreadyRemovedOrMovedInTheIndex(t *testing.T) {
 }
 
 func TestPushReportsARemoteThatMovedOnInOneLine(t *testing.T) {
+	t.Parallel()
 	base := t.TempDir()
 	remote, repo, other := filepath.Join(base, "remote.git"), filepath.Join(base, "repo"), filepath.Join(base, "other")
 	mustRun(t, base, "init", "--quiet", "--bare", "-b", "dev", remote)

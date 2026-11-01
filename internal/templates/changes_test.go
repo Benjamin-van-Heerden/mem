@@ -11,6 +11,7 @@ import (
 )
 
 func TestChangesListsNotesInTemplateThenNameOrder(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	for rel, content := range map[string]string{
 		"web/template.toml":                      "description = \"Web\"\n",
@@ -46,6 +47,7 @@ func TestChangesListsNotesInTemplateThenNameOrder(t *testing.T) {
 }
 
 func TestSyncReturnsEachChangeNoteOnceExceptForAdoptedTemplates(t *testing.T) {
+	t.Parallel()
 	source, work := library(t, map[string]string{
 		"web/template.toml":                      "description = \"Web\"\n",
 		"web/changes/2026-10-29-compiler.md":     "# React Compiler on\n\nSet reactCompiler.\n",

@@ -8,6 +8,7 @@ import (
 )
 
 func TestOnboardAndWorkLogsAskForASessionTitle(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	if out := mem(t, mine, "onboard"); !strings.Contains(out, `give it a short title for the work, a few words such as "Tugela charger startup issue"`) || !strings.Contains(out, "Name only the work, not the project") || !strings.Contains(out, "as soon as the user has said what to work on") {
 		t.Fatalf("onboard instruction lacks the session title:\n%s", out)
@@ -23,6 +24,7 @@ func TestOnboardAndWorkLogsAskForASessionTitle(t *testing.T) {
 }
 
 func TestALongOnboardContextEndsWithTheSessionTitleReminder(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	writeFile(t, mine, ".mem/docs/glossary.md", strings.Repeat("A long project doc that pushes the context into a file.\n", 300))
 

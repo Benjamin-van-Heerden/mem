@@ -8,6 +8,7 @@ import (
 )
 
 func TestOnboardAndCompactionLeadWithAPendingSetupUntilItIsDeleted(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	setup := filepath.Join(mine, ".mem", "setup.md")
 	write := func(text string) {

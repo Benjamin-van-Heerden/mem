@@ -11,6 +11,7 @@ import (
 )
 
 func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	mem(t, mine, "spec", "new", "Search")
 	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
@@ -59,6 +60,7 @@ func TestCompletingTasksAndSpecsCommitsTheRecordSyncsAndPushes(t *testing.T) {
 }
 
 func TestTaskCompletionWithPathsLeavesAnotherSessionsChangesAlone(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	mem(t, mine, "spec", "new", "Search")
 	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
@@ -90,6 +92,7 @@ func TestTaskCompletionWithPathsLeavesAnotherSessionsChangesAlone(t *testing.T) 
 }
 
 func TestSyncPushesLocalCommits(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	commit(t, mine, "parser.go")
 	out := mem(t, mine, "sync")
@@ -99,6 +102,7 @@ func TestSyncPushesLocalCommits(t *testing.T) {
 }
 
 func TestSpecCompletionWaitsUntilConflictsAreResolved(t *testing.T) {
+	t.Parallel()
 	mine, teammate := sharedProject(t)
 	mem(t, mine, "spec", "new", "Search")
 	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")
@@ -132,6 +136,7 @@ func TestSpecCompletionWaitsUntilConflictsAreResolved(t *testing.T) {
 }
 
 func TestSpecCompletionNeedsAReachableRemote(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	mem(t, mine, "spec", "new", "Search")
 	mem(t, mine, "task", "new", "Index", "Build the index.", "--spec", "search")

@@ -14,9 +14,6 @@ import (
 func templateWorld(t *testing.T) (base, library, libraryWork string) {
 	t.Helper()
 	base = t.TempDir()
-	t.Setenv("HOME", filepath.Join(base, "home"))
-	t.Setenv("XDG_CACHE_HOME", "")
-	t.Setenv("LocalAppData", filepath.Join(base, "home", "cache"))
 	library = filepath.Join(base, "library.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", library)
 	libraryWork = filepath.Join(base, "library")
@@ -71,6 +68,7 @@ func writeFile(t *testing.T, root, rel, content string) {
 }
 
 func TestOnboardDrawsInNewTemplateItemsAndPublishesThem(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	root := templateProject(t, base, "app", library)
 	if agents, _ := os.ReadFile(filepath.Join(root, "AGENTS.md")); !strings.Contains(string(agents), "## package-manager\nUse pnpm.") {
@@ -109,6 +107,7 @@ func TestOnboardDrawsInNewTemplateItemsAndPublishesThem(t *testing.T) {
 }
 
 func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
+	t.Parallel()
 	base, library, _ := templateWorld(t)
 	a := templateProject(t, base, "a", library)
 	b := templateProject(t, base, "b", library)
@@ -145,6 +144,7 @@ func TestPromotedItemsReachOtherProjectsAtOnboard(t *testing.T) {
 }
 
 func TestInitInstallsTheTemplateSetupAndTemplateUseDoesNot(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	setup := "# Setup: nextjs-web\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n"
 	writeFile(t, libraryWork, "nextjs-web/setup.md", setup)
@@ -187,6 +187,7 @@ func TestInitInstallsTheTemplateSetupAndTemplateUseDoesNot(t *testing.T) {
 }
 
 func TestTemplateMemoryChangesRecordTodosToCheckExistingCode(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	root := templateProject(t, base, "app", library)
 	push := func(message string) {
@@ -237,6 +238,7 @@ func TestTemplateMemoryChangesRecordTodosToCheckExistingCode(t *testing.T) {
 // The setup is copied from the template once, so a convention that arrives while it is pending may describe
 // something its steps never build.
 func TestConventionsArrivingDuringTheSetupRecordTodosForIt(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	writeFile(t, libraryWork, "nextjs-web/setup.md", "# Setup: nextjs-web\n\n## [ ] 1. Scaffold\n\nDone when: it builds.\n")
 	run(t, libraryWork, "add", "--all")
@@ -264,6 +266,7 @@ func TestConventionsArrivingDuringTheSetupRecordTodosForIt(t *testing.T) {
 }
 
 func TestInitWithoutTemplateChoiceListsTemplatesAndChangesNothing(t *testing.T) {
+	t.Parallel()
 	base, library, _ := templateWorld(t)
 	remote := filepath.Join(base, "app.git")
 	run(t, base, "init", "--quiet", "--bare", "-b", "main", remote)
@@ -286,6 +289,7 @@ func TestInitWithoutTemplateChoiceListsTemplatesAndChangesNothing(t *testing.T) 
 }
 
 func TestOnboardRunsTemplateRunnablesAndPromoteSendsThemBack(t *testing.T) {
+	t.Parallel()
 	base, library, libraryWork := templateWorld(t)
 	root := templateProject(t, base, "app", library)
 

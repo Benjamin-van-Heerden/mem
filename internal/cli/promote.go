@@ -20,12 +20,12 @@ import (
 const maxListedCommits = 30
 
 func (a *app) promoteCommand() *cobra.Command {
-	var to string
+	var to, version string
 	var confirm bool
 	cmd := &cobra.Command{
 		Use:   "promote <staging|production>",
 		Short: "Fast-forward staging (a preview release) or production (a release)",
-		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with a summary of the release. Projects with [release] notes = true in .mem/config.toml release with written notes instead: the first run drafts them in .mem/local/release-notes.md, and --confirm releases with them.",
+		Long:  "Staging is fast-forwarded to the development branch, or to an earlier development commit with --to. Production is fast-forwarded to staging and tagged with a summary of the release. Projects with [release] notes = true in .mem/config.toml release with written notes instead: the first run drafts them in .mem/local/release-notes.md, and --confirm releases with them. Projects with [release] version_tags = true name each release with --version instead of a date tag.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -39,6 +39,13 @@ func (a *app) promoteCommand() *cobra.Command {
 			stage := args[0]
 			if stage == "production" && to != "" {
 				return fmt.Errorf("production always moves to what staging previewed; to release less, promote staging --to <commit> first")
+			}
+			if stage == "production" {
+				if err := release.CheckVersion(p, version); err != nil {
+					return err
+				}
+			} else if version != "" {
+				return fmt.Errorf("--version names a production release")
 			}
 			out := cmd.OutOrStdout()
 			var gh *github.Client
@@ -72,6 +79,9 @@ func (a *app) promoteCommand() *cobra.Command {
 				return divergedError(p, pl)
 			}
 
+			if pl.Tag != "" && version != "" {
+				pl.Tag = version
+			}
 			var notes string
 			if pl.Tag != "" {
 				if p.Config.Release.Notes {
@@ -87,7 +97,7 @@ func (a *app) promoteCommand() *cobra.Command {
 							"Nothing has been pushed yet.",
 							fmt.Sprintf("1. Turn %s into a short summary of what %s delivers for its users. Keep the first line; drop the commit list unless it helps.", release.NotesPath, pl.Tag),
 							"2. Show the user the notes and ask them to confirm the release.",
-							confirmStep(gh != nil),
+							confirmStep(gh != nil, version),
 						)
 						return nil
 					}
@@ -127,6 +137,7 @@ func (a *app) promoteCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&to, "to", "", "Promote staging only up to this development commit")
+	cmd.Flags().StringVar(&version, "version", "", "Name this production release, such as v1.4.0, in a project with [release] version_tags = true")
 	cmd.Flags().BoolVar(&confirm, "confirm", false, "Release production with the reviewed notes in "+release.NotesPath+", or complete an approved release pull request")
 	return cmd
 }
@@ -227,9 +238,12 @@ func confirmedNotes(p project.Project, pl release.Plan) (string, error) {
 	return notes, nil
 }
 
-func confirmStep(pullRequest bool) string {
+func confirmStep(pullRequest bool, version string) string {
 	if pullRequest {
 		return "3. When they confirm, run `mem promote production --confirm`. This project releases through a pull request: it opens one with these notes for review."
+	}
+	if version != "" {
+		return fmt.Sprintf("3. When they confirm, run `mem promote production --version %s --confirm`.", version)
 	}
 	return "3. When they confirm, run `mem promote production --confirm`."
 }

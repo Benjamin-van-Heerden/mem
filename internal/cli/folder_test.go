@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -207,7 +208,12 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue")
 	mem(t, root, "memory", "set", "invoices", "Number invoices in one sequence.")
 	out = mem(t, root, "onboard", "--offline")
-	for _, want := range []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Acme: 12 hours unbilled", "Chase Acme", "no structure doc yet"} {
+	wanted := []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Chase Acme", "no structure doc yet"}
+	// Windows cannot execute shell scripts directly.
+	if runtime.GOOS != "windows" {
+		wanted = append(wanted, "Acme: 12 hours unbilled")
+	}
+	for _, want := range wanted {
 		if !strings.Contains(out, want) {
 			t.Errorf("onboard is missing %q:\n%s", want, out)
 		}
@@ -223,6 +229,7 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 }
 
 func TestInitFolderRefusesGitFlags(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := memErr(t, root, "init", "--folder", "--template", "web"); err == nil || !strings.Contains(err.Error(), "--template") {
 		t.Fatalf("error = %v", err)

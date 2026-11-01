@@ -19,6 +19,7 @@ func featureBranch(t *testing.T, p string) {
 }
 
 func TestSyncRebasesAnUnpushedFeatureBranchOntoNewDevelopment(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	featureBranch(t, p.Root)
 	pushChange(t, other, "theirs.txt", "theirs\n")
@@ -33,6 +34,7 @@ func TestSyncRebasesAnUnpushedFeatureBranchOntoNewDevelopment(t *testing.T) {
 }
 
 func TestSyncForcePushesTheUsersOwnFeatureBranchAndOtherCheckoutsCatchUp(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	other, p := clones(t)
 	featureBranch(t, p.Root)
@@ -65,6 +67,7 @@ func TestSyncForcePushesTheUsersOwnFeatureBranchAndOtherCheckoutsCatchUp(t *test
 }
 
 func TestSyncLeavesAFeatureBranchUnchangedWhenTheRebaseWouldConflict(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	run(t, p.Root, "switch", "--quiet", "-c", "feature")
 	write(t, p.Root, "shared.txt", "mine\n")
@@ -85,6 +88,7 @@ func TestSyncLeavesAFeatureBranchUnchangedWhenTheRebaseWouldConflict(t *testing.
 }
 
 func TestSyncDoesNotRewriteAFeatureBranchOthersCommittedTo(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	featureBranch(t, p.Root)
 	run(t, p.Root, "push", "--quiet", "-u", "origin", "feature")
@@ -115,6 +119,7 @@ func nudged(r Report, text string) bool {
 }
 
 func TestSyncDoesNotRestoreACommitDroppedFromARewrittenBranch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	_, p := clones(t)
 	featureBranch(t, p.Root)
@@ -143,6 +148,7 @@ func TestSyncDoesNotRestoreACommitDroppedFromARewrittenBranch(t *testing.T) {
 }
 
 func TestSyncLeavesAFeatureBranchWithAMergeUnrebased(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	featureBranch(t, p.Root)
 	pushChange(t, other, "first.txt", "first\n")
@@ -161,6 +167,7 @@ func TestSyncLeavesAFeatureBranchWithAMergeUnrebased(t *testing.T) {
 }
 
 func TestSyncNeitherRebasesNorPushesASingleBranchProjectsBase(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	other, p := clones(t)
 	p.Config.Git.SingleBranch, p.Config.Git.Base = true, "main"
@@ -187,6 +194,7 @@ func TestSyncNeitherRebasesNorPushesASingleBranchProjectsBase(t *testing.T) {
 }
 
 func TestSyncLeavesAStagedProjectsBaseOffDevelopment(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	other, p := clones(t)
 	p.Config.Git.Staging, p.Config.Git.Production, p.Config.Git.Base = "test", "main", "upstream"
@@ -217,6 +225,7 @@ func TestSyncLeavesAStagedProjectsBaseOffDevelopment(t *testing.T) {
 }
 
 func TestSyncKeepsThePromotionNudgeWhenTheBaseIsAStage(t *testing.T) {
+	t.Parallel()
 	other, p := clones(t)
 	p.Config.Git.Staging, p.Config.Git.Production, p.Config.Git.Base = "test", "main", "main"
 	run(t, other, "push", "--quiet", "origin", "dev:main")

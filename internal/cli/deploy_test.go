@@ -8,6 +8,7 @@ import (
 )
 
 func TestDeployReleasesEverythingInOneRun(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	commit(t, mine, "feature.txt")
 
@@ -31,6 +32,7 @@ func TestDeployReleasesEverythingInOneRun(t *testing.T) {
 }
 
 func TestDeployRefusesRepositoriesThatRequireProductionPRs(t *testing.T) {
+	t.Parallel()
 	mine, _ := sharedProject(t)
 	config := filepath.Join(mine, ".mem", "config.toml")
 	data, _ := os.ReadFile(config)
