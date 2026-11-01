@@ -70,6 +70,7 @@ func TestSyncReportsANewerReleaseWithoutInstallingIt(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 	t.Setenv("MEM_RELEASES_URL", server.URL)
+	t.Setenv("MEM_NO_UPDATE", "")
 	version := buildinfo.Version
 	buildinfo.Version = "v0.8.0"
 	t.Cleanup(func() { buildinfo.Version = version })
