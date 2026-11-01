@@ -66,7 +66,7 @@ A folder of documents and records that is no software project, such as one kept 
 mem init --folder
 ```
 
-This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. Keep reusable formats as skills under `.claude/skills/`. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
+This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. The instructions tell agents to build the folder up as they go: anything that will come up again, such as a format or a procedure, becomes a skill under `.claude/skills/` without being asked, and its mechanical steps become scripts. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
 
 ## How it works
 

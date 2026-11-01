@@ -14,13 +14,18 @@ Don't rerun onboard later in the session unless the user asks.
 
 mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details.
 
-## Skills
+## Skills and Automation
 
-Skills hold what gets reused here: formats, layouts, letterheads, procedures. Use the matching skill rather than working from memory or copying an older document. When a way of doing something settles, suggest making it a skill.
+This folder is meant to grow into something that largely runs itself. Skills hold what gets reused here: formats, layouts, letterheads, procedures. Every task that will come up again should leave behind what handles it next time, so that what took a conversation today takes one instruction tomorrow. Building this up is a standing part of the work.
+
+- **Look first.** Before starting a task, check `.claude/skills/`. Use the matching skill rather than working from memory or copying an older document.
+- **Create skills without being asked.** When a task will clearly come up again, such as setting up a new client or adding an invoice template, make it a skill as part of doing it, then tell the user what you made. Do not ask first, and do not wait for it to happen twice. Work that really is a one-off stays a one-off.
+- **Script what is mechanical.** Numbering, filling in, building, converting, filing and checking belong in a script, with the judgement left in the skill. Keep a script in the folder of the skill that runs it.
+- **Keep skills true.** When a skill turns out wrong or incomplete, or the user corrects how something is done, change the skill in the same session as well as the work in front of you.
+
+A skill is a folder under `.claude/skills/` holding a `SKILL.md`, whose description says when to use it: that is how a later session finds it. Keep real files there, not symbolic links.
 
 Finished documents stand on their own. Take what a skill provides into the document itself rather than linking to a shared file, so that changing a skill never changes past work.
-
-A skill is a folder under `.claude/skills/` holding a `SKILL.md`. Keep real files there, not symbolic links.
 
 ## Project Knowledge
 
@@ -41,6 +46,7 @@ Todos are matters that need attention, including anything waiting on someone els
 A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
 - Write one when mem's work-log nudge says so and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new` and fill the log in as instructed.
+- Before you write a log, look back over the work: if any of it will come up again and no skill or script covers it yet, create that first.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Memories
@@ -81,7 +87,7 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 
 ## Scripts
 
-Scripts here are small tools, not products. Keep each one short and focused, run it to check that it works, and do not build more than the task needs.
+Scripts here are small tools, not products. Keep each one short and focused, and run it to check that it works.
 
 # Behavioral Guidelines
 
@@ -102,6 +108,7 @@ Scripts here are small tools, not products. Keep each one short and focused, run
 
 - Nothing beyond what was asked.
 - No structure, process or options that were not requested.
+- Skills and scripts for work that will come up again are the exception: they are expected unasked (see Skills and Automation). Build them for what the work has actually needed, and no further.
 - Ask yourself: "Would a sensible colleague say this is overcomplicated?" If yes, simplify.
 
 ### 3. Surgical Changes
@@ -112,7 +119,7 @@ Scripts here are small tools, not products. Keep each one short and focused, run
 - Match the existing style, even if you'd do it differently.
 - If you notice something unrelated that looks wrong, mention it rather than changing it.
 
-The test: every change should trace directly to the user's request.
+The test: skills and scripts aside, every change should trace directly to the user's request.
 
 ### 4. Goal-Driven Execution
 
