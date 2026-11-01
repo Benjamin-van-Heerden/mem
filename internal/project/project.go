@@ -33,6 +33,12 @@ type Config struct {
 	Claude    ClaudeConfig    `toml:"claude,omitempty"`
 	Cursor    CursorConfig    `toml:"cursor,omitempty"`
 	Release   ReleaseConfig   `toml:"release,omitempty"`
+	Precommit PrecommitConfig `toml:"precommit,omitempty"`
+}
+
+// PrecommitConfig lists the project's checks, which `mem precommit` runs and promotion to staging requires.
+type PrecommitConfig struct {
+	Commands []string `toml:"commands,omitempty"`
 }
 
 // ReleaseConfig sets how production releases are made.

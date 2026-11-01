@@ -79,6 +79,11 @@ func (a *app) promoteCommand() *cobra.Command {
 				return divergedError(p, pl)
 			}
 
+			if stage == "staging" {
+				if err := runChecks(ctx, out, p); err != nil {
+					return err
+				}
+			}
 			if pl.Tag != "" && version != "" {
 				pl.Tag = version
 			}

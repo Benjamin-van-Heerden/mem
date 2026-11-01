@@ -90,10 +90,10 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 ## Commands and Workflows
 
-- `go test ./internal/<pkg>/ -run <Test>` for focused tests; `go vet ./...` before pushing, since it also compiles every test package.
+- `go test ./internal/<pkg>/ -run <Test>` for focused tests; `mem precommit` before each commit, which runs `go vet ./...` and `go test ./...` from `[precommit]` in `.mem/config.toml`.
 - Tests that use real Git start from `gittest.Main` in the package's `main_test.go`, which gives the binary one HOME, and call `t.Parallel()` unless they use `t.Setenv`.
-- CI (`.github/workflows/ci.yml`): on pushes to `test` and on pull requests, not on `dev`, `main` or tags, the `check` job runs `go vet ./...`, `go test ./...` and `go build` on ubuntu, and the `macos` job runs `go test -parallel 8 ./...` once `check` has passed. `.github/workflows/windows.yml` runs the tests on windows beside it, on the same triggers, and does not hold up a release.
-- Release (`.github/workflows/release.yml`): on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`, waits for the CI run on the tagged commit and fails if it failed or is missing, then runs GoReleaser. This repository sets `[release] version_tags = true`, so `mem promote production --version vX.Y.Z` makes that tag. Installed release builds pick up a new release at their next onboard.
+- CI (`.github/workflows/ci.yml`): on pushes to `test` and on pull requests, not on `dev`, `main` or tags, the `check` job runs `go vet ./...`, `go test ./...` and `go build` on ubuntu, and the `macos` job runs `go test -parallel 8 ./...` once `check` has passed. `.github/workflows/windows.yml` runs the tests on windows beside it, on the same triggers, and neither holds up a release.
+- Release (`.github/workflows/release.yml`): runs GoReleaser on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`, without waiting for CI: `mem promote staging` has already run the checks. This repository sets `[release] version_tags = true`, so `mem promote production --version vX.Y.Z` makes that tag. Installed release builds pick up a new release at their next onboard.
 - Branches for this repository: `dev` → `test` → `main` with `protect = true`.
 
 ## External Interfaces

@@ -44,6 +44,7 @@ func New() *cobra.Command {
 		a.onboardCommand(),
 		a.syncCommand(),
 		a.structureCommand(),
+		a.precommitCommand(),
 		a.promoteCommand(),
 		a.deployCommand(),
 		a.templateCommand(),
@@ -55,7 +56,7 @@ func New() *cobra.Command {
 
 // notInFolder lists the commands a folder project has no use for, whole groups by their first word.
 var notInFolder = map[string]bool{
-	"sync": true, "promote": true, "deploy": true, "import": true, "template": true, "spec": true, "task": true,
+	"sync": true, "precommit": true, "promote": true, "deploy": true, "import": true, "template": true, "spec": true, "task": true,
 	"log commit": true, "hook pre-push": true, "hook pre-commit": true, "hook post-commit": true,
 }
 

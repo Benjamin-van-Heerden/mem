@@ -12,3 +12,6 @@ protect = true
 [release]
 notes = true
 version_tags = true
+
+[precommit]
+commands = ['go vet ./...', 'go test ./...']

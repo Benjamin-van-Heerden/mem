@@ -39,6 +39,9 @@ func (a *app) deployCommand() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Heading(out, "🚀 DEPLOY: "+p.Config.Name)
+			if err := runChecks(ctx, out, p); err != nil {
+				return err
+			}
 			if err := pushDevelopment(ctx, out, p); err != nil {
 				return err
 			}

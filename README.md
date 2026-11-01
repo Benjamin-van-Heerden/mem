@@ -66,7 +66,7 @@ A folder of documents and records that is no software project, such as one kept 
 mem init --folder
 ```
 
-This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. The instructions tell agents to build the folder up as they go: anything that will come up again, such as a format or a procedure, becomes a skill under `.claude/skills/` without being asked, and its mechanical steps become scripts. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
+This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. The instructions tell agents to build the folder up as they go: anything that will come up again, such as a format or a procedure, becomes a skill under `.claude/skills/` without being asked, and its mechanical steps become scripts. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `precommit`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
 
 ## How it works
 
@@ -79,6 +79,15 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 - **Memories** are lasting project conventions, kept in `AGENTS.md`.
 - **Templates** supply memories, skills, docs and runnables for a kind of project from a shared Git library, and optionally a one-time setup for new projects. Onboard draws in what is missing and updates what the project has not changed. A new or changed template memory also becomes a todo to check the existing code against it, since a memory only guides new work; `mem template promote` sends a project's memory, skill, doc or runnable back so similar projects receive it.
 - **The structure doc**, `.mem/structure.md`, is a living map of the codebase that onboard includes. `mem structure` creates it and later lists what has changed since it was last updated; mem warns when it falls behind the code.
+
+## Checks
+
+`mem precommit` runs the commands in `[precommit] commands` of `.mem/config.toml` from the repository root, in order, and stops at the first failure. Run it before each commit. `mem promote staging` and `mem deploy` run the same checks and refuse when they fail, so a release never depends on waiting for CI.
+
+```toml
+[precommit]
+commands = ['go vet ./...', 'go test ./...']
+```
 
 ## Releases
 
