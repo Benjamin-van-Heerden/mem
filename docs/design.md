@@ -215,13 +215,14 @@ Framework guides belong in templates as skills rather than docs: docs are printe
 
 ## Folder projects
 
-A folder project is a plain folder of documents and records, kept in cloud storage such as iCloud Drive, with no Git at all. It is for work that is not software, where Git only gets in the way. `mem init --folder` sets one up, and `mode = "folder"` with a `user` in `.mem/config.toml` marks it; the mode is never inferred from a missing `.git`, and a folder config with `[git]`, `[release]` or `[templates]` is rejected. mem finds the project by walking up to `.mem/config.toml`, and never runs `git`.
+A folder project is a plain folder of documents and records, kept in cloud storage such as iCloud Drive, with no Git at all. It is for work that is not software, where Git only gets in the way. `mem init --folder` sets one up, and `mode = "folder"` in `.mem/config.toml` marks it; the mode is never inferred from a missing `.git`, and a folder config with `[git]`, `[release]` or `[templates]` is rejected. mem finds the project by walking up to `.mem/config.toml`, and never runs `git`.
 
 - **Instructions.** A managed block of its own (`internal/agentsmd/instructions_folder.md`), written for document work with occasional scripts. It keeps the conduct of the general guidelines and leaves out Git, release, testing and module-structure rules.
 - **Records.** Memories, todos and work logs work as in a Git project, and saving a file is all it takes. `log new` has no `log commit` step. Specs and tasks are left out: todos and logs cover this kind of work.
+- **No user.** A folder project is one person's, so there is no identity to tell apart: logs are named by their time and record no user, and every log counts as yours.
 - **Skills** hold reusable formats. mem reads them from `.claude/skills` and `.agents/skills` and installs none. Real files, not links.
 - **Onboard** applies updates and prints the structure doc, docs, runnables, todos and logs. Nothing syncs: the storage has already brought the files.
-- **Work-log nudges** count the files changed since the user's newest log, by timestamp, from 10 (suggested) and 20 (due). The walk only stats files, so it never makes cloud storage download one, and it counts everything except dot-paths, the agent instructions and `[structure] ignore` patterns: PDFs and Markdown are the work here.
+- **Work-log nudges** count the files changed since the newest log, by timestamp, from 10 (suggested) and 20 (due). The walk only stats files, so it never makes cloud storage download one, and it counts everything except dot-paths, the agent instructions and `[structure] ignore` patterns: PDFs and Markdown are the work here.
 - **The structure doc** is kept by hand. New documents arrive constantly and rarely change the map, so mem measures no drift.
 - **Refused:** `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task`, `log commit` and the Git hooks, with one shared line.
 - **No templates and no migration.** Folder projects are too specific for shared templates, and moving one in is done by hand.

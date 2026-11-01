@@ -63,7 +63,7 @@ Anything else worth keeping: errors and barriers met, approaches that were tried
 
 type LogMeta struct {
 	Created string `yaml:"created_at"`
-	User    string `yaml:"user"`
+	User    string `yaml:"user,omitempty"`
 	Spec    string `yaml:"spec,omitempty"`
 	// Commits are the user's work commits the log covers, oldest first, as they were when it was written.
 	Commits []string `yaml:"commits,omitempty,flow"`
@@ -126,12 +126,15 @@ func LatestLog(p project.Project, user string) (Log, bool, error) {
 		return Log{}, false, err
 	}
 	for _, l := range logs {
-		if l.Meta.User == user {
+		if l.By(user) {
 			return l, true, nil
 		}
 	}
 	return Log{}, false, nil
 }
+
+// By reports whether the log is user's. With no user, as in a folder project, every log is.
+func (l Log) By(user string) bool { return user == "" || l.Meta.User == user }
 
 func logsDir(p project.Project) string { return p.Path("logs") }
 
@@ -180,7 +183,10 @@ const maxLogFiles = 30
 // NewLog creates a log from the template, listing the files and commits the work since the last log covers.
 func NewLog(p project.Project, user, spec string, commits []string, files []LogFile) (Log, error) {
 	created := time.Now()
-	name := user + "_" + created.Format("20060102_150405")
+	name := created.Format("20060102_150405")
+	if user != "" {
+		name = user + "_" + name
+	}
 	l := Log{Name: name, Path: filepath.Join(logsDir(p), name+".md"), Body: strings.Replace(logTemplate, "<files>", keyFiles(files), 1)}
 	l.Meta = LogMeta{Created: created.Format(time.RFC3339), User: user, Spec: spec, Commits: commits}
 	return l, WriteMarkdown(l.Path, l.Meta, l.Body)

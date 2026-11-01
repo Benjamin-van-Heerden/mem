@@ -28,17 +28,13 @@ func (a *app) initCommand() *cobra.Command {
 	var templateNames []string
 	var templateSource string
 	var noTemplate, folder bool
-	var folderUser string
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up mem in the current Git repository, or with --folder in a plain folder",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if folder {
-				return a.initFolder(cmd, config.Name, config.Description, folderUser)
-			}
-			if folderUser != "" {
-				return errors.New("--user is for a folder project; a Git repository takes it from Git")
+				return a.initFolder(cmd, config.Name, config.Description)
 			}
 			root, err := git.Toplevel(cmd.Context(), a.dir)
 			if err != nil {
@@ -184,7 +180,6 @@ func (a *app) initCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&folder, "folder", false, "Set up a plain folder without Git, for documents and records kept in cloud storage")
-	cmd.Flags().StringVar(&folderUser, "user", "", "With --folder: who works here, to attribute work (defaults to the account name)")
 	cmd.Flags().StringVar(&config.Name, "name", "", "Project name (defaults to the repository directory name)")
 	cmd.Flags().StringVar(&config.Description, "description", "", "One-line project description")
 	cmd.Flags().StringVar(&config.Git.Remote, "remote", "origin", "Shared Git remote")

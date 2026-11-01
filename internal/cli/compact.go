@@ -35,8 +35,7 @@ func (a *app) compactHookCommand() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			if p, err := a.project(cmd); err == nil && p.Folder() {
-				user, _ := a.user(cmd, p)
-				since, _ := workSince(cmd, p, user)
+				since, _ := workSince(cmd, p, "")
 				writeFolderDigest(out, since)
 				return nil
 			}

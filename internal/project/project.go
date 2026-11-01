@@ -26,9 +26,7 @@ type Config struct {
 	Name        string `toml:"name"`
 	Description string `toml:"description"`
 	// Mode is ModeFolder for a folder project and empty for a Git repository.
-	Mode string `toml:"mode,omitempty"`
-	// User names who works in a folder project, which has no Git identity to read.
-	User      string          `toml:"user,omitempty"`
+	Mode      string          `toml:"mode,omitempty"`
 	Git       GitConfig       `toml:"git,omitempty"`
 	Structure StructureConfig `toml:"structure,omitempty"`
 	Templates TemplatesConfig `toml:"templates,omitempty"`
@@ -218,9 +216,6 @@ func (c Config) validate() error {
 		if c.Git != (GitConfig{}) || c.Release != (ReleaseConfig{}) || c.Templates.Source != "" || len(c.Templates.Use) > 0 || len(c.Templates.Exclude) > 0 {
 			return errors.New("mode = \"folder\" has no Git, releases or templates, so [git], [release] and [templates] must not be set; remove them")
 		}
-		if Slugify(c.User) == "" {
-			return errors.New("mode = \"folder\" needs a user, such as user = \"Your Name\", to attribute work")
-		}
 		return nil
 	}
 	if !c.Git.SingleBranch {
@@ -246,10 +241,11 @@ func WriteConfig(root string, config Config) error {
 	return os.WriteFile(ConfigPath(root), data, 0o644)
 }
 
-// User identifies the current developer: from the config in a folder project, otherwise from Git's user.name.
+// User identifies the current developer from Git's user.name. A folder project has one person and no identity to
+// tell apart, so its user is empty.
 func User(ctx context.Context, p Project) (string, error) {
 	if p.Folder() {
-		return Slugify(p.Config.User), nil
+		return "", nil
 	}
 	name := Slugify(git.UserName(ctx, p.Root))
 	if name == "" {

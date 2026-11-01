@@ -9,10 +9,10 @@ import (
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 )
 
-// folderBaseline is when work in a folder project last reached a checkpoint: the user's newest log, or the moment the
-// project was set up.
-func folderBaseline(p project.Project, user string) (time.Time, error) {
-	l, ok, err := work.LatestLog(p, user)
+// folderBaseline is when work in a folder project last reached a checkpoint: the newest log, or the moment the project
+// was set up.
+func folderBaseline(p project.Project) (time.Time, error) {
+	l, ok, err := work.LatestLog(p, "")
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -29,18 +29,18 @@ func folderBaseline(p project.Project, user string) (time.Time, error) {
 }
 
 // FolderCover lists the files a work log written now covers in a folder project, most recently changed first.
-func FolderCover(p project.Project, user string) ([]structure.Change, error) {
-	since, err := folderBaseline(p, user)
+func FolderCover(p project.Project) ([]structure.Change, error) {
+	since, err := folderBaseline(p)
 	if err != nil {
 		return nil, err
 	}
 	return structure.ChangedSince(p, since)
 }
 
-// FolderSince measures the work in a folder project since the user's last log. With no commits or lines to go on, the
-// changed files set the level on their own.
-func FolderSince(p project.Project, user string) (Work, error) {
-	files, err := FolderCover(p, user)
+// FolderSince measures the work in a folder project since the last log. With no commits or lines to go on, the changed
+// files set the level on their own.
+func FolderSince(p project.Project) (Work, error) {
+	files, err := FolderCover(p)
 	if err != nil {
 		return Work{}, err
 	}

@@ -41,12 +41,12 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if p.Folder() {
+				return a.onboardFolder(cmd, p, updateLine)
+			}
 			user, err := a.user(cmd, p)
 			if err != nil {
 				return err
-			}
-			if p.Folder() {
-				return a.onboardFolder(cmd, p, user, updateLine)
 			}
 			before := readKnowledge(p)
 			branchLines, stuck := leaveGuardedBranch(ctx, p)

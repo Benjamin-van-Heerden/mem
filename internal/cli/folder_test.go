@@ -18,7 +18,7 @@ import (
 func folderProject(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	writeFile(t, root, ".mem/config.toml", "schema = 2\nname = 'work'\nmode = 'folder'\nuser = 'Test Person'\n")
+	writeFile(t, root, ".mem/config.toml", "schema = 2\nname = 'work'\nmode = 'folder'\n")
 	blockGit(t)
 	return root
 }
@@ -87,18 +87,31 @@ func TestFolderProjectRefusesCommandsThatNeedGit(t *testing.T) {
 	}
 }
 
-func TestFolderProjectAttributesWorkToItsConfiguredUser(t *testing.T) {
-	root := folderProject(t)
-	mem(t, root, "todo", "new", "Chase the invoice", "From last month")
-	if out := mem(t, root, "todo", "list"); !strings.Contains(out, "Chase the invoice") {
-		t.Fatalf("todo list:\n%s", out)
+func TestFolderLogsNameNoOneAndAllCountAsYours(t *testing.T) {
+	blockGit(t)
+	root := t.TempDir()
+	mem(t, root, "init", "--folder")
+	writeFile(t, root, ".mem/logs/benjamin_van_heerden_20260605_095259.md", "---\ncreated_at: \"2026-06-05T09:52:59+02:00\"\nusername: benjamin_van_heerden\n---\n\n# Work Log - Moved across by hand\n")
+	mem(t, root, "log", "new")
+	logs, err := filepath.Glob(filepath.Join(root, ".mem", "logs", "2*.md"))
+	if err != nil || len(logs) != 1 {
+		t.Fatalf("expected one log named by its time: %v, %v", logs, err)
 	}
-	p, err := project.Load(t.Context(), filepath.Join(root, ".mem"))
+	log, err := os.ReadFile(logs[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if user, err := project.User(t.Context(), p); err != nil || user != "test_person" {
-		t.Fatalf("User = %q, %v", user, err)
+	if strings.Contains(string(log), "user:") {
+		t.Fatalf("a folder log should name no user:\n%s", log)
+	}
+	writeFile(t, root, logs[0][len(root)+1:], strings.ReplaceAll(string(log), "{short title}", "This week"))
+
+	out := mem(t, root, "onboard", "--offline")
+	if !strings.Contains(out, "Your latest log.") || strings.Contains(out, "from benjamin") || strings.Contains(out, "User:") {
+		t.Fatalf("onboard:\n%s", out)
+	}
+	if out := mem(t, root, "log", "list"); strings.Contains(out, "USER") || strings.Contains(out, "SPEC") {
+		t.Fatalf("log list:\n%s", out)
 	}
 }
 
@@ -122,7 +135,7 @@ func TestFolderWorkLogNudgeFollowsChangedFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	writeFile(t, root, ".mem/config.toml", "schema = 2\nname = 'work'\nmode = 'folder'\nuser = 'Test Person'\n[structure]\nignore = ['_generated/**']\n")
+	writeFile(t, root, ".mem/config.toml", "schema = 2\nname = 'work'\nmode = 'folder'\n[structure]\nignore = ['_generated/**']\n")
 	if err := os.Chtimes(filepath.Join(root, ".mem", "config.toml"), past, past); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +149,7 @@ func TestFolderWorkLogNudgeFollowsChangedFiles(t *testing.T) {
 	}
 
 	created := mem(t, root, "log", "new")
-	logs, err := filepath.Glob(filepath.Join(root, ".mem", "logs", "test_person_*.md"))
+	logs, err := filepath.Glob(filepath.Join(root, ".mem", "logs", "*.md"))
 	if err != nil || len(logs) != 1 {
 		t.Fatalf("logs = %v, %v\n%s", logs, err, created)
 	}
@@ -167,7 +180,7 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 	blockGit(t)
 	root := t.TempDir()
 	writeFile(t, root, "clients/acme/invoice.pdf", "pdf")
-	out := mem(t, root, "init", "--folder", "--user", "Test Person", "--name", "work", "--description", "Our documents")
+	out := mem(t, root, "init", "--folder", "--name", "work", "--description", "Our documents")
 	if !strings.Contains(out, "folder, no Git") {
 		t.Fatalf("init:\n%s", out)
 	}
@@ -194,7 +207,7 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue")
 	mem(t, root, "memory", "set", "invoices", "Number invoices in one sequence.")
 	out = mem(t, root, "onboard", "--offline")
-	for _, want := range []string{"MEM ONBOARD: work", "Our documents", "User: test_person", "Acme pays late.", "Acme: 12 hours unbilled", "Chase Acme", "no structure doc yet"} {
+	for _, want := range []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Acme: 12 hours unbilled", "Chase Acme", "no structure doc yet"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("onboard is missing %q:\n%s", want, out)
 		}
@@ -214,15 +227,12 @@ func TestInitFolderRefusesGitFlags(t *testing.T) {
 	if err := memErr(t, root, "init", "--folder", "--template", "web"); err == nil || !strings.Contains(err.Error(), "--template") {
 		t.Fatalf("error = %v", err)
 	}
-	if err := memErr(t, root, "init", "--user", "Someone"); err == nil || !strings.Contains(err.Error(), "--user") {
-		t.Fatalf("error = %v", err)
-	}
 }
 
 func TestFolderCommandsNeverTalkAboutGit(t *testing.T) {
 	blockGit(t)
 	root := t.TempDir()
-	mem(t, root, "init", "--folder", "--user", "Test Person")
+	mem(t, root, "init", "--folder")
 	var out strings.Builder
 	for _, args := range [][]string{
 		{"onboard", "--offline"},

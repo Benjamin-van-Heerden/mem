@@ -47,7 +47,7 @@ func TestLoadRejectsASingleBranchConfigThatKeepsReleaseSettings(t *testing.T) {
 
 func TestLoadFindsAFolderProjectFromInsideItWithoutGit(t *testing.T) {
 	root := t.TempDir()
-	if err := WriteConfig(root, Config{Schema: Schema, Name: "work", Mode: ModeFolder, User: "Test Person"}); err != nil {
+	if err := WriteConfig(root, Config{Schema: Schema, Name: "work", Mode: ModeFolder}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(ConfigPath(root))
@@ -73,10 +73,9 @@ func TestLoadFindsAFolderProjectFromInsideItWithoutGit(t *testing.T) {
 
 func TestLoadRejectsAFolderConfigThatMixesInGitSettings(t *testing.T) {
 	for name, config := range map[string]string{
-		"git":       "mode = 'folder'\nuser = 'Me'\n[git]\ndevelopment = 'dev'\n",
-		"release":   "mode = 'folder'\nuser = 'Me'\n[release]\nnotes = true\n",
-		"templates": "mode = 'folder'\nuser = 'Me'\n[templates]\nuse = ['docs']\n",
-		"no user":   "mode = 'folder'\n",
+		"git":       "mode = 'folder'\n[git]\ndevelopment = 'dev'\n",
+		"release":   "mode = 'folder'\n[release]\nnotes = true\n",
+		"templates": "mode = 'folder'\n[templates]\nuse = ['docs']\n",
 		"unknown":   "mode = 'cloud'\n",
 	} {
 		root := t.TempDir()

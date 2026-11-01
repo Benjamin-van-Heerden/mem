@@ -54,7 +54,7 @@ func (a *app) logNew() *cobra.Command {
 			// A log is still worth writing when mem cannot say what it covers, such as in a repository without commits.
 			var cov checkpoint.Covered
 			if p.Folder() {
-				cov.Files, _ = checkpoint.FolderCover(p, user)
+				cov.Files, _ = checkpoint.FolderCover(p)
 			} else {
 				cov, _ = checkpoint.Cover(cmd.Context(), p.Root, user, git.UserEmail(cmd.Context(), p.Root))
 			}
@@ -72,7 +72,10 @@ func (a *app) logNew() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📝 WORK LOG CREATED")
-			fmt.Fprintf(out, "File: %s\nSpec: %s\n", p.Rel(l.Path), orDash(spec))
+			fmt.Fprintf(out, "File: %s\n", p.Rel(l.Path))
+			if !p.Folder() {
+				fmt.Fprintf(out, "Spec: %s\n", orDash(spec))
+			}
 			todos, err := work.Todos(p)
 			if err != nil {
 				return err
@@ -136,9 +139,16 @@ func (a *app) logList() *cobra.Command {
 				return nil
 			}
 			rows := [][]string{{"LOG", "USER", "SPEC", "CREATED"}}
+			if p.Folder() {
+				rows = [][]string{{"LOG", "CREATED"}}
+			}
 			for i, l := range logs {
 				if i == limit {
 					break
+				}
+				if p.Folder() {
+					rows = append(rows, []string{l.Name, l.Meta.Created})
+					continue
 				}
 				rows = append(rows, []string{l.Name, l.Meta.User, orDash(l.Meta.Spec), l.Meta.Created})
 			}
@@ -323,6 +333,10 @@ func (a *app) logShow() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.File(out, "🧾 "+l.Name)
+			if p.Folder() {
+				fmt.Fprintf(out, "Date: %s\n\n%s\n", l.Meta.Created, strings.TrimSpace(l.Body))
+				return nil
+			}
 			fmt.Fprintf(out, "User: %s\nDate: %s\nSpec: %s\n\n%s\n", l.Meta.User, l.Meta.Created, orDash(l.Meta.Spec), strings.TrimSpace(l.Body))
 			return nil
 		},

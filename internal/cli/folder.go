@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	osuser "os/user"
 	"path/filepath"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agenthooks"
@@ -21,7 +20,7 @@ import (
 var gitOnlyInitFlags = []string{"remote", "development", "staging", "production", "template", "no-template", "template-source", "production-pr", "release-notes", "single-branch", "protect"}
 
 // initFolder sets up the directory as a folder project: instructions, config and agent hooks, and nothing Git.
-func (a *app) initFolder(cmd *cobra.Command, name, description, user string) error {
+func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 	for _, flag := range gitOnlyInitFlags {
 		if cmd.Flags().Changed(flag) {
 			return fmt.Errorf("--folder sets up a plain folder without Git or templates, so it cannot be combined with --%s", flag)
@@ -34,16 +33,10 @@ func (a *app) initFolder(cmd *cobra.Command, name, description, user string) err
 	if _, err := os.Stat(project.ConfigPath(root)); err == nil {
 		return errors.New("this folder already has .mem/config.toml")
 	}
-	if user == "" {
-		user = accountName()
-	}
-	if project.Slugify(user) == "" {
-		return errors.New("mem could not tell who you are from this account; pass --user \"Your Name\" to attribute work")
-	}
 	if name == "" {
 		name = filepath.Base(root)
 	}
-	config := project.Config{Schema: project.Schema, Name: name, Description: description, Mode: project.ModeFolder, User: user}
+	config := project.Config{Schema: project.Schema, Name: name, Description: description, Mode: project.ModeFolder}
 
 	agentsPath := filepath.Join(root, "AGENTS.md")
 	existing, err := os.ReadFile(agentsPath)
@@ -76,7 +69,7 @@ func (a *app) initFolder(cmd *cobra.Command, name, description, user string) err
 
 	out := cmd.OutOrStdout()
 	output.Heading(out, "📦 MEM INITIALIZED")
-	fmt.Fprintf(out, "Project: %s (folder, no Git)\nUser: %s\n", config.Name, project.Slugify(user))
+	fmt.Fprintf(out, "Project: %s (folder, no Git)\n", config.Name)
 	output.Section(out, "📄 FILES")
 	fmt.Fprintln(out, ".mem/config.toml   project configuration")
 	fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for agents without it")
@@ -93,21 +86,9 @@ func (a *app) initFolder(cmd *cobra.Command, name, description, user string) err
 	return nil
 }
 
-// accountName is who the OS says is logged in. Release builds have no cgo, and without it the full name is unknown.
-func accountName() string {
-	account, err := osuser.Current()
-	if err != nil {
-		return ""
-	}
-	if account.Name != "" {
-		return account.Name
-	}
-	return account.Username
-}
-
 // onboardFolder applies updates and prints the context of a folder project. There is nothing to sync: cloud storage
 // has already brought the files here.
-func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, user, updateLine string) error {
+func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, updateLine string) error {
 	before := readKnowledge(p)
 	updates, err := applyFolderUpdates(p)
 	if err != nil {
@@ -126,7 +107,7 @@ func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, user, updateL
 
 	var buf bytes.Buffer
 	knowledgeChanged := renderKnowledgeChanges(&buf, before, readKnowledge(p))
-	state, err := writeContext(cmd.Context(), &buf, p, user)
+	state, err := writeContext(cmd.Context(), &buf, p, "")
 	if err != nil {
 		return err
 	}
@@ -138,7 +119,6 @@ func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, user, updateL
 	if p.Config.Description != "" {
 		fmt.Fprintln(out, p.Config.Description)
 	}
-	fmt.Fprintf(out, "User: %s\n", user)
 	if len(updates) > 0 {
 		output.Section(out, "🔄 UPDATES")
 		for _, line := range updates {

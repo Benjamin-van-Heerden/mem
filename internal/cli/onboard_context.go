@@ -79,20 +79,32 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 	if len(earlier) > 0 {
 		fmt.Fprintln(out, "\nOther recent logs (read one with `mem log show <log>`):")
 		rows := [][]string{{"DATE", "USER", "TITLE", "LOG"}}
+		if p.Folder() {
+			rows = [][]string{{"DATE", "TITLE", "LOG"}}
+		}
 		for _, l := range earlier {
-			rows = append(rows, []string{strings.SplitN(l.Meta.Created, "T", 2)[0], l.Meta.User, l.Heading(), l.Name})
+			date := strings.SplitN(l.Meta.Created, "T", 2)[0]
+			if p.Folder() {
+				rows = append(rows, []string{date, l.Heading(), l.Name})
+				continue
+			}
+			rows = append(rows, []string{date, l.Meta.User, l.Heading(), l.Name})
 		}
 		table(out, rows)
 	}
 	for i, l := range full {
 		output.File(out, "🧾 "+l.Name)
 		switch {
-		case l.Meta.User != user:
+		case !l.By(user):
 			fmt.Fprintf(out, "The latest log, from %s.\n", l.Meta.User)
 		case i == 0:
 			fmt.Fprintln(out, "Your latest log.")
 		default:
 			fmt.Fprintln(out, "An earlier log of yours.")
+		}
+		if p.Folder() {
+			fmt.Fprintf(out, "Date: %s\n\n%s\n", l.Meta.Created, strings.TrimSpace(l.Body))
+			continue
 		}
 		fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", l.Meta.Created, orDash(l.Meta.Spec), strings.TrimSpace(l.Body))
 	}
@@ -201,7 +213,7 @@ func recentLogs(logs []work.Log, user string, now time.Time) (full, others []wor
 	shown := map[string]bool{}
 	size := 0
 	for _, l := range logs {
-		if l.Meta.User != user {
+		if !l.By(user) {
 			continue
 		}
 		if len(full) > 0 && (len(full) == fullLogs || l.Meta.Created < cutoff || size+len(l.Body) > fullLogBytes) {

@@ -113,7 +113,7 @@ func (a *app) hookCommand() *cobra.Command {
 // workSince measures the work since the last checkpoint, from commits or, in a folder project, from file times.
 func workSince(cmd *cobra.Command, p project.Project, user string) (checkpoint.Work, error) {
 	if p.Folder() {
-		return checkpoint.FolderSince(p, user)
+		return checkpoint.FolderSince(p)
 	}
 	return checkpoint.Since(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root))
 }
