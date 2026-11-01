@@ -45,6 +45,53 @@ func TestLoadRejectsASingleBranchConfigThatKeepsReleaseSettings(t *testing.T) {
 	}
 }
 
+func TestLoadFindsAFolderProjectFromInsideItWithoutGit(t *testing.T) {
+	root := t.TempDir()
+	if err := WriteConfig(root, Config{Schema: Schema, Name: "work", Mode: ModeFolder, User: "Test Person"}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(ConfigPath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "[git]") {
+		t.Fatalf("a folder config should have no [git] table:\n%s", data)
+	}
+	inside := filepath.Join(root, "clients", "acme")
+	if err := os.MkdirAll(inside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	p, err := Load(context.Background(), inside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Root != root || !p.Folder() {
+		t.Fatalf("Load = %+v", p)
+	}
+}
+
+func TestLoadRejectsAFolderConfigThatMixesInGitSettings(t *testing.T) {
+	for name, config := range map[string]string{
+		"git":       "mode = 'folder'\nuser = 'Me'\n[git]\ndevelopment = 'dev'\n",
+		"release":   "mode = 'folder'\nuser = 'Me'\n[release]\nnotes = true\n",
+		"templates": "mode = 'folder'\nuser = 'Me'\n[templates]\nuse = ['docs']\n",
+		"no user":   "mode = 'folder'\n",
+		"unknown":   "mode = 'cloud'\n",
+	} {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, ".mem"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(ConfigPath(root), []byte(config), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(context.Background(), root); err == nil || !strings.Contains(err.Error(), "mode") {
+			t.Errorf("%s: Load error = %v", name, err)
+		}
+	}
+}
+
 func TestGuardedBranchesFollowTheMode(t *testing.T) {
 	staged := GitConfig{Development: "dev", Staging: "test", Production: "main", Base: "upstream"}
 	single := GitConfig{Development: "dev", SingleBranch: true, Base: "main"}

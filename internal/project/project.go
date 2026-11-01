@@ -15,16 +15,26 @@ import (
 
 const Schema = 2
 
+// ModeFolder marks a project that is a plain folder, synced by cloud storage if at all, with no Git.
+const ModeFolder = "folder"
+
+// ErrFolder refuses a command that only means something with Git.
+var ErrFolder = errors.New("this is a folder project without Git, so this command does not apply here")
+
 type Config struct {
-	Schema      int             `toml:"schema"`
-	Name        string          `toml:"name"`
-	Description string          `toml:"description"`
-	Git         GitConfig       `toml:"git"`
-	Structure   StructureConfig `toml:"structure,omitempty"`
-	Templates   TemplatesConfig `toml:"templates,omitempty"`
-	Claude      ClaudeConfig    `toml:"claude,omitempty"`
-	Cursor      CursorConfig    `toml:"cursor,omitempty"`
-	Release     ReleaseConfig   `toml:"release,omitempty"`
+	Schema      int    `toml:"schema"`
+	Name        string `toml:"name"`
+	Description string `toml:"description"`
+	// Mode is ModeFolder for a folder project and empty for a Git repository.
+	Mode string `toml:"mode,omitempty"`
+	// User names who works in a folder project, which has no Git identity to read.
+	User      string          `toml:"user,omitempty"`
+	Git       GitConfig       `toml:"git,omitempty"`
+	Structure StructureConfig `toml:"structure,omitempty"`
+	Templates TemplatesConfig `toml:"templates,omitempty"`
+	Claude    ClaudeConfig    `toml:"claude,omitempty"`
+	Cursor    CursorConfig    `toml:"cursor,omitempty"`
+	Release   ReleaseConfig   `toml:"release,omitempty"`
 }
 
 // ReleaseConfig sets how production releases are made.
@@ -130,33 +140,89 @@ func ConfigPath(root string) string {
 	return filepath.Join(root, ".mem", "config.toml")
 }
 
+// Load finds the project around dir. A folder project is found by its config alone, so that Git is never run for one;
+// anything else is the Git repository around dir.
 func Load(ctx context.Context, dir string) (Project, error) {
+	if root, ok := nearestConfig(dir); ok {
+		config, err := readConfig(root)
+		if err != nil {
+			return Project{}, err
+		}
+		if config.Folder() {
+			return Project{Root: root, Config: config}, nil
+		}
+	}
 	root, err := git.Toplevel(ctx, dir)
 	if err != nil {
 		return Project{}, err
 	}
-	data, err := os.ReadFile(ConfigPath(root))
+	config, err := readConfig(root)
 	if errors.Is(err, os.ErrNotExist) {
 		return Project{}, fmt.Errorf("%s is not a mem project; run `mem init` to set it up", root)
 	}
 	if err != nil {
 		return Project{}, err
 	}
-	var config Config
-	if err := toml.Unmarshal(data, &config); err != nil {
-		return Project{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
-	}
-	if config.Schema > Schema {
-		return Project{}, fmt.Errorf("this project uses mem schema %d but the installed mem supports schema %d; update mem", config.Schema, Schema)
-	}
-	if err := config.validate(); err != nil {
-		return Project{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
-	}
 	return Project{Root: root, Config: config}, nil
 }
 
-// validate rejects a single-branch config that still names release settings, so the mode is never half applied.
+// nearestConfig walks up from dir to the closest directory with a .mem/config.toml.
+func nearestConfig(dir string) (string, bool) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return "", false
+	}
+	for {
+		if _, err := os.Stat(ConfigPath(root)); err == nil {
+			return root, true
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			return "", false
+		}
+		root = parent
+	}
+}
+
+func readConfig(root string) (Config, error) {
+	data, err := os.ReadFile(ConfigPath(root))
+	if err != nil {
+		return Config{}, err
+	}
+	var config Config
+	if err := toml.Unmarshal(data, &config); err != nil {
+		return Config{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
+	}
+	if config.Schema > Schema {
+		return Config{}, fmt.Errorf("this project uses mem schema %d but the installed mem supports schema %d; update mem", config.Schema, Schema)
+	}
+	if err := config.validate(); err != nil {
+		return Config{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
+	}
+	return config, nil
+}
+
+// Folder reports whether this is a folder project.
+func (c Config) Folder() bool { return c.Mode == ModeFolder }
+
+// Folder reports whether this is a folder project.
+func (p Project) Folder() bool { return p.Config.Folder() }
+
+// validate rejects a config that mixes modes, such as a folder project with Git settings or a single-branch project
+// that still names release settings, so a mode is never half applied.
 func (c Config) validate() error {
+	if c.Mode != "" && !c.Folder() {
+		return fmt.Errorf("unknown mode %q; the only mode is %q, for a folder project", c.Mode, ModeFolder)
+	}
+	if c.Folder() {
+		if c.Git != (GitConfig{}) || c.Release != (ReleaseConfig{}) || c.Templates.Source != "" || len(c.Templates.Use) > 0 || len(c.Templates.Exclude) > 0 {
+			return errors.New("mode = \"folder\" has no Git, releases or templates, so [git], [release] and [templates] must not be set; remove them")
+		}
+		if Slugify(c.User) == "" {
+			return errors.New("mode = \"folder\" needs a user, such as user = \"Your Name\", to attribute work")
+		}
+		return nil
+	}
 	if !c.Git.SingleBranch {
 		return nil
 	}
@@ -180,9 +246,12 @@ func WriteConfig(root string, config Config) error {
 	return os.WriteFile(ConfigPath(root), data, 0o644)
 }
 
-// User identifies the current developer from Git's user.name.
-func User(ctx context.Context, root string) (string, error) {
-	name := Slugify(git.UserName(ctx, root))
+// User identifies the current developer: from the config in a folder project, otherwise from Git's user.name.
+func User(ctx context.Context, p Project) (string, error) {
+	if p.Folder() {
+		return Slugify(p.Config.User), nil
+	}
+	name := Slugify(git.UserName(ctx, p.Root))
 	if name == "" {
 		return "", errors.New("Git user.name is not set; run `git config --global user.name \"Your Name\"` so mem can attribute work")
 	}

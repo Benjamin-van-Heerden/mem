@@ -51,7 +51,7 @@ func (a *app) hookCommand() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			user, err := project.User(cmd.Context(), p.Root)
+			user, err := project.User(cmd.Context(), p)
 			if err != nil {
 				return nil
 			}
@@ -74,7 +74,7 @@ func (a *app) hookCommand() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			user, err := project.User(cmd.Context(), p.Root)
+			user, err := project.User(cmd.Context(), p)
 			if err != nil {
 				return nil
 			}
@@ -135,7 +135,7 @@ func (a *app) stopFollowUp(cmd *cobra.Command) string {
 	if err != nil {
 		return ""
 	}
-	user, err := project.User(cmd.Context(), p.Root)
+	user, err := project.User(cmd.Context(), p)
 	if err != nil {
 		return ""
 	}

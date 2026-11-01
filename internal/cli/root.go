@@ -23,10 +23,11 @@ type app struct {
 func New() *cobra.Command {
 	a := &app{}
 	root := &cobra.Command{
-		Use:           "mem",
-		Short:         "Context building and work records for coding agents",
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:               "mem",
+		Short:             "Context building and work records for coding agents",
+		SilenceUsage:      true,
+		SilenceErrors:     true,
+		PersistentPreRunE: a.refuseInFolder,
 	}
 	root.PersistentFlags().StringVar(&a.dir, "dir", ".", "Run against the repository containing this directory")
 	root.CompletionOptions.DisableDefaultCmd = true
@@ -51,12 +52,30 @@ func New() *cobra.Command {
 	return root
 }
 
+// notInFolder lists the commands a folder project has no use for, whole groups by their first word.
+var notInFolder = map[string]bool{
+	"sync": true, "promote": true, "deploy": true, "import": true, "template": true, "spec": true, "task": true,
+	"log commit": true, "hook pre-push": true, "hook pre-commit": true, "hook post-commit": true,
+}
+
+func (a *app) refuseInFolder(cmd *cobra.Command, args []string) error {
+	path := strings.TrimPrefix(cmd.CommandPath(), "mem ")
+	group, _, _ := strings.Cut(path, " ")
+	if !notInFolder[path] && !notInFolder[group] {
+		return nil
+	}
+	if p, err := a.project(cmd); err == nil && p.Folder() {
+		return project.ErrFolder
+	}
+	return nil
+}
+
 func (a *app) project(cmd *cobra.Command) (project.Project, error) {
 	return project.Load(cmd.Context(), a.dir)
 }
 
 func (a *app) user(cmd *cobra.Command, p project.Project) (string, error) {
-	return project.User(cmd.Context(), p.Root)
+	return project.User(cmd.Context(), p)
 }
 
 // publish commits and pushes mem-owned paths so teammates see the change, and describes the outcome.
