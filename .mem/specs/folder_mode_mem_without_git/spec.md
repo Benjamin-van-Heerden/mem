@@ -26,7 +26,7 @@ It exists for two projects today, `~/Documents/work` (Yhat Solutions documents, 
 
 **Finding the project.** `project.Load` walks up from the directory to the nearest `.mem/config.toml`. If that config has `mode = "folder"`, its directory is the root and Git is not touched. Otherwise `Load` carries on with `git.Toplevel` exactly as today, so Git projects behave the same.
 
-**Identity.** In folder mode `project.User` takes the slug of the OS account's full name (`os/user`), falling back to the account name. Nothing is read from `git config`.
+**Identity.** `.mem/config.toml` holds a top-level `user`, and in folder mode `project.User` returns its slug. Nothing is read from `git config`. `mem init --folder --user "<name>"` sets it, defaulting to the OS account name. The OS full name is not used: release builds have `CGO_ENABLED=0`, where `os/user` gives no full name, and a name that changed between machines would split the logs of one person.
 
 **Saving records.** Folder-mode commands write the file and stop. `publish`, `commitRecord`, `converge` and the Git hooks are never reached. Stdout must not mention commits, pushes or branches: `todo delete`, `memory set` and `structure` print commit wording today and need folder variants, and instructions must stay grounded in what actually happened.
 
@@ -78,4 +78,11 @@ Recommended in this draft, for the user to confirm:
 
 Out of scope, part of the manual `work` migration: Typst house formats as skills (letterhead, layout, invoice), so that each document is self-contained with no imports, and a change to a skill cannot break past documents.
 
-`.mem/runnables/` must work in iCloud; see the first task.
+iCloud Drive findings, 2026-11-01, on one Mac with Optimize Mac Storage on:
+
+- `.mem/` and `.claude/` upload like any other folder: `brctl evict` removed their files' local copies and reads brought them back.
+- Executable bits survive eviction and download, so runnables and `scripts/build` run as they are. Runnables need no `sh` wrapper.
+- `os.Stat` and a `find` walk leave an evicted file evicted; only reading its content downloads it. The stat-only change scan will not trigger downloads.
+- A symlink stays in place locally. Whether it reaches another device was not tested, so folder projects should keep real files under `.claude/skills/`. Nothing in folder mode creates symlinks.
+- Claude Code run under `~/Library/Mobile Documents/com~apple~CloudDocs/` reads `AGENTS.md` and runs hooks from `.claude/settings.json`; the spaces and tilde in the path cause no trouble.
+- Not tested: a second device, and working offline with evicted files.
