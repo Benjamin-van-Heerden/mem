@@ -16,7 +16,7 @@ import (
 func newProject(t *testing.T, use ...string) *project.Project {
 	t.Helper()
 	root := t.TempDir()
-	agents, err := agentsmd.Install("# Project\n", "1.0.0", false)
+	agents, err := agentsmd.Install("# Project\n", "1.0.0", agentsmd.Staged)
 	if err != nil {
 		t.Fatal(err)
 	}
