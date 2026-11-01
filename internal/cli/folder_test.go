@@ -162,3 +162,59 @@ func TestFolderCompactionDigestStaysOffGit(t *testing.T) {
 		t.Fatalf("hook compact:\n%s", out)
 	}
 }
+
+func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
+	blockGit(t)
+	root := t.TempDir()
+	writeFile(t, root, "clients/acme/invoice.pdf", "pdf")
+	out := mem(t, root, "init", "--folder", "--user", "Test Person", "--name", "work", "--description", "Our documents")
+	if !strings.Contains(out, "folder, no Git") {
+		t.Fatalf("init:\n%s", out)
+	}
+	for _, file := range []string{".mem/config.toml", ".mem/install.md", "AGENTS.md", ".claude/settings.json", ".cursor/hooks.json"} {
+		if _, err := os.Stat(filepath.Join(root, file)); err != nil {
+			t.Errorf("init did not write %s", file)
+		}
+	}
+	for _, file := range []string{".gitignore", ".git"} {
+		if _, err := os.Stat(filepath.Join(root, file)); err == nil {
+			t.Errorf("init should not write %s", file)
+		}
+	}
+	agents, _ := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if !strings.Contains(string(agents), "it has no Git") {
+		t.Fatalf("AGENTS.md has the wrong block:\n%s", agents)
+	}
+
+	writeFile(t, root, ".mem/docs/clients.md", "# Clients\n\nAcme pays late.\n")
+	writeFile(t, root, ".mem/runnables/unbilled", "#!/bin/sh\necho 'Acme: 12 hours unbilled'\n")
+	if err := os.Chmod(filepath.Join(root, ".mem/runnables/unbilled"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue")
+	mem(t, root, "memory", "set", "invoices", "Number invoices in one sequence.")
+	out = mem(t, root, "onboard", "--offline")
+	for _, want := range []string{"MEM ONBOARD: work", "Our documents", "User: test_person", "Acme pays late.", "Acme: 12 hours unbilled", "Chase Acme", "no structure doc yet"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("onboard is missing %q:\n%s", want, out)
+		}
+	}
+	for _, unwanted := range []string{"SHARED CODEBASE", "RELEASES", "OPEN SPECS", "Branch", "commit", "push"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("onboard should not mention %q:\n%s", unwanted, out)
+		}
+	}
+	if again, _ := os.ReadFile(filepath.Join(root, "AGENTS.md")); !strings.Contains(string(again), "Number invoices in one sequence.") {
+		t.Fatal("onboard lost the memory")
+	}
+}
+
+func TestInitFolderRefusesGitFlags(t *testing.T) {
+	root := t.TempDir()
+	if err := memErr(t, root, "init", "--folder", "--template", "web"); err == nil || !strings.Contains(err.Error(), "--template") {
+		t.Fatalf("error = %v", err)
+	}
+	if err := memErr(t, root, "init", "--user", "Someone"); err == nil || !strings.Contains(err.Error(), "--user") {
+		t.Fatalf("error = %v", err)
+	}
+}

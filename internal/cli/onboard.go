@@ -8,14 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/converge"
 	"github.com/Benjamin-van-Heerden/mem/internal/hooks"
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 	"github.com/Benjamin-van-Heerden/mem/internal/release"
-	"github.com/Benjamin-van-Heerden/mem/internal/runnables"
 	"github.com/Benjamin-van-Heerden/mem/internal/structure"
 	"github.com/Benjamin-van-Heerden/mem/internal/work"
 	"github.com/spf13/cobra"
@@ -46,6 +44,9 @@ func (a *app) onboardCommand() *cobra.Command {
 			user, err := a.user(cmd, p)
 			if err != nil {
 				return err
+			}
+			if p.Folder() {
+				return a.onboardFolder(cmd, p, user, updateLine)
 			}
 			before := readKnowledge(p)
 			branchLines, stuck := leaveGuardedBranch(ctx, p)
@@ -126,21 +127,8 @@ func (a *app) onboardCommand() *cobra.Command {
 					fmt.Fprintln(out, line)
 				}
 			}
-			if buf.Len() <= inlineContextLimit {
-				out.Write(buf.Bytes())
-			} else {
-				output.Section(&buf, "🏷️ SESSION TITLE")
-				fmt.Fprintln(&buf, sessionTitleReminder())
-				path := p.Path("local", "onboard.md")
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					return err
-				}
-				if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
-					return err
-				}
-				output.Section(out, "📚 PROJECT CONTEXT")
-				fmt.Fprintf(out, "The project context is %d lines long and was written to %s.\n", bytes.Count(buf.Bytes(), []byte("\n")), p.Rel(path))
-				fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
+			if err := emitContext(out, &buf, p); err != nil {
+				return err
 			}
 			state.baseMissing = baseMissing
 			state.updateWarnings = hasWarning(updates)
@@ -152,6 +140,27 @@ func (a *app) onboardCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&offline, "offline", false, "Skip fetching and syncing with the remote")
 	return cmd
+}
+
+// emitContext prints the context, or writes it to a file and points the agent there when it is too long to print.
+func emitContext(out io.Writer, buf *bytes.Buffer, p project.Project) error {
+	if buf.Len() <= inlineContextLimit {
+		_, err := out.Write(buf.Bytes())
+		return err
+	}
+	output.Section(buf, "🏷️ SESSION TITLE")
+	fmt.Fprintln(buf, sessionTitleReminder())
+	path := p.Path("local", "onboard.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		return err
+	}
+	output.Section(out, "📚 PROJECT CONTEXT")
+	fmt.Fprintf(out, "The project context is %d lines long and was written to %s.\n", bytes.Count(buf.Bytes(), []byte("\n")), p.Rel(path))
+	fmt.Fprintln(out, "You must read that file in full, every line, before doing anything else. A partial read is not enough.")
+	return nil
 }
 
 func renderReport(out io.Writer, r converge.Report, offline bool) {
@@ -222,208 +231,6 @@ func renderReleases(out io.Writer, p project.Project, st release.Status) {
 		if b.outside > 0 {
 			fmt.Fprintf(out, "⚠️ %s/%s has %d commit(s) that are not on %s, so promotion cannot fast-forward it. Tell the user; bring them into %s with `git merge --no-ff --no-edit %s/%s` on %s, then push.\n", g.Remote, b.name, b.outside, g.Development, g.Development, g.Remote, b.name, g.Development)
 		}
-	}
-}
-
-// writeContext renders the structure doc, docs, runnable output and work state.
-func writeContext(ctx context.Context, out io.Writer, p project.Project, user string) (contextState, error) {
-	var state contextState
-	setup, setupNow, err := readSetup(p)
-	if err != nil {
-		return state, err
-	}
-	if state.setup = setupNow; setupNow.present {
-		writeSetupSection(out, setup, setupNow)
-	}
-	if state.drift, err = writeStructure(ctx, out, p); err != nil {
-		return state, err
-	}
-	if err := writeDocs(out, p); err != nil {
-		return state, err
-	}
-	if err := writeRunnables(ctx, out, p); err != nil {
-		return state, err
-	}
-
-	specs, err := work.Specs(p, false)
-	if err != nil {
-		return state, err
-	}
-	var others [][]string
-	for i, s := range specs {
-		if s.Meta.Status == work.SpecActive && s.Meta.AssignedTo == user {
-			if state.active == nil {
-				state.active = &specs[i]
-			}
-			if err := renderSpec(out, p, s); err != nil {
-				return state, err
-			}
-			continue
-		}
-		others = append(others, []string{s.Slug, s.Meta.Status, orDash(s.Meta.AssignedTo), taskProgress(s), s.Meta.Title})
-	}
-	output.Section(out, "📋 OPEN SPECS")
-	if len(others) == 0 {
-		fmt.Fprintln(out, "No other open specs.")
-	} else {
-		table(out, append([][]string{{"SLUG", "STATUS", "ASSIGNED", "TASKS", "TITLE"}}, others...))
-	}
-
-	todos, err := work.Todos(p)
-	if err != nil {
-		return state, err
-	}
-	output.Section(out, "📌 OPEN TODOS")
-	if len(todos) == 0 {
-		fmt.Fprintln(out, "No open todos.")
-	} else {
-		rows := [][]string{{"SLUG", "TITLE", "AGE"}}
-		for _, t := range todos {
-			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created)})
-		}
-		table(out, rows)
-	}
-	state.stale = writeStaleness(ctx, out, p, specs, time.Now())
-
-	logs, err := work.Logs(p)
-	if err != nil {
-		return state, err
-	}
-	output.Section(out, "🧾 WORK LOGS")
-	full, earlier := recentLogs(logs, user, time.Now())
-	if len(full) == 0 {
-		fmt.Fprintln(out, "No work logs yet.")
-		return state, nil
-	}
-	fmt.Fprintln(out, "Work logs record what past sessions did. They are background: open work is in the specs and todos above.")
-	if len(earlier) > 0 {
-		fmt.Fprintln(out, "\nOther recent logs (read one with `mem log show <log>`):")
-		rows := [][]string{{"DATE", "USER", "TITLE", "LOG"}}
-		for _, l := range earlier {
-			rows = append(rows, []string{strings.SplitN(l.Meta.Created, "T", 2)[0], l.Meta.User, l.Heading(), l.Name})
-		}
-		table(out, rows)
-	}
-	for i, l := range full {
-		output.File(out, "🧾 "+l.Name)
-		switch {
-		case l.Meta.User != user:
-			fmt.Fprintf(out, "The latest log, from %s.\n", l.Meta.User)
-		case i == 0:
-			fmt.Fprintln(out, "Your latest log.")
-		default:
-			fmt.Fprintln(out, "An earlier log of yours.")
-		}
-		fmt.Fprintf(out, "Date: %s\nSpec: %s\n\n%s\n", l.Meta.Created, orDash(l.Meta.Spec), strings.TrimSpace(l.Body))
-	}
-	return state, nil
-}
-
-func writeStructure(ctx context.Context, out io.Writer, p project.Project) (structure.Drift, error) {
-	d, err := structure.Measure(ctx, p)
-	if err != nil || d.Missing {
-		return d, err
-	}
-	data, err := os.ReadFile(structure.Path(p))
-	if err != nil {
-		return d, err
-	}
-	output.Heading(out, "🗺️ CODEBASE AND STRUCTURE")
-	if d.Stale() {
-		fmt.Fprintf(out, "⚠️ Out of date: %d code file(s) and %d line(s) changed since this doc was last updated. Refresh it with `mem structure`.\n\n", len(d.Changes), d.Lines)
-	}
-	fmt.Fprintln(out, strings.TrimSpace(string(data)))
-	return d, nil
-}
-
-func writeRunnables(ctx context.Context, out io.Writer, p project.Project) error {
-	results, err := runnables.Run(ctx, p)
-	if err != nil || len(results) == 0 {
-		return err
-	}
-	output.Heading(out, "🏃 RUNNABLES")
-	for _, r := range results {
-		output.File(out, r.Name)
-		if r.Output != "" {
-			fmt.Fprintln(out, r.Output)
-		}
-		if r.Error != "" {
-			fmt.Fprintf(out, "⚠️ %s failed: %s\n", r.Name, r.Error)
-		}
-	}
-	return nil
-}
-
-func writeDocs(out io.Writer, p project.Project) error {
-	paths, err := filepath.Glob(p.Path("docs", "*.md"))
-	if err != nil || len(paths) == 0 {
-		return err
-	}
-	output.Heading(out, "📚 PROJECT DOCS")
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		output.File(out, p.Rel(path))
-		fmt.Fprintln(out, strings.TrimSpace(string(data)))
-	}
-	return nil
-}
-
-const (
-	recentLogDays = 14
-	recentLogMax  = 10
-	fullLogs      = 3
-	fullLogBytes  = 12000
-)
-
-// recentLogs picks the logs to show in full, newest first: the user's latest and, since logs are checkpoints that
-// each cover a stretch of work, up to two more of theirs from the recent days while they fit fullLogBytes; or, when
-// the user has none, the latest log of anyone. It also lists the other logs of the recent days.
-func recentLogs(logs []work.Log, user string, now time.Time) (full, others []work.Log) {
-	if len(logs) == 0 {
-		return nil, nil
-	}
-	cutoff := now.AddDate(0, 0, -recentLogDays).Format(time.RFC3339)
-	shown := map[string]bool{}
-	size := 0
-	for _, l := range logs {
-		if l.Meta.User != user {
-			continue
-		}
-		if len(full) > 0 && (len(full) == fullLogs || l.Meta.Created < cutoff || size+len(l.Body) > fullLogBytes) {
-			break
-		}
-		full = append(full, l)
-		shown[l.Name] = true
-		size += len(l.Body)
-	}
-	if len(full) == 0 {
-		full = logs[:1]
-		shown[logs[0].Name] = true
-	}
-	for _, l := range logs {
-		if !shown[l.Name] && l.Meta.Created >= cutoff && len(others) < recentLogMax {
-			others = append(others, l)
-		}
-	}
-	return full, others
-}
-
-// age describes how long ago an RFC 3339 timestamp was, in days.
-func age(timestamp string) string {
-	t, err := time.Parse(time.RFC3339, timestamp)
-	if err != nil {
-		return "-"
-	}
-	switch days := int(time.Since(t).Hours() / 24); days {
-	case 0:
-		return "today"
-	case 1:
-		return "1 day"
-	default:
-		return fmt.Sprintf("%d days", days)
 	}
 }
 

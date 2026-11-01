@@ -34,7 +34,7 @@ It exists for two projects today, `~/Documents/work` (Yhat Solutions documents, 
 
 | Command | In folder mode |
 |---|---|
-| `init --folder` | Writes `.mem/config.toml`, `.mem/structure.md`, `.mem/install.md`, the instructions block and the agent hooks. No `.gitignore`, no branches, no commit. Cannot be combined with `--template`, `--single-branch` or the branch flags |
+| `init --folder` | Writes `.mem/config.toml`, `.mem/install.md`, the instructions block and the agent hooks. No `.gitignore`, no branches, no commit. Cannot be combined with `--template`, `--single-branch` or the branch flags |
 | `onboard` | Self-update, then the steps below |
 | `memory`, `todo`, `log new`, `log list`, `log show`, `update`, `version`, `hook prompt`, `hook compact`, `hook stop` | Work, without Git |
 | `structure` | Creates the doc when missing, then says the doc is kept by hand. No drift measurement |
@@ -50,7 +50,7 @@ It exists for two projects today, `~/Documents/work` (Yhat Solutions documents, 
 
 ## Success Criteria
 
-- `mem init --folder` in an empty directory with `PATH` holding no `git` succeeds, and `onboard`, `memory set`, `todo new`, `todo delete`, `log new`, `structure` and `hook prompt` all run there and exit 0.
+- `mem init --folder` in an empty directory with no working `git` on `PATH` succeeds, and `onboard`, `memory set`, `todo new`, `todo delete`, `log new`, `structure` and `hook prompt` all run there and exit 0.
 - No folder-mode code path runs `git`: a test puts a failing `git` first on `PATH` and drives those commands.
 - Output of every folder-mode command contains no mention of commits, pushes, branches or releases.
 - Each refused command exits non-zero with the shared one-line error and changes nothing.
