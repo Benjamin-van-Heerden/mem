@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  # Ubuntu is the fastest runner, so it goes first: a broken change fails in under a minute, and the other systems only run on code that passes here.
+  # Ubuntu is the fastest runner, so it goes first: a broken change fails in under a minute, and macOS only runs on code that passes here.
   check:
     runs-on: ubuntu-latest
     steps:
@@ -25,13 +25,9 @@ jobs:
       - name: Build
         run: go build -o dist/ ./cmd/mem
 
-  test:
+  macos:
     needs: check
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5

@@ -92,7 +92,7 @@ dist/                    gitignored local builds, e.g. dist/mem-dev
 
 - `go test ./internal/<pkg>/ -run <Test>` for focused tests; `go vet ./...` before pushing, since it also compiles every test package.
 - Tests that use real Git start from `gittest.Main` in the package's `main_test.go`, which gives the binary one HOME, and call `t.Parallel()` unless they use `t.Setenv`.
-- CI (`.github/workflows/ci.yml`): on pushes to `test` and on pull requests, not on `dev`, `main` or tags, the `check` job runs `go vet ./...`, `go test ./...` and `go build` on ubuntu, and the `test` job runs `go test -parallel 8 ./...` on macos and windows only once `check` has passed.
+- CI (`.github/workflows/ci.yml`): on pushes to `test` and on pull requests, not on `dev`, `main` or tags, the `check` job runs `go vet ./...`, `go test ./...` and `go build` on ubuntu, and the `macos` job runs `go test -parallel 8 ./...` once `check` has passed. `.github/workflows/windows.yml` runs the tests on windows beside it, on the same triggers, and does not hold up a release.
 - Release (`.github/workflows/release.yml`): on pushed tags matching `v[0-9]+.[0-9]+.[0-9]+`, waits for the CI run on the tagged commit and fails if it failed or is missing, then runs GoReleaser. This repository sets `[release] version_tags = true`, so `mem promote production --version vX.Y.Z` makes that tag. Installed release builds pick up a new release at their next onboard.
 - Branches for this repository: `dev` → `test` → `main` with `protect = true`.
 
