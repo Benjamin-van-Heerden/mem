@@ -4,6 +4,7 @@ package structure
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -93,6 +94,10 @@ func Path(p project.Project) string { return filepath.Join(p.Root, RelPath) }
 func Measure(ctx context.Context, p project.Project) (Drift, error) {
 	if _, err := os.Stat(Path(p)); os.IsNotExist(err) {
 		return Drift{Missing: true}, nil
+	}
+	// A folder project keeps the doc by hand: new documents arrive all the time and rarely change the map.
+	if p.Folder() {
+		return Drift{}, nil
 	}
 	if status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", RelPath); status != "" {
 		return Drift{Editing: true}, nil
@@ -236,20 +241,33 @@ func inExcludedDir(file string) bool {
 	return false
 }
 
-// Tree renders the repository's tracked and unignored files as an indented tree.
+// Tree renders the repository's tracked and unignored files, or a folder project's files, as an indented tree.
 func Tree(ctx context.Context, p project.Project) (string, error) {
+	var files []string
+	if p.Folder() {
+		if err := folderFiles(p, func(rel string, _ fs.FileInfo) { files = append(files, rel) }); err != nil {
+			return "", err
+		}
+		return renderTree(files), nil
+	}
 	out, err := git.Run(ctx, p.Root, "ls-files", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return "", err
 	}
-	files := strings.Split(out, "\n")
+	for _, file := range strings.Split(out, "\n") {
+		if file == "" || inExcludedDir(file) || !strings.HasSuffix(file, ".md") && !Relevant(file, project.StructureConfig{}) {
+			continue
+		}
+		files = append(files, file)
+	}
+	return renderTree(files), nil
+}
+
+func renderTree(files []string) string {
 	sort.Strings(files)
 	var lines []string
 	seen := map[string]bool{}
 	for _, file := range files {
-		if file == "" || inExcludedDir(file) || !strings.HasSuffix(file, ".md") && !Relevant(file, project.StructureConfig{}) {
-			continue
-		}
 		parts := strings.Split(file, "/")
 		for depth := range parts {
 			key := strings.Join(parts[:depth+1], "/")
@@ -268,5 +286,5 @@ func Tree(ctx context.Context, p project.Project) (string, error) {
 		omitted := len(lines) - maxTreeEntries
 		lines = append(lines[:maxTreeEntries], "... "+strconv.Itoa(omitted)+" more entries")
 	}
-	return strings.Join(lines, "\n"), nil
+	return strings.Join(lines, "\n")
 }

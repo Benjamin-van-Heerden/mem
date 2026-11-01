@@ -196,6 +196,10 @@ func keyFiles(files []LogFile) string {
 			fmt.Fprintf(&b, "- … and %d more\n", len(files)-i)
 			break
 		}
+		if f.Lines == 0 {
+			fmt.Fprintf(&b, "- `%s`\n", f.Path)
+			continue
+		}
 		fmt.Fprintf(&b, "- `%s` (%d lines)\n", f.Path, f.Lines)
 	}
 	return b.String() + "\n" + listedFilesPlaceholder

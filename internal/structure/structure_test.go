@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -105,5 +106,62 @@ func TestRelevantAppliesIncludeAndIgnorePatterns(t *testing.T) {
 	}
 	if Relevant("docs/guide.md", project.StructureConfig{}) {
 		t.Error("Markdown counts as work without an include pattern")
+	}
+}
+
+func TestChangedSinceCountsDocumentsAndSkipsWhatIsNotWork(t *testing.T) {
+	root := t.TempDir()
+	p := project.Project{Root: root, Config: project.Config{Mode: project.ModeFolder, Structure: project.StructureConfig{Ignore: []string{"_generated/**", "*.tmp"}}}}
+	baseline := time.Now().Add(-time.Hour)
+	for file, modified := range map[string]time.Time{
+		"clients/acme/invoice.pdf": baseline.Add(time.Minute),
+		"notes.md":                 baseline.Add(2 * time.Minute),
+		"old.md":                   baseline.Add(-time.Minute),
+		"AGENTS.md":                baseline.Add(time.Minute),
+		"_generated/invoice.pdf":   baseline.Add(time.Minute),
+		"scratch.tmp":              baseline.Add(time.Minute),
+		".mem/logs/log.md":         baseline.Add(time.Minute),
+		".claude/settings.json":    baseline.Add(time.Minute),
+		".DS_Store":                baseline.Add(time.Minute),
+	} {
+		path := filepath.Join(root, file)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, modified, modified); err != nil {
+			t.Fatal(err)
+		}
+	}
+	changes, err := ChangedSince(p, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 2 || changes[0].Path != "notes.md" || changes[1].Path != "clients/acme/invoice.pdf" {
+		t.Fatalf("ChangedSince = %+v", changes)
+	}
+}
+
+func TestTreeOfAFolderProjectNeedsNoGit(t *testing.T) {
+	root := t.TempDir()
+	p := project.Project{Root: root, Config: project.Config{Mode: project.ModeFolder}}
+	for _, file := range []string{"clients/acme/invoice.pdf", ".mem/config.toml", "notes.md"} {
+		path := filepath.Join(root, file)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", t.TempDir())
+	tree, err := Tree(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "clients/\n  acme/\n    invoice.pdf\nnotes.md"; tree != want {
+		t.Fatalf("Tree =\n%s", tree)
 	}
 }

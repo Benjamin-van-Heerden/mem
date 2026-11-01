@@ -34,6 +34,12 @@ func (a *app) compactHookCommand() *cobra.Command {
 				return nil
 			}
 			out := cmd.OutOrStdout()
+			if p, err := a.project(cmd); err == nil && p.Folder() {
+				user, _ := a.user(cmd, p)
+				since, _ := workSince(cmd, p, user)
+				writeFolderDigest(out, since)
+				return nil
+			}
 			c, err := a.catchUp(cmd)
 			if err != nil {
 				// Never disturb compaction; a failed catch-up is one line of context.
@@ -137,6 +143,20 @@ func writeDigest(out io.Writer, c catchUp, user string, since checkpoint.Work) {
 	}
 	if hasTemplateTodo(c.templates) {
 		lines = append(lines, "Tell the user about each 📌 item above at the next natural stopping point: its todo asks for the existing code to be checked against a new template convention, or changed as a template change note describes.")
+	}
+	output.Instruction(out, strings.Join(lines, " "))
+}
+
+// writeFolderDigest is the digest for a folder project, where there is nothing to bring up to date.
+func writeFolderDigest(out io.Writer, since checkpoint.Work) {
+	output.Section(out, "🔄 MEM AFTER COMPACTION")
+	fmt.Fprintln(out, "The compaction summary holds this session's progress.")
+	if since.Files > 0 {
+		fmt.Fprintln(out, "Work log: "+checkpoint.MidTurnLine(since))
+	}
+	lines := []string{"Continue with the work in progress from the compaction summary.", retitleSession()}
+	if since.Level() == checkpoint.Due {
+		lines = append(lines, "Write a work log for the work since your last one at the next natural stopping point (`mem log new`), while the compaction summary still holds it.")
 	}
 	output.Instruction(out, strings.Join(lines, " "))
 }

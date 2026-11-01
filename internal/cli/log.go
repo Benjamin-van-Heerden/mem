@@ -51,8 +51,13 @@ func (a *app) logNew() *cobra.Command {
 			} else if ok {
 				spec = s.Slug
 			}
-			// A log is still worth writing when Git cannot say what it covers, such as in a repository without commits.
-			cov, _ := checkpoint.Cover(cmd.Context(), p.Root, user, git.UserEmail(cmd.Context(), p.Root))
+			// A log is still worth writing when mem cannot say what it covers, such as in a repository without commits.
+			var cov checkpoint.Covered
+			if p.Folder() {
+				cov.Files, _ = checkpoint.FolderCover(p, user)
+			} else {
+				cov, _ = checkpoint.Cover(cmd.Context(), p.Root, user, git.UserEmail(cmd.Context(), p.Root))
+			}
 			var files []work.LogFile
 			for _, f := range cov.Files {
 				files = append(files, work.LogFile{Path: f.Path, Lines: f.Lines})
@@ -81,7 +86,11 @@ func (a *app) logNew() *cobra.Command {
 			}
 			var lines []string
 			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }
-			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried, as things stand. Leave out the sections marked as optional when they have nothing to say. Key Files Affected already lists the files your commits since your last log and the uncommitted changes touched, from Git. The log is not updated later, so do not list future work in it.", p.Rel(l.Path)))
+			listed := "the files your commits since your last log and the uncommitted changes touched, from Git"
+			if p.Folder() {
+				listed = "the files changed since your last log, from their timestamps"
+			}
+			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried, as things stand. Leave out the sections marked as optional when they have nothing to say. Key Files Affected already lists %s. The log is not updated later, so do not list future work in it.", p.Rel(l.Path), listed))
 			step("If this work completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
 			switch {
 			case drift.Stale():
@@ -90,6 +99,11 @@ func (a *app) logNew() *cobra.Command {
 				step("There is no codebase structure doc yet. Offer the user to create one with `mem structure`.")
 			}
 			step(retitleSession())
+			if p.Folder() {
+				step("That is all: saving the file finishes the log. Carry on with the work.")
+				output.Instruction(out, lines...)
+				return nil
+			}
 			step("Run `mem log commit <path>...`, naming the .mem/ records you changed for this log, such as the todos you added or deleted and `.mem/structure.md` (`mem log commit` alone when there are none): it commits them with the log, syncs with the shared codebase and pushes. Other sessions' records stay out.")
 			output.Instruction(out, lines...)
 			driftNudges(cmd.Context(), out, p)

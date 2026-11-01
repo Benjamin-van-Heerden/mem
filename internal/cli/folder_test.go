@@ -5,8 +5,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
 )
@@ -97,5 +99,66 @@ func TestFolderProjectAttributesWorkToItsConfiguredUser(t *testing.T) {
 	}
 	if user, err := project.User(t.Context(), p); err != nil || user != "test_person" {
 		t.Fatalf("User = %q, %v", user, err)
+	}
+}
+
+func TestFolderWorkLogNudgeFollowsChangedFiles(t *testing.T) {
+	root := folderProject(t)
+	past := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(filepath.Join(root, ".mem", "config.toml"), past, past); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "_generated/invoice.pdf", "built")
+	writeFile(t, root, ".claude/settings.json", "{}")
+	writeFile(t, root, "AGENTS.md", "instructions")
+	touched := past.Add(time.Hour)
+	for i := range 20 {
+		name := "clients/acme/doc" + strconv.Itoa(i) + ".md"
+		if i%2 == 0 {
+			name = "clients/acme/doc" + strconv.Itoa(i) + ".pdf"
+		}
+		writeFile(t, root, name, "content")
+		if err := os.Chtimes(filepath.Join(root, name), touched, touched); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, root, ".mem/config.toml", "schema = 2\nname = 'work'\nmode = 'folder'\nuser = 'Test Person'\n[structure]\nignore = ['_generated/**']\n")
+	if err := os.Chtimes(filepath.Join(root, ".mem", "config.toml"), past, past); err != nil {
+		t.Fatal(err)
+	}
+
+	out := mem(t, root, "hook", "prompt")
+	if !strings.Contains(out, "20 files changed since your last work log. A work log is due") || !strings.Contains(out, "(`mem log new`)") {
+		t.Fatalf("hook prompt:\n%s", out)
+	}
+	if strings.Contains(out, "mem log commit") {
+		t.Fatalf("a folder nudge should not ask for a commit:\n%s", out)
+	}
+
+	created := mem(t, root, "log", "new")
+	logs, err := filepath.Glob(filepath.Join(root, ".mem", "logs", "test_person_*.md"))
+	if err != nil || len(logs) != 1 {
+		t.Fatalf("logs = %v, %v\n%s", logs, err, created)
+	}
+	log, err := os.ReadFile(logs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(log), "- `clients/acme/doc0.pdf`\n") || strings.Contains(string(log), "lines)") || strings.Contains(string(log), "_generated") {
+		t.Fatalf("log files:\n%s", log)
+	}
+	if strings.Contains(created, "mem log commit") {
+		t.Fatalf("log new should not ask for a commit:\n%s", created)
+	}
+	if out := mem(t, root, "hook", "prompt"); out != "" {
+		t.Fatalf("a new log should clear the nudge:\n%s", out)
+	}
+}
+
+func TestFolderCompactionDigestStaysOffGit(t *testing.T) {
+	root := folderProject(t)
+	out := mem(t, root, "hook", "compact")
+	if !strings.Contains(out, "MEM AFTER COMPACTION") || strings.Contains(out, "Branch") || strings.Contains(out, "sync") {
+		t.Fatalf("hook compact:\n%s", out)
 	}
 }

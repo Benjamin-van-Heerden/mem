@@ -78,7 +78,7 @@ func (a *app) hookCommand() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			w, err := checkpoint.Since(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root))
+			w, err := workSince(cmd, p, user)
 			if line := checkpoint.TurnStartLine(w); err == nil && line != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), "mem: "+line)
 			}
@@ -110,6 +110,14 @@ func (a *app) hookCommand() *cobra.Command {
 	return cmd
 }
 
+// workSince measures the work since the last checkpoint, from commits or, in a folder project, from file times.
+func workSince(cmd *cobra.Command, p project.Project, user string) (checkpoint.Work, error) {
+	if p.Folder() {
+		return checkpoint.FolderSince(p, user)
+	}
+	return checkpoint.Since(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root))
+}
+
 // underCursor reports whether Cursor runs this hook. Cursor also runs the Claude Code hooks in .claude/settings.json,
 // but it rejects their plain-text output and may fire the compaction entry at every session start, so they step
 // aside. CLAUDE_PROJECT_DIR cannot tell the agents apart: Cursor sets it too.
@@ -139,7 +147,7 @@ func (a *app) stopFollowUp(cmd *cobra.Command) string {
 	if err != nil {
 		return ""
 	}
-	w, err := checkpoint.Since(cmd.Context(), p, user, git.UserEmail(cmd.Context(), p.Root))
+	w, err := workSince(cmd, p, user)
 	if err != nil {
 		return ""
 	}

@@ -144,6 +144,8 @@ type Work struct {
 	Commits, Files, Lines int
 	// LatestIsWork reports whether the newest commit is one of the user's work commits.
 	LatestIsWork bool
+	// Folder marks work measured in a folder project, which has only Files to report and logs with no commit step.
+	Folder bool
 }
 
 // Level is how strongly the work since the last checkpoint calls for a work log.
@@ -269,7 +271,18 @@ func anyCheckpoint(commits []commit, user, email string) bool {
 // Summary describes the work in one clause, such as "3 commits, 12 files and 640 lines of work since your last work
 // log or completed task".
 func (w Work) Summary() string {
+	if w.Folder {
+		return plural(w.Files, "file") + " changed since your last work log"
+	}
 	return fmt.Sprintf("%s, %s and %s of work since your last work log or completed task", plural(w.Commits, "commit"), plural(w.Files, "file"), plural(w.Lines, "line"))
+}
+
+// logSteps names the commands that write a log, for the lines that spell them out.
+func (w Work) logSteps() string {
+	if w.Folder {
+		return "`mem log new`"
+	}
+	return "`mem log new`, then `mem log commit`"
 }
 
 func plural(n int, noun string) string {
@@ -298,7 +311,7 @@ func MidTurnLine(w Work) string {
 func TurnStartLine(w Work) string {
 	switch w.Level() {
 	case Due:
-		return w.Summary() + ". A work log is due: write one before taking up substantial new work (`mem log new`, then `mem log commit`); if you are in the middle of a change, finish it first. Answer a quick question first, and if the user asked you to stop, stop. Writing a log does not end your turn: continue with the user's request afterwards."
+		return w.Summary() + ". A work log is due: write one before taking up substantial new work (" + w.logSteps() + "); if you are in the middle of a change, finish it first. Answer a quick question first, and if the user asked you to stop, stop. Writing a log does not end your turn: continue with the user's request afterwards."
 	case Suggested:
 		return w.Summary() + ". Write a work log at the next natural stopping point in this turn (`mem log new`). " + carryOn
 	}
@@ -312,7 +325,7 @@ func TurnEndLine(w Work) string {
 	if w.Level() != Due {
 		return ""
 	}
-	return "This is an automatic follow-up from mem, not a message from the user. " + w.Summary() + ", and a work log is due. If your last turn finished a piece of work, write the log now (`mem log new`, then `mem log commit`) and then end your turn. If it ended with a question for the user or in the middle of a change, do not write it yet: say in one line that a work log is due and end your turn. Do not start other work."
+	return "This is an automatic follow-up from mem, not a message from the user. " + w.Summary() + ", and a work log is due. If your last turn finished a piece of work, write the log now (" + w.logSteps() + ") and then end your turn. If it ended with a question for the user or in the middle of a change, do not write it yet: say in one line that a work log is due and end your turn. Do not start other work."
 }
 
 // CommitLines are the nudges after a commit, from local state only: the work-log count after each of the user's
