@@ -51,8 +51,8 @@ func (a *app) structureCommand() *cobra.Command {
 				output.Instruction(out,
 					fmt.Sprintf("Look through this folder and replace every placeholder in %s. It is a factual map that every future session reads at onboard.", structure.RelPath),
 					"",
-					"1. Orient yourself with the file tree above. Read what explains the folder: any README, the scripts, and a sample of the documents in each area. Do not read everything.",
-					"2. Write the doc. Use actual paths and names, and only state what you confirmed. Omit sections that do not apply, and keep it short.",
+					"1. Orient yourself with the file tree above. Read what explains the folder: any README, the scripts, the memories in AGENTS.md, and a sample of the documents in each area. Do not read everything. Filing and naming rules are often already written down in those.",
+					"2. Write the doc. Describe patterns rather than an inventory: nothing checks this doc for drift, so leave out anything that changes as documents come and go. Live state belongs in a runnable, and the current position in todos and logs. Only state what you confirmed, omit sections that do not apply, and keep it short.",
 					"3. Show the user what you wrote and ask whether it is accurate.",
 				)
 			case d.Missing:

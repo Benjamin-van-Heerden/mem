@@ -259,7 +259,7 @@ func TestFolderCommandsNeverTalkAboutGit(t *testing.T) {
 		}
 	}
 	doc, err := os.ReadFile(filepath.Join(root, ".mem", "structure.md"))
-	if err != nil || !strings.Contains(string(doc), "# Folder Structure") {
+	if err != nil || !strings.Contains(string(doc), "## Where Things Go") || !strings.Contains(string(doc), "## Sources of Truth") {
 		t.Fatalf("structure doc: %v\n%s", err, doc)
 	}
 }

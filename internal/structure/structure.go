@@ -56,23 +56,24 @@ const Template = `# Codebase and Structure
 {Describe patterns that would help an agent or developer make fitting changes in this codebase. Only include patterns confirmed from the code.}
 `
 
-// FolderTemplate is the structure doc of a folder project, which holds documents and records rather than a codebase.
+// FolderTemplate is the structure doc of a folder project. Nothing measures its drift, so it holds what stays true as
+// documents come and go: patterns and filing rules, not an inventory.
 const FolderTemplate = `# Folder Structure
 
 ## Overview
 {What this folder is for, in a few factual sentences.}
 
 ## Layout
-{Annotated tree of the top-level and important nested folders: what lives in each, and which hold originals, working files and generated output. Do not list every file.}
+{The folder patterns and what each holds. Describe patterns such as clients/<client>/invoices/, not current contents, and keep it to what stays true as documents come and go.}
 
-## Key Documents and Records
-{The documents or records work usually starts from or feeds into, and where the current state of things is kept.}
+## Where Things Go
+{Where a new document of each kind belongs, and how it is named and numbered.}
+
+## Sources of Truth
+{Which files are authoritative, which are originals or evidence, which are working copies or generated output, and where the current position is kept. Point to these; do not repeat what they say.}
 
 ## Tools and Commands
 {Scripts and commands used here, and how to run them. Omit this section if there are none.}
-
-## Conventions
-{Naming, numbering and layout patterns confirmed from the files.}
 `
 
 var (

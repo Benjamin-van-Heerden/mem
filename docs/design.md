@@ -223,6 +223,6 @@ A folder project is a plain folder of documents and records, kept in cloud stora
 - **Skills** hold reusable formats. mem reads them from `.claude/skills` and `.agents/skills` and installs none. Real files, not links.
 - **Onboard** applies updates and prints the structure doc, docs, runnables, todos and logs. Nothing syncs: the storage has already brought the files.
 - **Work-log nudges** count the files changed since the newest log, by timestamp, from 10 (suggested) and 20 (due). The walk only stats files, so it never makes cloud storage download one, and it counts everything except dot-paths, the agent instructions and `[structure] ignore` patterns: PDFs and Markdown are the work here.
-- **The structure doc** is kept by hand. New documents arrive constantly and rarely change the map, so mem measures no drift.
+- **The structure doc** is kept by hand. New documents arrive constantly and rarely change the map, so mem measures no drift. For the same reason its template asks for what stays true as documents come and go: folder patterns, where new documents go, and which files are the sources of truth, not an inventory.
 - **Refused:** `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task`, `log commit` and the Git hooks, with one shared line.
 - **No templates and no migration.** Folder projects are too specific for shared templates, and moving one in is done by hand.
