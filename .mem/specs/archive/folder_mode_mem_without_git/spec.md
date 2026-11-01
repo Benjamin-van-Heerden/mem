@@ -1,9 +1,10 @@
 ---
 title: 'Folder mode: mem without Git'
-status: active
+status: completed
 assigned_to: benjamin_van_heerden
 created_at: "2026-11-01T14:51:36+02:00"
-updated_at: "2026-11-01T14:55:42+02:00"
+updated_at: "2026-11-01T15:13:11+02:00"
+completed_at: "2026-11-01T15:13:11+02:00"
 ---
 
 ## Overview
