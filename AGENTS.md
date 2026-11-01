@@ -273,7 +273,8 @@ This is the source repository for mem, and mem itself manages it: the installed 
 - Run development commands through `go run ./cmd/mem` or a build at `dist/mem-dev`.
 - `mem` on PATH is the globally installed runtime. It does not necessarily execute the source being edited. There are no project-local runtime launchers in new projects.
 - Test initialization, bootstrap, and upgrades in disposable Git repositories. Do not initialize or update this source checkout as a side effect of testing.
-- Runtime assets are authored in `internal/agentsmd/instructions.md`. Never edit installed copies to implement source changes.
+- Runtime assets are authored in `internal/agentsmd/instructions.md`, and in `instructions_folder.md` for folder projects. Never edit installed copies to implement source changes.
+- Folder projects (`mode = "folder"`) are plain folders with no Git. Nothing they reach may run `git`, and their stdout never mentions commits, pushes, branches or releases; `internal/cli/folder_test.go` holds both to that. Test them in disposable folders.
 - `old/` is legacy reference material. Do not execute its onboarding or update commands.
 - Design for solo developers and small teams in frequent contact. Drive convergence toward one shared codebase: surface branch drift early and guide timely synchronization while preserving uncommitted work. Use ordinary Git for sharing and conflicts; do not introduce a separate coordination or version-control system.
 - Expose specs, tasks and todos directly through their own commands, accepting IDs or unambiguous names. Do not introduce a public umbrella work primitive.

@@ -4,7 +4,7 @@ Target design for the Go rewrite. Where the implementation differs, [status](sta
 
 ## Purpose
 
-mem automates context building for coding agents and standardizes how work is done in a repository. It is one executable on PATH; each repository carries its own state in `.mem/` and `AGENTS.md`.
+mem automates context building for coding agents and standardizes how work is done in a repository. It is one executable on PATH; each repository carries its own state in `.mem/` and `AGENTS.md`. The rest of this document describes Git projects, except for [Folder projects](#folder-projects), plain folders that use mem without Git.
 
 Audience: solo developers and small teams in daily contact. mem guides and nudges; it does not police every eventuality or make deliberate actions difficult.
 
@@ -14,7 +14,7 @@ Audience: solo developers and small teams in daily contact. mem guides and nudge
 - **Onboard builds context.** One command syncs, applies updates and produces everything an agent needs to start working.
 - **Stdout directs the agent.** Clear headings, concrete commands, state-specific instructions. No disclaimers, no generic footers, no commands that do not exist.
 - **Agents act autonomously within the user's request.** No approval flags or per-task confirmation loops.
-- **Plain files, ordinary Git.** Markdown with YAML frontmatter, readable slugs, no locks, no databases, no GitHub issue mirroring.
+- **Plain files, ordinary Git.** Markdown with YAML frontmatter, readable slugs, no locks, no databases, no GitHub issue mirroring. A folder project keeps the plain files and leaves Git out altogether; mem never replaces it with sync, history or backups of its own.
 
 ## Repository layout
 
@@ -212,3 +212,16 @@ Framework guides belong in templates as skills rather than docs: docs are printe
 ## Import
 
 `mem import agent-core` converts a Python coding-harness project: config, memories, docs, specs and tasks, todos, logs and its structure doc map almost directly onto this layout. Logs get a `# Work Log - <title>` heading where the harness wrote a plain title line or none, and lose their "What Comes Next" sections, which would otherwise present long-finished work as pending; the import prints the newest one so the agent can review it with the user and record what is still open as todos. Records keep their GitHub issue links, and the harness's GitHub usernames become mem identities through its `user_mappings.toml`, in logs as in specs and todos. The `coding_general.md` and `coding_testing.md` docs of earlier harness versions are left out; the general principles in the mem block replace them. The original `.agent_core/` is left in place for the user to remove, along with references to it in docs and scripts; the import's instructions cover both. Release notes leave out imported records, since their timestamps predate the release range.
+
+## Folder projects
+
+A folder project is a plain folder of documents and records, kept in cloud storage such as iCloud Drive, with no Git at all. It is for work that is not software, where Git only gets in the way. `mem init --folder` sets one up, and `mode = "folder"` with a `user` in `.mem/config.toml` marks it; the mode is never inferred from a missing `.git`, and a folder config with `[git]`, `[release]` or `[templates]` is rejected. mem finds the project by walking up to `.mem/config.toml`, and never runs `git`.
+
+- **Instructions.** A managed block of its own (`internal/agentsmd/instructions_folder.md`), written for document work with occasional scripts. It keeps the conduct of the general guidelines and leaves out Git, release, testing and module-structure rules.
+- **Records.** Memories, todos and work logs work as in a Git project, and saving a file is all it takes. `log new` has no `log commit` step. Specs and tasks are left out: todos and logs cover this kind of work.
+- **Skills** hold reusable formats. mem reads them from `.claude/skills` and `.agents/skills` and installs none. Real files, not links.
+- **Onboard** applies updates and prints the structure doc, docs, runnables, todos and logs. Nothing syncs: the storage has already brought the files.
+- **Work-log nudges** count the files changed since the user's newest log, by timestamp, from 10 (suggested) and 20 (due). The walk only stats files, so it never makes cloud storage download one, and it counts everything except dot-paths, the agent instructions and `[structure] ignore` patterns: PDFs and Markdown are the work here.
+- **The structure doc** is kept by hand. New documents arrive constantly and rarely change the map, so mem measures no drift.
+- **Refused:** `sync`, `promote`, `deploy`, `import`, `template`, `spec`, `task`, `log commit` and the Git hooks, with one shared line.
+- **No templates and no migration.** Folder projects are too specific for shared templates, and moving one in is done by hand.
