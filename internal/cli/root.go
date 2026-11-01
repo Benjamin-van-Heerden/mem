@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/Benjamin-van-Heerden/mem/internal/agentsmd"
 	"github.com/Benjamin-van-Heerden/mem/internal/buildinfo"
 	"github.com/Benjamin-van-Heerden/mem/internal/git"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
@@ -68,6 +69,17 @@ func (a *app) refuseInFolder(cmd *cobra.Command, args []string) error {
 		return project.ErrFolder
 	}
 	return nil
+}
+
+// instructionKind picks the managed instructions for a project.
+func instructionKind(c project.Config) agentsmd.Kind {
+	switch {
+	case c.Folder():
+		return agentsmd.Folder
+	case c.Git.SingleBranch:
+		return agentsmd.SingleBranch
+	}
+	return agentsmd.Staged
 }
 
 func (a *app) project(cmd *cobra.Command) (project.Project, error) {

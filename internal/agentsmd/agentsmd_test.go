@@ -6,7 +6,7 @@ import (
 )
 
 func TestInstallAndRefreshPreserveUserContentAndMemories(t *testing.T) {
-	text, err := Install("# My project\n\nUser notes.\n", "1.2.0", false)
+	text, err := Install("# My project\n\nUser notes.\n", "1.2.0", Staged)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -15,7 +15,7 @@ func TestInstallAndRefreshPreserveUserContentAndMemories(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale := strings.Replace(text, "# Working With mem", "# Edited by hand", 1)
-	refreshed, newer, err := Refresh(stale, "1.2.0", false)
+	refreshed, newer, err := Refresh(stale, "1.2.0", Staged)
 	if err != nil || newer != "" {
 		t.Fatalf("refresh newer=%q err=%v", newer, err)
 	}
@@ -29,25 +29,25 @@ func TestInstallAndRefreshPreserveUserContentAndMemories(t *testing.T) {
 	if err != nil || len(memories) != 1 || memories[0].Body != "Use the project logger.\n\n### Detail\nNever print." {
 		t.Fatalf("memories after refresh = %#v, %v", memories, err)
 	}
-	if again, _, _ := Refresh(refreshed, "1.2.0", false); again != refreshed {
+	if again, _, _ := Refresh(refreshed, "1.2.0", Staged); again != refreshed {
 		t.Fatal("refreshing current instructions changed the file")
 	}
 }
 
 func TestRefreshLeavesBlockFromNewerVersion(t *testing.T) {
-	text, _ := Install("", "1.10.0", false)
-	updated, newer, err := Refresh(text, "1.9.3", false)
+	text, _ := Install("", "1.10.0", Staged)
+	updated, newer, err := Refresh(text, "1.9.3", Staged)
 	if err != nil || newer != "1.10.0" || updated != text {
 		t.Fatalf("newer=%q err=%v changed=%v", newer, err, updated != text)
 	}
-	if updated, newer, _ := Refresh(text, "dev", false); newer != "" || !strings.Contains(updated, "Managed by mem dev.") {
+	if updated, newer, _ := Refresh(text, "dev", Staged); newer != "" || !strings.Contains(updated, "Managed by mem dev.") {
 		t.Fatal("a development build did not refresh the block")
 	}
 }
 
 func TestReplaceLegacyDropsEveryHarnessBlock(t *testing.T) {
 	text := "<AGENT_CORE>\nnewer harness\n</AGENT_CORE>\n\n<core_instructions>\nolder harness\n</core_instructions>\n\n## UV\n\nKeep this.\n"
-	updated, err := ReplaceLegacy(text, "1.2.0", false)
+	updated, err := ReplaceLegacy(text, "1.2.0", Staged)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestReplaceLegacyDropsEveryHarnessBlock(t *testing.T) {
 }
 
 func TestSetMemoryReplacesByNameAndRemoveDeletesOnlyThatMemory(t *testing.T) {
-	text, _ := Install("", "1.0.0", false)
+	text, _ := Install("", "1.0.0", Staged)
 	text, _ = SetMemory(text, "a", "first")
 	text, _ = SetMemory(text, "b", "second")
 	text, _ = SetMemory(text, "a", "replaced")
@@ -78,11 +78,11 @@ func TestSetMemoryReplacesByNameAndRemoveDeletesOnlyThatMemory(t *testing.T) {
 }
 
 func TestTagMentionsInUserContentDoNotBreakTheBlocks(t *testing.T) {
-	text, err := Install("# Notes\n\nThe `<mem>` block and the <memories> section are managed by mem.\n", "1.0.0", false)
+	text, err := Install("# Notes\n\nThe `<mem>` block and the <memories> section are managed by mem.\n", "1.0.0", Staged)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := Refresh(text, "1.0.0", false); err != nil {
+	if _, _, err := Refresh(text, "1.0.0", Staged); err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
 	if _, err := SetMemory(text, "a", "first"); err != nil {
@@ -91,7 +91,7 @@ func TestTagMentionsInUserContentDoNotBreakTheBlocks(t *testing.T) {
 }
 
 func TestSingleBranchInstructionsLeaveOutReleasesAndRenumberTheRules(t *testing.T) {
-	staged, single := render(false), render(true)
+	staged, single := render(Staged), render(SingleBranch)
 	for _, text := range []string{staged, single} {
 		if strings.Contains(text, "{{") {
 			t.Fatalf("template syntax left in the instructions:\n%s", text)
@@ -115,12 +115,42 @@ func TestSingleBranchInstructionsLeaveOutReleasesAndRenumberTheRules(t *testing.
 }
 
 func TestRefreshSwitchesTheInstructionsWhenTheModeChanges(t *testing.T) {
-	text, _ := Install("", "1.0.0", false)
-	single, _, err := Refresh(text, "1.0.0", true)
+	text, _ := Install("", "1.0.0", Staged)
+	single, _, err := Refresh(text, "1.0.0", SingleBranch)
 	if err != nil || !strings.Contains(single, "This project has a single branch") || strings.Contains(single, "mem promote") {
 		t.Fatalf("refreshed for single branch (%v):\n%s", err, single)
 	}
-	if back, _, _ := Refresh(single, "1.0.0", false); back != text {
+	if back, _, _ := Refresh(single, "1.0.0", Staged); back != text {
 		t.Fatal("refreshing back to staged did not restore the staged instructions")
+	}
+}
+
+func TestFolderProjectsGetTheirOwnInstructions(t *testing.T) {
+	text, err := Install("# Notes\n\nOur own notes.\n", "1.0.0", Folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Managed by mem 1.0.0.", "It is not a software project and it has no Git", "`mem log new`", "</mem>"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("folder block is missing %q", want)
+		}
+	}
+	for _, unwanted := range []string{"`mem sync`", "`mem promote", "`mem spec", "`mem task", "`mem log commit", "`mem template", "Testing Philosophy", "pull request\n"} {
+		if strings.Contains(text, unwanted) {
+			t.Errorf("folder block should not mention %q", unwanted)
+		}
+	}
+	remembered, err := SetMemory(text, "invoices", "Number invoices in one sequence.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refreshed, _, err := Refresh(remembered, "1.1.0", Folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kept := range []string{"Number invoices in one sequence.", "Our own notes.", "Managed by mem 1.1.0."} {
+		if !strings.Contains(refreshed, kept) {
+			t.Errorf("refresh lost %q", kept)
+		}
 	}
 }

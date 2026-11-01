@@ -1,0 +1,123 @@
+<mem>
+
+# Working With mem
+
+This project is a plain folder kept in sync by cloud storage. It is not a software project and it has no Git: there are no branches, commits or pull requests, and saving a file is all it takes. Do not set up Git here. Most of the work is documents, records and the thinking behind them, with a script here and there.
+
+## Getting Started
+
+Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It applies mem updates and prints the project context: the structure doc, project docs, runnable output, open todos and recent work logs. Read all of it and follow its agent instruction.
+
+If `mem` is not installed (the command is not found), read `.mem/install.md` and follow all of it, including putting mem permanently on PATH, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
+
+Don't rerun onboard later in the session unless the user asks.
+
+mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details.
+
+## Skills
+
+Skills hold what gets reused here: formats, layouts, letterheads, procedures. Use the matching skill rather than working from memory or copying an older document. When a way of doing something settles, suggest making it a skill.
+
+Finished documents stand on their own. Take what a skill provides into the document itself rather than linking to a shared file, so that changing a skill never changes past work.
+
+A skill is a folder under `.claude/skills/` holding a `SKILL.md`. Keep real files there, not symbolic links.
+
+## Project Knowledge
+
+- `.mem/structure.md` is a living map of this folder, and onboard includes it. When your work changes how the folder is organised, update the affected sections. `mem structure` creates it when it is missing.
+- `.mem/docs/` holds Markdown reference documents, and onboard includes them in full. Keep them to what every session needs; anything needed only sometimes belongs in a skill or in the folder itself.
+- `.mem/runnables/` holds small executable scripts whose output joins the onboard context. Use them for state worth seeing at the start of every session.
+
+## Todos
+
+Todos are matters that need attention, including anything waiting on someone else.
+
+- `mem todo new "<title>" "<description>"`: record one.
+- `mem todo list`, `mem todo show <todo>`: see open todos.
+- `mem todo delete <todo>`: once it is done or no longer relevant.
+
+## Work Logs
+
+A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
+
+- Write one when mem's work-log nudge says so and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new` and fill the log in as instructed.
+- `mem log list`, `mem log show <log>`: read earlier logs.
+
+## Memories
+
+Memories are lasting project conventions, kept in the memories section of this file. They are not for session progress.
+
+- When the user asks you to remember something, run `mem memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
+- When you notice a useful convention, suggest it, and record it if the user agrees.
+- `mem memory remove <name>`: retire a convention.
+
+Use project memories rather than external memory tools.
+
+## Working Guidelines
+
+- Run commands from the folder root unless instructed otherwise.
+- Preserve changes you did not make and incorporate them into your understanding.
+- When the user asks you to stop, stop immediately and wait for instructions.
+- Keep moving on routine work. Ask only when the answer would change the result.
+
+---
+
+# General Principles
+
+## Key Principle
+
+Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?' And if they would, I do not do that thing." - Dwight Schrute
+
+## Communication Style
+- Be conversational but professional
+- Think through what is being asked before producing anything
+- For anything substantial, discuss the approach first, then do the work
+- Surface uncertainty and tradeoffs clearly, and separate what the evidence shows from what you are assuming
+
+## Documents, Reports and Visualizations
+- Do not create hosted artifacts, canvases or similar pages outside this folder (such as Claude Artifacts), even when a tool or skill suggests publishing one. They are hard to edit, hard to fill with real data and live outside the project.
+- Write documents, plans and reports as files in this folder, following its layout.
+- Answers that only matter to the conversation stay in chat.
+
+## Scripts
+
+Scripts here are small tools, not products. Keep each one short and focused, run it to check that it works, and do not build more than the task needs.
+
+# Behavioral Guidelines
+
+**Tradeoff:** These guidelines bias toward care over speed. For trivial tasks, use judgment.
+
+### 1. Think Before Acting
+
+**Make assumptions explicit. Surface material uncertainty and tradeoffs.**
+
+- Check the available project context before asking for clarification.
+- Ask when ambiguity would materially affect the scope, the content or the consequences of an action. Explain the uncertainty, and continue with independent work where useful.
+- For routine, low-risk choices within what was asked, follow established conventions and use judgment. State assumptions that affect the result without asking about every minor decision.
+- If a simpler approach exists, say so. Push back when warranted.
+
+### 2. Simplicity First
+
+**The least that solves the problem. Nothing speculative.**
+
+- Nothing beyond what was asked.
+- No structure, process or options that were not requested.
+- Ask yourself: "Would a sensible colleague say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+- Don't "improve" adjacent content, wording or formatting.
+- Match the existing style, even if you'd do it differently.
+- If you notice something unrelated that looks wrong, mention it rather than changing it.
+
+The test: every change should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+**Define what done looks like. Check it before you say so.**
+
+- Turn a task into something you can verify: a document that builds and reads correctly, figures that reconcile to their source, a script that ran.
+- Report what you verified and what you could not, plainly.
+</mem>

@@ -12,8 +12,23 @@ import (
 	"text/template"
 )
 
+// Kind selects the instructions a project gets.
+type Kind int
+
+const (
+	Staged Kind = iota
+	SingleBranch
+	Folder
+)
+
 //go:embed instructions.md
 var instructions string
+
+// folderInstructions are a block of their own: a folder project does document work, so it shares little with the coding
+// instructions.
+//
+//go:embed instructions_folder.md
+var folderInstructions string
 
 // instructionsTemplate numbers the Ground Rules with {{rule}} and leaves out with .Single what applies only to
 // projects with staging and production branches.
@@ -57,13 +72,12 @@ type Memory struct {
 	Body string
 }
 
-// Install puts the managed block and an empty memories block ahead of existing AGENTS.md content. single selects
-// the instructions for a single-branch project.
-func Install(text, version string, single bool) (string, error) {
+// Install puts the managed block for kind and an empty memories block ahead of existing AGENTS.md content.
+func Install(text, version string, kind Kind) (string, error) {
 	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	parts := []string{block(version, single)}
+	parts := []string{block(version, kind)}
 	if !hasTag(text, memoriesOpen) {
 		parts = append(parts, renderMemories(nil))
 	}
@@ -82,7 +96,7 @@ func HasLegacy(text string) bool { return legacyBlock.MatchString(text) }
 
 // ReplaceLegacy swaps the Python coding harness's first managed block for the mem
 // block in the same position, drops any further harness blocks and adds an empty memories block.
-func ReplaceLegacy(text, version string, single bool) (string, error) {
+func ReplaceLegacy(text, version string, kind Kind) (string, error) {
 	loc := legacyBlock.FindStringIndex(text)
 	if loc == nil {
 		return "", errors.New("AGENTS.md has no <core_instructions> block from the Python coding harness")
@@ -90,16 +104,16 @@ func ReplaceLegacy(text, version string, single bool) (string, error) {
 	if hasTag(text, blockOpen) {
 		return "", errors.New("AGENTS.md already contains a <mem> block")
 	}
-	updated := text[:loc[0]] + block(version, single) + extraLegacyBlock.ReplaceAllString(text[loc[1]:], "")
+	updated := text[:loc[0]] + block(version, kind) + extraLegacyBlock.ReplaceAllString(text[loc[1]:], "")
 	if !hasTag(updated, memoriesOpen) {
 		updated = strings.TrimRight(updated, "\n") + "\n\n" + renderMemories(nil) + "\n"
 	}
 	return updated, nil
 }
 
-// Refresh replaces the managed block with the instructions shipped in this executable, for a single-branch project
-// when single is set. A block written by a newer mem is left alone and its version returned.
-func Refresh(text, version string, single bool) (updated string, newer string, err error) {
+// Refresh replaces the managed block with the instructions for kind shipped in this executable. A block written by a
+// newer mem is left alone and its version returned.
+func Refresh(text, version string, kind Kind) (updated string, newer string, err error) {
 	start, end, err := span(text, blockOpen, blockClose)
 	if err != nil {
 		return text, "", err
@@ -107,20 +121,24 @@ func Refresh(text, version string, single bool) (updated string, newer string, e
 	if m := stampVersion.FindStringSubmatch(text[start:end]); m != nil && semverLess(version, m[1]) {
 		return text, m[1], nil
 	}
-	return text[:start] + block(version, single) + text[end:], "", nil
+	return text[:start] + block(version, kind) + text[end:], "", nil
 }
 
-func block(version string, single bool) string {
-	body := strings.TrimPrefix(strings.TrimSpace(render(single)), blockOpen)
+func block(version string, kind Kind) string {
+	body := strings.TrimPrefix(strings.TrimSpace(render(kind)), blockOpen)
 	return blockOpen + "\n<!-- Managed by mem " + version + ". Edits inside this block are replaced on onboard. -->" + body
 }
 
-// render executes the instructions template; it can only fail on a mistake in instructions.md, which tests catch.
-func render(single bool) string {
+// render gives the instructions for kind. Executing the template can only fail on a mistake in instructions.md, which
+// tests catch.
+func render(kind Kind) string {
+	if kind == Folder {
+		return folderInstructions
+	}
 	rule := 0
 	t := template.Must(instructionsTemplate.Clone()).Funcs(template.FuncMap{"rule": func() int { rule++; return rule }})
 	var b strings.Builder
-	if err := t.Execute(&b, struct{ Single bool }{single}); err != nil {
+	if err := t.Execute(&b, struct{ Single bool }{kind == SingleBranch}); err != nil {
 		panic(err)
 	}
 	return b.String()

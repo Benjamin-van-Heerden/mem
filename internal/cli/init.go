@@ -79,7 +79,7 @@ func (a *app) initCommand() *cobra.Command {
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
-			agents, err := agentsmd.Install(string(existing), buildinfo.Version, config.Git.SingleBranch)
+			agents, err := agentsmd.Install(string(existing), buildinfo.Version, instructionKind(config))
 			if err != nil {
 				return err
 			}

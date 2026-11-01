@@ -32,7 +32,7 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	refreshed, newer, err := agentsmd.Refresh(text, buildinfo.Version, p.Config.Git.SingleBranch)
+	refreshed, newer, err := agentsmd.Refresh(text, buildinfo.Version, instructionKind(p.Config))
 	if err != nil {
 		return nil, err
 	}
