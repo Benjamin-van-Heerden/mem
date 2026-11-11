@@ -20,7 +20,7 @@ type codexCommand struct {
 }
 
 // Codex records each approval in /hooks under the hooks file's absolute path and the entry's place in it (event, group,
-// handler), with a hash of its definition, and silently skips an entry whose record does not match. So syncFile updates
+// handler), with a hash of its definition, and asks again for an entry whose record does not match. So syncFile updates
 // mem's entries where they are, and once released they must stay exactly as they are.
 var (
 	codexCompactEntry = codexEntry{Matcher: "compact", Hooks: []codexCommand{{Type: "command", Command: CompactCommand, CommandWindows: "mem hook compact", Timeout: 60}}}

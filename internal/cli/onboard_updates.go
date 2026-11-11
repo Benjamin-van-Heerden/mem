@@ -210,7 +210,7 @@ const codexHooksSummary = "Codex hooks for context after compaction and work-log
 func codexHooksLine(want agenthooks.CodexHooks) string {
 	line := contextHooksLine("Codex", agenthooks.CodexHooksPath, "codex", want.Compact, want.Prompt)
 	if want.Compact || want.Prompt {
-		line += " Tell the user that Codex runs them only in a trusted project, once each Codex user approves them in Codex's /hooks. Codex asks again in every new checkout or worktree, and skips them silently until then."
+		line += " Tell the user that Codex runs them only in a trusted project, once each Codex user approves them in Codex's /hooks. Codex asks for that approval once in each checkout or worktree."
 	}
 	return line
 }
