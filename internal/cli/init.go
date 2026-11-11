@@ -104,6 +104,9 @@ func (a *app) initCommand() *cobra.Command {
 			if _, err := agenthooks.SyncCursor(root, true); err != nil {
 				return err
 			}
+			if _, err := agenthooks.SyncCodex(root, agenthooks.CodexHooks{Compact: true, Prompt: true}); err != nil {
+				return err
+			}
 			removed, err := removeClaudeLink(root)
 			if err != nil {
 				return err
@@ -145,6 +148,7 @@ func (a *app) initCommand() *cobra.Command {
 			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
 			fmt.Fprintln(out, agenthooks.ClaudeSettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")
 			fmt.Fprintln(out, agenthooks.CursorHooksPath+"     Cursor hook that has the agent write a due work log when a turn ends")
+			fmt.Fprintln(out, agenthooks.CodexHooksPath+"      "+codexHooksSummary)
 			for _, line := range hookLines {
 				fmt.Fprintln(out, line)
 			}

@@ -140,6 +140,35 @@ func TestOnboardInstallsTheCursorHookAndHonoursTheOptOut(t *testing.T) {
 	}
 }
 
+func TestOnboardInstallsTheCodexHooksAndHonoursTheOptOut(t *testing.T) {
+	t.Parallel()
+	mine, _ := sharedProject(t)
+	hooksFile := filepath.Join(mine, ".codex/hooks.json")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(string(data), "mem hook compact") || !strings.Contains(string(data), "mem hook prompt") {
+		t.Fatalf("init did not write the Codex hooks:\n%s", data)
+	}
+	run(t, mine, "rm", "--quiet", ".codex/hooks.json")
+	run(t, mine, "commit", "--quiet", "-m", "Drop the Codex hooks")
+	run(t, mine, "push", "--quiet")
+
+	out := mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(out, "Updated mem's Codex hooks in .codex/hooks.json: the compaction catch-up and the work-log nudge at each user message.") || !strings.Contains(out, "approves them in Codex's /hooks") || !strings.Contains(string(data), "mem hook compact") {
+		t.Fatalf("onboard output:\n%s\nhooks:\n%s", out, data)
+	}
+	if status := run(t, mine, "status", "--porcelain"); status != "" {
+		t.Fatalf("uncommitted after onboard:\n%s", status)
+	}
+
+	config := filepath.Join(mine, ".mem/config.toml")
+	data, _ := os.ReadFile(config)
+	os.WriteFile(config, append(data, []byte("\n[codex]\nprompt_hook = false\n")...), 0o644)
+	run(t, mine, "commit", "--quiet", "-am", "Turn the Codex prompt hook off")
+	out = mem(t, mine, "onboard")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(out, "turned off: the work-log nudge at each user message ([codex] prompt_hook = false)") || strings.Contains(string(data), "mem hook prompt") || !strings.Contains(string(data), "mem hook compact") {
+		t.Fatalf("onboard output:\n%s\nhooks:\n%s", out, data)
+	}
+}
+
 func TestOnboardInstallsTheCompactionHookWhereClaudeSettingsAreIgnored(t *testing.T) {
 	t.Parallel()
 	mine, _ := sharedProject(t)

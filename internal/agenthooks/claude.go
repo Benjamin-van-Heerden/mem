@@ -42,13 +42,13 @@ type ClaudeHooks struct {
 // change and reports whether it did.
 func SyncClaude(root string, want ClaudeHooks) (bool, error) {
 	return syncFile(root, ClaudeSettingsPath, "{}", []memEntry{
-		{"SessionStart", compactEntry, claudeEntry("mem hook compact"), want.Compact},
-		{"UserPromptSubmit", promptEntry, claudeEntry("mem hook prompt"), want.Prompt},
+		{"SessionStart", compactEntry, commandEntry("mem hook compact"), want.Compact},
+		{"UserPromptSubmit", promptEntry, commandEntry("mem hook prompt"), want.Prompt},
 	})
 }
 
-// claudeEntry recognises mem's entry by a command in its nested hooks list.
-func claudeEntry(marker string) func(json.RawMessage) bool {
+// commandEntry recognises mem's entry by a command in its nested hooks list, in Claude Code's and Codex's files.
+func commandEntry(marker string) func(json.RawMessage) bool {
 	return func(raw json.RawMessage) bool { return isEntry(raw, marker) }
 }
 

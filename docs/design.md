@@ -61,6 +61,10 @@ compact_hook = false    # optional: leave out the Claude Code post-compaction ho
 [cursor]
 stop_hook = false       # optional: leave out the Cursor work-log follow-up at the end of a turn
 
+[codex]
+compact_hook = false    # optional: leave out the Codex post-compaction hook
+prompt_hook = false     # optional: leave out the Codex work-log nudge with each user message
+
 [structure]
 ignore = ["migrations/**"]   # optional: files that do not count as work (drift detection, work-log nudges)
 include = ["*.md"]           # optional: files that count although the built-in rules leave them out
@@ -113,6 +117,14 @@ Cursor's one way to put mem's words in front of the agent is the `stop` hook, wh
 The follow-up says it comes from mem and not the user. It asks for the log now if the turn finished a piece of work. If the turn ended with a question for the user or mid-change, it asks the agent to say in one line that a log is due and end the turn, and not to start other work.
 
 Cursor also runs the hooks in `.claude/settings.json`. It rejects their plain-text output and may fire the `compact` entry at every session start, so `mem hook compact` and `mem hook prompt` return at once when `CURSOR_VERSION` is set. (`CLAUDE_PROJECT_DIR` cannot tell the agents apart, since Cursor sets it too.) The post-commit hook's nudge reaches Cursor's agent in its shell output, as for any agent.
+
+**In Codex.** Codex (its CLI, IDE extension and desktop app) has the same two events as Claude Code and adds plain stdout from both to the model's context. `init`, `import` and onboard keep both entries in `.codex/hooks.json`, which has the shape of Claude Code's `hooks` object, preserving other keys and hooks:
+- `SessionStart` with matcher `compact` runs `mem hook compact`. Codex matches it against the session's source (startup, resume, clear, compact or fork), so it fires only after compaction.
+- `UserPromptSubmit` runs `mem hook prompt`.
+
+They run the same commands with the same timeouts as the Claude Code entries. Each also has a `commandWindows` of plain `mem hook …`, because the POSIX guard does not run in Windows shells; where mem is missing there, the hook fails and Codex carries on. `[codex] compact_hook = false` and `prompt_hook = false` remove them.
+
+Codex loads a project's hooks only in a project the user trusts, and runs each one only after the user has approved it in `/hooks`. That approval is tied to a hash of the entry, so mem's entries must never change once released: a changed entry stops running until every user approves it again. mem never writes Codex's trust records, since that would skip the user's review. The output that reports a new or changed Codex hook file tells the agent to pass this on. Codex does not run `.claude/settings.json`, so its hooks never run twice. It reads `AGENTS.md` only up to `project_doc_max_bytes` (32 KiB by default), which the size warning covers.
 
 **Session titles.** The Claude desktop app titles sessions from their first message, often "Let's get to work", so mem asks agents to give sessions a short title for the work wherever they can rename them, at three points. The title leaves out the project: the app groups sessions by project folder. The onboard instruction asks for it as soon as the user has said what to work on: at once when their first message already did, otherwise as the first thing after their next one. When the context is long enough to go to `.mem/local/onboard.md`, the file ends with the same request under 🏷️ SESSION TITLE: the agent reads the file after the instruction, and an agent that ended its reading on the work log had forgotten the request by the user's next message. After compaction and at each work log, when the session may have moved on from what it was named for, the digest and `log new` ask the agent to look up the current title, compare it with the current work and rename the session if it no longer fits. Each instruction says that the desktop app's session tools address the current session as `"self"` and asks the agent to correct and retry a rename that fails: an agent once called the rename tool without a session id and moved on when it was refused. These are instructions in mem's output, not hooks.
 

@@ -89,12 +89,14 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 	}
 	claudeWant := agenthooks.ClaudeHooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
 	cursorStop := p.Config.Cursor.StopHookEnabled()
+	codexWant := agenthooks.CodexHooks{Compact: p.Config.Codex.CompactHookEnabled(), Prompt: p.Config.Codex.PromptHookEnabled()}
 	for _, h := range []struct {
 		path, agent, line string
 		sync              func() (bool, error)
 	}{
 		{agenthooks.ClaudeSettingsPath, "Claude Code", claudeHooksLine(claudeWant), func() (bool, error) { return agenthooks.SyncClaude(p.Root, claudeWant) }},
 		{agenthooks.CursorHooksPath, "Cursor", cursorHookLine(cursorStop), func() (bool, error) { return agenthooks.SyncCursor(p.Root, cursorStop) }},
+		{agenthooks.CodexHooksPath, "Codex", codexHooksLine(codexWant), func() (bool, error) { return agenthooks.SyncCodex(p.Root, codexWant) }},
 	} {
 		status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", h.path)
 		switch changed, err := h.sync(); {
@@ -197,18 +199,36 @@ func afterUpdates(ctx context.Context, p project.Project, r converge.Report) con
 
 // claudeHooksLine describes mem's Claude Code hooks after onboard changed them.
 func claudeHooksLine(want agenthooks.ClaudeHooks) string {
+	return contextHooksLine("Claude Code", agenthooks.ClaudeSettingsPath, "claude", want.Compact, want.Prompt)
+}
+
+// codexHooksSummary describes mem's Codex hooks where init and import list the files they wrote.
+const codexHooksSummary = "Codex hooks for context after compaction and work-log nudges; Codex runs them in a trusted project once each user approves them in /hooks"
+
+// codexHooksLine describes mem's Codex hooks after onboard changed them. Codex skips a new or changed project hook
+// until each user approves it, so the line says how.
+func codexHooksLine(want agenthooks.CodexHooks) string {
+	line := contextHooksLine("Codex", agenthooks.CodexHooksPath, "codex", want.Compact, want.Prompt)
+	if want.Compact || want.Prompt {
+		line += " Tell the user that Codex runs them only in a trusted project, once each Codex user approves them in Codex's /hooks."
+	}
+	return line
+}
+
+// contextHooksLine describes an agent's compaction and prompt hooks, naming the [section] setting of each one that is off.
+func contextHooksLine(agent, path, section string, compact, prompt bool) string {
 	var on, off []string
 	for _, h := range []struct {
 		enabled   bool
 		name, key string
-	}{{want.Compact, "the compaction catch-up", "compact_hook"}, {want.Prompt, "the work-log nudge at each user message", "prompt_hook"}} {
+	}{{compact, "the compaction catch-up", "compact_hook"}, {prompt, "the work-log nudge at each user message", "prompt_hook"}} {
 		if h.enabled {
 			on = append(on, h.name)
 		} else {
-			off = append(off, fmt.Sprintf("%s ([claude] %s = false)", h.name, h.key))
+			off = append(off, fmt.Sprintf("%s ([%s] %s = false)", h.name, section, h.key))
 		}
 	}
-	line := "Updated mem's Claude Code hooks in " + agenthooks.ClaudeSettingsPath
+	line := "Updated mem's " + agent + " hooks in " + path
 	if len(on) > 0 {
 		line += ": " + strings.Join(on, " and ")
 	}

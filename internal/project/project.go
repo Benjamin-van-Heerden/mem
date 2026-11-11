@@ -32,6 +32,7 @@ type Config struct {
 	Templates TemplatesConfig `toml:"templates,omitempty"`
 	Claude    ClaudeConfig    `toml:"claude,omitempty"`
 	Cursor    CursorConfig    `toml:"cursor,omitempty"`
+	Codex     CodexConfig     `toml:"codex,omitempty"`
 	Release   ReleaseConfig   `toml:"release,omitempty"`
 	Precommit PrecommitConfig `toml:"precommit,omitempty"`
 }
@@ -72,6 +73,18 @@ type CursorConfig struct {
 }
 
 func (c CursorConfig) StopHookEnabled() bool { return c.StopHook == nil || *c.StopHook }
+
+// CodexConfig controls what mem installs for Codex.
+type CodexConfig struct {
+	// CompactHook turns the post-compaction catch-up hook off when false; unset means on.
+	CompactHook *bool `toml:"compact_hook,omitempty"`
+	// PromptHook turns the work-log nudge at each user message off when false; unset means on.
+	PromptHook *bool `toml:"prompt_hook,omitempty"`
+}
+
+func (c CodexConfig) CompactHookEnabled() bool { return c.CompactHook == nil || *c.CompactHook }
+
+func (c CodexConfig) PromptHookEnabled() bool { return c.PromptHook == nil || *c.PromptHook }
 
 type GitConfig struct {
 	Remote      string `toml:"remote"`

@@ -62,6 +62,9 @@ func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 	if _, err := agenthooks.SyncCursor(root, true); err != nil {
 		return err
 	}
+	if _, err := agenthooks.SyncCodex(root, agenthooks.CodexHooks{Compact: true, Prompt: true}); err != nil {
+		return err
+	}
 	removed, err := removeClaudeLink(root)
 	if err != nil {
 		return err
@@ -76,6 +79,7 @@ func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 	fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 	fmt.Fprintln(out, agenthooks.ClaudeSettingsPath+"  Claude Code hooks for context after compaction and work-log nudges")
 	fmt.Fprintln(out, agenthooks.CursorHooksPath+"     Cursor hook that has the agent write a due work log when a turn ends")
+	fmt.Fprintln(out, agenthooks.CodexHooksPath+"      "+codexHooksSummary)
 	if removed {
 		fmt.Fprintln(out, claudeLinkRemoved)
 	}
@@ -167,12 +171,14 @@ func applyFolderUpdates(p project.Project) ([]string, error) {
 	}
 	claudeWant := agenthooks.ClaudeHooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
 	cursorStop := p.Config.Cursor.StopHookEnabled()
+	codexWant := agenthooks.CodexHooks{Compact: p.Config.Codex.CompactHookEnabled(), Prompt: p.Config.Codex.PromptHookEnabled()}
 	for _, h := range []struct {
 		agent, line string
 		sync        func() (bool, error)
 	}{
 		{"Claude Code", claudeHooksLine(claudeWant), func() (bool, error) { return agenthooks.SyncClaude(p.Root, claudeWant) }},
 		{"Cursor", cursorHookLine(cursorStop), func() (bool, error) { return agenthooks.SyncCursor(p.Root, cursorStop) }},
+		{"Codex", codexHooksLine(codexWant), func() (bool, error) { return agenthooks.SyncCodex(p.Root, codexWant) }},
 	} {
 		switch changed, err := h.sync(); {
 		case err != nil:
