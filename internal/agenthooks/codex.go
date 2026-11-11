@@ -19,8 +19,9 @@ type codexCommand struct {
 	Timeout        int    `json:"timeout,omitempty"`
 }
 
-// Codex trusts each project hook by a hash of its definition and skips a changed one until every user approves it
-// again in /hooks. Once released, these entries must stay exactly as they are.
+// Codex records each approval in /hooks under the hooks file's absolute path and the entry's place in it (event, group,
+// handler), with a hash of its definition, and silently skips an entry whose record does not match. So syncFile updates
+// mem's entries where they are, and once released they must stay exactly as they are.
 var (
 	codexCompactEntry = codexEntry{Matcher: "compact", Hooks: []codexCommand{{Type: "command", Command: CompactCommand, CommandWindows: "mem hook compact", Timeout: 60}}}
 	codexPromptEntry  = codexEntry{Hooks: []codexCommand{{Type: "command", Command: PromptCommand, CommandWindows: "mem hook prompt", Timeout: 10}}}

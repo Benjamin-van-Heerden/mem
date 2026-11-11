@@ -203,14 +203,14 @@ func claudeHooksLine(want agenthooks.ClaudeHooks) string {
 }
 
 // codexHooksSummary describes mem's Codex hooks where init and import list the files they wrote.
-const codexHooksSummary = "Codex hooks for context after compaction and work-log nudges; Codex runs them in a trusted project once each user approves them in /hooks"
+const codexHooksSummary = "Codex hooks for context after compaction and work-log nudges; Codex runs them in a trusted project once each user approves them in /hooks, in every checkout"
 
 // codexHooksLine describes mem's Codex hooks after onboard changed them. Codex skips a new or changed project hook
 // until each user approves it, so the line says how.
 func codexHooksLine(want agenthooks.CodexHooks) string {
 	line := contextHooksLine("Codex", agenthooks.CodexHooksPath, "codex", want.Compact, want.Prompt)
 	if want.Compact || want.Prompt {
-		line += " Tell the user that Codex runs them only in a trusted project, once each Codex user approves them in Codex's /hooks."
+		line += " Tell the user that Codex runs them only in a trusted project, once each Codex user approves them in Codex's /hooks. Codex asks again in every new checkout or worktree, and skips them silently until then."
 	}
 	return line
 }
