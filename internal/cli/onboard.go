@@ -62,10 +62,23 @@ func (a *app) onboardCommand() *cobra.Command {
 				if p, err = a.project(cmd); err != nil {
 					return err
 				}
+				deletedLines, switched, deletedStuck := leaveDeletedBranch(ctx, p, report)
+				branchLines, stuck = append(branchLines, deletedLines...), deletedStuck
+				if switched {
+					// The new development branch holds the config that names it, and may be behind its remote copy.
+					if p, err = a.project(cmd); err != nil {
+						return err
+					}
+					report = converge.Sync(ctx, p)
+					if p, err = a.project(cmd); err != nil {
+						return err
+					}
+				}
 			}
 			var updates, templateLines []string
 			if stuck {
-				// Still on staging or production: no commits, so nothing lands there. The guards still go in.
+				// Still on staging or production, or on a development branch deleted from the remote: no commits, so
+				// nothing lands there. The guards still go in.
 				if updates, err = hooks.Sync(ctx, p); err != nil {
 					return err
 				}

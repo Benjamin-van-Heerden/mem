@@ -75,7 +75,7 @@ Identity is `git config user.name`, slugified.
 ## Onboard
 
 0. **Leave staging and production.** A fresh clone checks out the remote's default branch, which may be production. Before anything else, onboard switches a checkout on staging or production to the development branch, creating it from the remote's copy when it only exists there, and warns about commits on the branch it leaves that no remote branch has. If the switch fails, for example on conflicting uncommitted changes, onboard installs the protection hooks but commits and pushes nothing, and tells the agent to resolve it with the user. A detached checkout and a single-branch project's base branch only get the usual nudges. Onboard installs the protection hooks before its first commit.
-1. **Converge.** Fetch with a time limit. On failure, warn prominently and continue with local context.
+1. **Converge.** Fetch with a time limit. On failure, warn prominently and continue with local context. When the fetch shows that the development branch the checkout is on was deleted from the remote, as when a project becomes single-branch on its production branch, onboard reads `.mem/config.toml` on the remote's default branch: if it names another development branch that the remote has, and every local commit is on the remote, onboard switches there (creating it with `--track` when needed) and converges again with that branch's config. Otherwise it commits and pushes nothing and tells the agent to resolve it with the user, since onboard's commits could only be shared by publishing the deleted branch again. A branch whose upstream was deleted gets a nudge saying so, never one to publish it as new.
 
    | State | Behavior |
    | --- | --- |

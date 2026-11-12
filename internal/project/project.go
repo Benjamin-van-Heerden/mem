@@ -209,6 +209,11 @@ func readConfig(root string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	return ParseConfig(data)
+}
+
+// ParseConfig reads a .mem/config.toml, such as one taken from another branch, and rejects the same configs Load does.
+func ParseConfig(data []byte) (Config, error) {
 	var config Config
 	if err := toml.Unmarshal(data, &config); err != nil {
 		return Config{}, fmt.Errorf("invalid .mem/config.toml: %w", err)

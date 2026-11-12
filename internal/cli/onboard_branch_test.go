@@ -81,3 +81,70 @@ func TestOnboardCommitsNothingWhenItCannotLeaveProduction(t *testing.T) {
 		t.Fatalf("the protection hooks are not installed: %v", err)
 	}
 }
+
+// devDeletedClone returns a teammate's clone left on dev after the project became single-branch on main and dev was
+// deleted from the remote. The clone still has the old config, which names dev as the development branch.
+func devDeletedClone(t *testing.T) string {
+	t.Helper()
+	mine, teammate := sharedProject(t)
+	run(t, teammate, "config", "user.name", "Teammate")
+	run(t, teammate, "config", "user.email", "teammate@example.com")
+	var config []string
+	data, err := os.ReadFile(filepath.Join(mine, ".mem", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		switch {
+		case strings.HasPrefix(line, "staging ="), strings.HasPrefix(line, "production ="):
+		case strings.HasPrefix(line, "development ="):
+			config = append(config, "development = 'main'", "single_branch = true")
+		default:
+			config = append(config, line)
+		}
+	}
+	writeFile(t, mine, ".mem/config.toml", strings.Join(config, "\n"))
+	run(t, mine, "commit", "--quiet", "--all", "-m", "single branch on main")
+	run(t, mine, "push", "--quiet", "origin", "dev:main")
+	run(t, mine, "push", "--quiet", "origin", "--delete", "dev")
+	return teammate
+}
+
+func TestOnboardFollowsTheDevelopmentBranchWhenItsBranchWasDeleted(t *testing.T) {
+	t.Parallel()
+	clone := devDeletedClone(t)
+
+	out := mem(t, clone, "onboard")
+
+	if branch := run(t, clone, "branch", "--show-current"); branch != "main" || !strings.Contains(out, "Switched from dev to main: dev was deleted from origin") {
+		t.Fatalf("onboard left the clone on %s:\n%s", branch, out)
+	}
+	if config, _ := os.ReadFile(filepath.Join(clone, ".mem", "config.toml")); !strings.Contains(string(config), "single_branch = true") {
+		t.Fatalf("the clone does not have main's config:\n%s", config)
+	}
+	if remote := run(t, clone, "ls-remote", "origin", "refs/heads/dev"); remote != "" || run(t, clone, "rev-parse", "main") != run(t, clone, "rev-parse", "origin/main") {
+		t.Fatalf("onboard published dev again (%q) or left main out of step with origin/main:\n%s", remote, out)
+	}
+	if strings.Contains(out, "git push -u origin dev") || strings.Contains(out, "RELEASES") {
+		t.Fatalf("onboard still treats dev as the development branch of a staged project:\n%s", out)
+	}
+}
+
+func TestOnboardCommitsNothingOnADeletedDevelopmentBranchWithUnpublishedWork(t *testing.T) {
+	t.Parallel()
+	clone := devDeletedClone(t)
+	commit(t, clone, "local.txt")
+	before := run(t, clone, "rev-parse", "HEAD")
+
+	out := mem(t, clone, "onboard")
+
+	if branch := run(t, clone, "branch", "--show-current"); branch != "dev" || !strings.Contains(out, "⚠️ dev has been deleted from origin, which now develops on main, but the local dev branch has 1 commit(s)") {
+		t.Fatalf("onboard on %s did not report the unpublished commit:\n%s", branch, out)
+	}
+	if run(t, clone, "rev-parse", "HEAD") != before || run(t, clone, "ls-remote", "origin", "refs/heads/dev") != "" {
+		t.Fatalf("onboard committed on dev or published it again:\n%s", out)
+	}
+	if !strings.Contains(out, "dev tracked origin/dev, which has been deleted from origin") || strings.Contains(out, "git push -u origin dev") {
+		t.Fatalf("onboard did not say that dev was deleted:\n%s", out)
+	}
+}

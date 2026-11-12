@@ -32,9 +32,11 @@ type Report struct {
 	Guarded      bool
 	SingleBranch bool
 	// Base marks the [git] base branch, which never follows development, guarded or not.
-	Base        bool
-	Branch      string
-	Upstream    string
+	Base     bool
+	Branch   string
+	Upstream string
+	// Gone is the upstream the branch tracked, such as origin/dev, when that remote branch has been deleted.
+	Gone        string
 	Development string
 	Fetched     bool
 	FetchError  string
@@ -137,6 +139,10 @@ func standingNudges(r Report, behindAction string) []string {
 		return append(nudges, "HEAD is detached. Tell the user, and switch to a branch before making changes.")
 	case !r.HasRemote:
 		return append(nudges, fmt.Sprintf("This repository has no remote named %s, so nobody else can see its work. Tell the user; add the shared remote (`git remote add %s <url>`) or set the remote in .mem/config.toml.", r.Remote, r.Remote))
+	case r.Gone != "" && r.Branch == dev:
+		nudges = append(nudges, fmt.Sprintf("%s tracked %s, which has been deleted from %s. Tell the user, and do not publish %s again unless they ask: the shared codebase may have moved to another branch.", dev, r.Gone, r.Remote, dev))
+	case r.Gone != "":
+		nudges = append(nudges, fmt.Sprintf("%s tracked %s, which has been deleted from %s, often once it was merged. Tell the user; if its work is in %s, switch there (`git switch %s`) and delete it (`git branch -d %s`), and otherwise ask them before publishing it again.", r.Branch, r.Gone, r.Remote, dev, dev, r.Branch))
 	case r.Upstream == "" && r.Branch == dev:
 		nudges = append(nudges, fmt.Sprintf("%s is not on %s yet, so nobody else can see its commits. Tell the user, and publish it with `git push -u %s %s`.", dev, r.Remote, r.Remote, dev))
 	case r.Upstream == "":
@@ -256,6 +262,8 @@ func inspect(ctx context.Context, p project.Project) Report {
 	r.Upstream = upstream(ctx, p, r.Branch)
 	if r.Upstream != "" {
 		r.Ahead, r.Behind = counts(ctx, p.Root, r.Upstream)
+	} else {
+		r.Gone = goneUpstream(ctx, p.Root, r.Branch)
 	}
 	if r.Branch != dev && refExists(ctx, p.Root, "refs/remotes/"+r.Development) {
 		r.DevAhead, r.DevBehind = counts(ctx, p.Root, r.Development)
@@ -270,6 +278,15 @@ func upstream(ctx context.Context, p project.Project, branch string) string {
 	}
 	if refExists(ctx, p.Root, "refs/remotes/"+p.Config.Git.Remote+"/"+branch) {
 		return p.Config.Git.Remote + "/" + branch
+	}
+	return ""
+}
+
+// goneUpstream names the upstream a branch is configured to track when that remote branch no longer exists, or "".
+func goneUpstream(ctx context.Context, root, branch string) string {
+	out, err := git.Run(ctx, root, "for-each-ref", "--format=%(upstream:short) %(upstream:track)", "refs/heads/"+branch)
+	if name, track, _ := strings.Cut(out, " "); err == nil && track == "[gone]" {
+		return name
 	}
 	return ""
 }
