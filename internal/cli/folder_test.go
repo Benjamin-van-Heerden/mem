@@ -205,10 +205,10 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, root, ".mem/config.toml", string(config)+"\n[runnables]\nunbilled = 'echo Acme: 12 hours unbilled'\n")
-	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue")
+	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue", "--priority", "critical")
 	mem(t, root, "memory", "set", "invoices", "Number invoices in one sequence.")
 	out = mem(t, root, "onboard", "--offline")
-	wanted := []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Chase Acme", "no structure doc yet", "Acme: 12 hours unbilled"}
+	wanted := []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Chase Acme", "no structure doc yet", "Acme: 12 hours unbilled", "Critical todos are open: Chase Acme (chase_acme)."}
 	for _, want := range wanted {
 		if !strings.Contains(out, want) {
 			t.Errorf("onboard is missing %q:\n%s", want, out)
