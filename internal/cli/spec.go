@@ -182,6 +182,11 @@ func (a *app) specComplete() *cobra.Command {
 				}
 				return fmt.Errorf("spec %s still has pending tasks: %s; complete them first", s.Slug, strings.Join(names, ", "))
 			}
+			if p.Config.Git.SingleBranch {
+				if err := runChecks(cmd.Context(), cmd.OutOrStdout(), p, "run `mem spec complete "+s.Slug+"` again"); err != nil {
+					return err
+				}
+			}
 			// A spec is only finished when its work can join the shared codebase: conflicts are resolved first.
 			if r := converge.Sync(cmd.Context(), p); len(r.Unsettled()) > 0 {
 				how := strings.Join(r.Nudges, "\n") + "\n"

@@ -118,7 +118,7 @@ func (a *app) taskComplete() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "complete <task> <notes> [<path>...]",
 		Short: "Mark a task completed, commit the work with it, sync and push",
-		Long:  "Marks the task completed with notes on what was done and how it was verified, then commits the task's work together with the task record: the task title is the commit subject, the notes its body. Paths, relative to the repository root, limit the commit to them and list the changes left uncommitted; without paths every change in the working tree (ignored files excepted) is committed. The branch is then brought up to date with its upstream and pushed, as `mem sync` does.",
+		Long:  "Marks the task completed with notes on what was done and how it was verified, then commits the task's work together with the task record: the task title is the commit subject, the notes its body. Paths, relative to the repository root, limit the commit to them and list the changes left uncommitted; without paths every change in the working tree (ignored files excepted) is committed. The branch is then brought up to date with its upstream and pushed, as `mem sync` does. In a single-branch project the project's checks ([checks] in .mem/config.toml) run first, and a failure leaves the task open.",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -135,6 +135,12 @@ func (a *app) taskComplete() *cobra.Command {
 			}
 			if t.Done() {
 				return fmt.Errorf("task %s is already completed", t.Slug)
+			}
+			// A single-branch project has no promotion to run its checks, so finished work is checked here.
+			if p.Config.Git.SingleBranch {
+				if err := runChecks(cmd.Context(), cmd.OutOrStdout(), p, "run `mem task complete "+t.Slug+"` again with the same notes and paths"); err != nil {
+					return err
+				}
 			}
 			if t, err = work.CompleteTask(t, args[1]); err != nil {
 				return err

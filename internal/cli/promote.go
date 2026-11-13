@@ -80,7 +80,11 @@ func (a *app) promoteCommand() *cobra.Command {
 			}
 
 			if stage == "staging" {
-				if err := runChecks(ctx, out, p); err != nil {
+				retry := "mem promote staging"
+				if to != "" {
+					retry += " --to " + to
+				}
+				if err := runChecks(ctx, out, p, "run `"+retry+"` again"); err != nil {
 					return err
 				}
 			}

@@ -13,7 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const Schema = 2
+const Schema = 3
 
 // ModeFolder marks a project that is a plain folder, synced by cloud storage if at all, with no Git.
 const ModeFolder = "folder"
@@ -34,11 +34,14 @@ type Config struct {
 	Cursor    CursorConfig    `toml:"cursor,omitempty"`
 	Codex     CodexConfig     `toml:"codex,omitempty"`
 	Release   ReleaseConfig   `toml:"release,omitempty"`
-	Precommit PrecommitConfig `toml:"precommit,omitempty"`
+	Checks    ChecksConfig    `toml:"checks,omitempty"`
+	// Precommit is schema 2's name for Checks. ParseConfig moves it there, so a project that has not been upgraded yet
+	// still runs its checks, and the schema 3 patch writes the config without it.
+	Precommit *ChecksConfig `toml:"precommit,omitempty"`
 }
 
-// PrecommitConfig lists the project's checks, which `mem precommit` runs and promotion to staging requires.
-type PrecommitConfig struct {
+// ChecksConfig lists the project's checks, which `mem check` runs and promotion to staging requires.
+type ChecksConfig struct {
 	Commands []string `toml:"commands,omitempty"`
 }
 
@@ -217,6 +220,12 @@ func ParseConfig(data []byte) (Config, error) {
 	var config Config
 	if err := toml.Unmarshal(data, &config); err != nil {
 		return Config{}, fmt.Errorf("invalid .mem/config.toml: %w", err)
+	}
+	if config.Precommit != nil {
+		if len(config.Checks.Commands) == 0 {
+			config.Checks = *config.Precommit
+		}
+		config.Precommit = nil
 	}
 	if config.Schema > Schema {
 		return Config{}, fmt.Errorf("this project uses mem schema %d but the installed mem supports schema %d; update mem", config.Schema, Schema)

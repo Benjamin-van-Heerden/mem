@@ -29,7 +29,7 @@ mem commands print instructions specific to the current state. Follow them. Use 
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. Run `mem precommit` before each commit: it runs the project's checks from `[precommit]` in `.mem/config.toml`. If none are set, add the project's linter and tests there. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work{{if not .Single}} or a promotion{{end}}. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
+Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. The project's checks, such as its linter and tests, are set under `[checks]` in `.mem/config.toml`. {{if .Single}}`mem task complete` and `mem spec complete`{{else}}`mem promote staging` and `mem deploy`{{end}} run them and refuse when they fail, so do not run them before each commit; `mem check` runs them on request. If none are set, add the project's linter and tests there. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work{{if not .Single}} or a promotion{{end}}. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
 
 ## Specs, Tasks and Todos
 
@@ -256,5 +256,5 @@ Testing is critical to maintaining software quality, but not all tests are creat
 
 Apply this review to tests introduced or changed in the current task. Revise or remove those tests when they do not verify meaningful behavior, while preserving coverage required by the task. If an unrelated existing test appears unhelpful, flag it rather than deleting it without an explicit request.
 
-NEVER run a full test suite unless specifically asked to or as part of `mem precommit`. focus on specific tests related to the feature/functionality you are working on.
+NEVER run a full test suite unless specifically asked to or as part of the project's checks (`mem check`). focus on specific tests related to the feature/functionality you are working on.
 </mem>

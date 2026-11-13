@@ -13,11 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (a *app) precommitCommand() *cobra.Command {
+func (a *app) checkCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "precommit",
+		Use:   "check",
 		Short: "Run the project's checks, such as its linter and tests",
-		Long:  "Runs each command in [precommit] commands of .mem/config.toml from the repository root, in order, and stops at the first failure. `mem promote staging` and `mem deploy` run the same checks.",
+		Long:  "Runs each command in [checks] commands of .mem/config.toml from the repository root, in order, and stops at the first failure. `mem promote staging` and `mem deploy` run the same checks and refuse when they fail; in a single-branch project, which has no promotion, `mem task complete` and `mem spec complete` do.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := a.project(cmd)
@@ -25,29 +25,30 @@ func (a *app) precommitCommand() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			if len(p.Config.Precommit.Commands) == 0 {
-				output.Section(out, "✅ PRECOMMIT")
+			if len(p.Config.Checks.Commands) == 0 {
+				output.Section(out, "✅ CHECKS")
 				fmt.Fprintln(out, "No checks are set for this project.")
 				output.Instruction(out,
-					"Add the project's linter, type checker and tests to .mem/config.toml, then run `mem precommit` again:",
+					"Add the project's linter, type checker and tests to .mem/config.toml, then run `mem check` again:",
 					"",
-					"[precommit]",
+					"[checks]",
 					"commands = ['<lint command>', '<test command>']",
 				)
 				return nil
 			}
-			return runChecks(cmd.Context(), out, p)
+			return runChecks(cmd.Context(), out, p, "run `mem check` again")
 		},
 	}
 }
 
-// runChecks runs the project's precommit commands and prints a line for each. A project without any passes.
-func runChecks(ctx context.Context, out io.Writer, p project.Project) error {
-	commands := p.Config.Precommit.Commands
+// runChecks runs the project's checks and prints a line for each; retry says what to run again once a failure is fixed.
+// A project without any passes.
+func runChecks(ctx context.Context, out io.Writer, p project.Project, retry string) error {
+	commands := p.Config.Checks.Commands
 	if len(commands) == 0 {
 		return nil
 	}
-	output.Section(out, "✅ PRECOMMIT")
+	output.Section(out, "✅ CHECKS")
 	for _, command := range commands {
 		start := time.Now()
 		cmd := shell(ctx, command)
@@ -56,8 +57,8 @@ func runChecks(ctx context.Context, out io.Writer, p project.Project) error {
 		elapsed := time.Since(start).Round(100 * time.Millisecond)
 		if err != nil {
 			fmt.Fprintf(out, "✘ %s (%s)\n\n%s\n", command, elapsed, result)
-			output.Instruction(out, "Fix what failed and run `mem precommit` again. Do not commit or promote until it passes.")
-			return fmt.Errorf("precommit failed: %s", command)
+			output.Instruction(out, fmt.Sprintf("Fix what failed, then %s. `mem check` runs the checks on their own.", retry))
+			return fmt.Errorf("checks failed: %s", command)
 		}
 		fmt.Fprintf(out, "✔ %s (%s)\n", command, elapsed)
 	}

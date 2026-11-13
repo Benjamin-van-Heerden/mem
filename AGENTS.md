@@ -280,7 +280,7 @@ This is the source repository for mem, and mem itself manages it: the installed 
 - Expose specs, tasks and todos directly through their own commands, accepting IDs or unambiguous names. Do not introduce a public umbrella work primitive.
 - Keep stdout instructions grounded in actual state. Do not add generic workflow footers or print commands that are not implemented.
 - Preserve the coding harness's stdout style: clear section headings and separators, readable context, and explicit, assertive agent instructions with concrete commands where warranted. Use `old/coding/.agent_core/harness/src/commands/onboard/formatting.py` and `content.py` as references. Carry forward the interaction style while adapting instructions to the current workflow and the user's existing authorization.
-- Run focused Go tests while you work, and `mem precommit` before each commit: it vets and tests every package, which a focused run does not. End-to-end tests must not publish GitHub state or require credentials.
+- Run focused Go tests while you work. The project's checks (`mem check`, which `mem promote staging` runs) vet and test every package, which a focused run does not. End-to-end tests must not publish GitHub state or require credentials.
 - The documents under `docs/` distinguish planned behavior from what is implemented. Preserve that distinction in output and documentation.
 - Do not ship compatibility layers or historical snapshots for unreleased mem prototypes. Keep temporary development references outside the source tree. The explicitly supported Python-harness importer is separate from prototype compatibility.
 

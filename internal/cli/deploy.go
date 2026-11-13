@@ -39,7 +39,7 @@ func (a *app) deployCommand() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Heading(out, "🚀 DEPLOY: "+p.Config.Name)
-			if err := runChecks(ctx, out, p); err != nil {
+			if err := runChecks(ctx, out, p, "run `mem deploy` again"); err != nil {
 				return err
 			}
 			if err := pushDevelopment(ctx, out, p); err != nil {

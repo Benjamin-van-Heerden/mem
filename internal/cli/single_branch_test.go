@@ -84,3 +84,36 @@ func TestSingleBranchInitRefusesOtherBranchFlagsAndADetachedHead(t *testing.T) {
 		t.Fatalf("a refused init left .mem behind: %v", err)
 	}
 }
+
+func TestSingleBranchCompletionRunsTheChecksAndRefusesWhenTheyFail(t *testing.T) {
+	t.Parallel()
+	root, _ := singleBranchProject(t)
+	// The check passes once the tag exists, a toggle that works in every shell.
+	checksConfig(t, root, `['git rev-parse --verify --quiet refs/tags/ok']`)
+	mem(t, root, "spec", "new", "Parser")
+	mem(t, root, "task", "new", "First", "Do it.", "--spec", "parser")
+	run(t, root, "add", "--all")
+	run(t, root, "commit", "--quiet", "-m", "Draft parser")
+	mem(t, root, "spec", "start", "parser")
+	writeFile(t, root, "parser.go", "package parser\n")
+
+	before := run(t, root, "rev-parse", "HEAD")
+	if err := memErr(t, root, "task", "complete", "first", "Wrote it.", "parser.go"); err == nil || !strings.Contains(err.Error(), "checks failed") {
+		t.Fatalf("task complete with failing checks returned %v", err)
+	}
+	if after := run(t, root, "rev-parse", "HEAD"); after != before {
+		t.Fatal("a failing check still committed the task")
+	}
+	if out := mem(t, root, "task", "list", "--spec", "parser"); strings.Contains(out, "✔") || strings.Contains(out, "completed") {
+		t.Fatalf("a failing check still completed the task:\n%s", out)
+	}
+
+	run(t, root, "tag", "ok")
+	if out := mem(t, root, "task", "complete", "first", "Wrote it.", "parser.go"); !strings.Contains(out, "✔ git rev-parse") {
+		t.Fatalf("task complete did not run the checks:\n%s", out)
+	}
+	run(t, root, "tag", "-d", "ok")
+	if err := memErr(t, root, "spec", "complete", "parser"); err == nil || !strings.Contains(err.Error(), "checks failed") {
+		t.Fatalf("spec complete with failing checks returned %v", err)
+	}
+}

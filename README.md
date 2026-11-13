@@ -66,7 +66,7 @@ A folder of documents and records that is no software project, such as one kept 
 mem init --folder
 ```
 
-This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. The instructions tell agents to build the folder up as they go: anything that will come up again, such as a format or a procedure, becomes a skill under `.claude/skills/` without being asked, and its mechanical steps become scripts. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `precommit`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
+This writes `.mem/config.toml`, instructions of their own for document work in `AGENTS.md`, and the agent hooks, and never runs Git. Onboard builds the context from the structure doc, docs, runnables, todos and work logs, memories work as usual, and a work-log nudge comes from how many files changed since the last log. The instructions tell agents to build the folder up as they go: anything that will come up again, such as a format or a procedure, becomes a skill under `.claude/skills/` without being asked, and its mechanical steps become scripts. Work logs are named by their time and record no user, since such a folder has one person. There are no branches, commits, releases, templates, specs or tasks: `sync`, `check`, `promote`, `deploy`, `import`, `template`, `spec`, `task` and `log commit` refuse. List generated output under `[structure] ignore` in `.mem/config.toml` so that it does not count as work.
 
 ## How it works
 
@@ -82,10 +82,10 @@ Agents learn the workflow from the mem block in `AGENTS.md` and from the instruc
 
 ## Checks
 
-`mem precommit` runs the commands in `[precommit] commands` of `.mem/config.toml` from the repository root, in order, and stops at the first failure. Run it before each commit. `mem promote staging` and `mem deploy` run the same checks and refuse when they fail, so a release never depends on waiting for CI.
+`mem check` runs the commands in `[checks] commands` of `.mem/config.toml` from the repository root, in order, and stops at the first failure. `mem promote staging` and `mem deploy` run the same checks and refuse when they fail, so a release never depends on waiting for CI, and agents need not run them before each commit. A single-branch project has no promotion, so there `mem task complete` and `mem spec complete` run them instead.
 
 ```toml
-[precommit]
+[checks]
 commands = ['go vet ./...', 'go test ./...']
 ```
 

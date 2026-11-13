@@ -11,6 +11,7 @@ import (
 // relative to the repository root. Add one whenever Schema increases.
 var patches = map[int]func(p Project) ([]string, error){
 	1: dropTodoClaims,
+	2: renamePrecommitToChecks,
 }
 
 // Upgrade applies pending patches and records the new schema. It returns the
@@ -35,6 +36,12 @@ func Upgrade(p Project) ([]int, []string, error) {
 		}
 	}
 	return applied, paths, nil
+}
+
+// renamePrecommitToChecks renames the [precommit] table to [checks]. ParseConfig has already moved its commands into
+// Checks, so writing the config, which Upgrade does after every patch, completes the rename.
+func renamePrecommitToChecks(p Project) ([]string, error) {
+	return nil, nil
 }
 
 // dropTodoClaims removes the status, claimed_by and claimed_at fields from every todo: schema 2 has no claims, a
