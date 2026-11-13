@@ -23,6 +23,7 @@ AGENTS.md                           managed <mem> block, <memories> block, user 
 .mem/
   config.toml
   install.md                        install guide, written by mem; AGENTS.md points here when mem is missing
+  README.md                         guide to how mem works in a project, written by mem; AGENTS.md points here
   structure.md                      living codebase and structure map
   docs/*.md                         project documents, included in onboard
   runnables/*                       executables whose stdout is included in onboard

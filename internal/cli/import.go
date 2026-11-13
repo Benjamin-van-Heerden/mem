@@ -30,7 +30,7 @@ func (a *app) importCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := agentsmd.WriteGuide(root); err != nil {
+			if err := agentsmd.WriteGuides(root); err != nil {
 				return err
 			}
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
@@ -63,7 +63,8 @@ func (a *app) importCommand() *cobra.Command {
 			fmt.Fprintln(out, "Claude Code: "+agenthooks.ClaudeSettingsPath+" runs `mem hook compact` after compaction")
 			fmt.Fprintln(out, "Cursor: "+agenthooks.CursorHooksPath+" runs `mem hook stop`, which has the agent write a due work log when a turn ends")
 			fmt.Fprintln(out, "Codex: "+agenthooks.CodexHooksPath+", "+codexHooksSummary)
-			fmt.Fprintln(out, "Install guide: "+agentsmd.GuidePath+", for teammates and agents without mem")
+			fmt.Fprintln(out, "Install guide: "+agentsmd.InstallGuide.Path+", for teammates and agents without mem")
+			fmt.Fprintln(out, "mem guide: "+agentsmd.Readme.Path+", how mem works in this project")
 			if len(sum.Runnables) > 0 {
 				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}

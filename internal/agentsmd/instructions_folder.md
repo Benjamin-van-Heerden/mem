@@ -12,7 +12,7 @@ If `mem` is not installed (the command is not found), read `.mem/install.md` and
 
 Don't rerun onboard later in the session unless the user asks.
 
-mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details.
+mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details. `.mem/README.md` explains how mem works here: the `.mem/` folder, its configuration, runnables, records and hooks. Read it when you need to know how a part of mem behaves.
 
 ## Skills and Automation
 

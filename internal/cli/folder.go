@@ -53,7 +53,7 @@ func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 	if err := os.WriteFile(agentsPath, []byte(agents), 0o644); err != nil {
 		return err
 	}
-	if _, err := agentsmd.WriteGuide(root); err != nil {
+	if err := agentsmd.WriteGuides(root); err != nil {
 		return err
 	}
 	if _, err := agenthooks.SyncClaude(root, agenthooks.ClaudeHooks{Compact: true, Prompt: true}); err != nil {
@@ -75,7 +75,8 @@ func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 	fmt.Fprintf(out, "Project: %s (folder, no Git)\n", config.Name)
 	output.Section(out, "📄 FILES")
 	fmt.Fprintln(out, ".mem/config.toml   project configuration")
-	fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for agents without it")
+	fmt.Fprintln(out, agentsmd.InstallGuide.Path+"    how to install mem, for agents without it")
+	fmt.Fprintln(out, agentsmd.Readme.Path+"     how mem works: its files, configuration, runnables, records and hooks")
 	fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 	fmt.Fprintln(out, agenthooks.ClaudeSettingsPath+"  Claude Code hooks for context after compaction and work-log nudges")
 	fmt.Fprintln(out, agenthooks.CursorHooksPath+"     Cursor hook that has the agent write a due work log when a turn ends")
@@ -163,11 +164,13 @@ func applyFolderUpdates(p project.Project) ([]string, error) {
 		}
 		lines = append(lines, "Refreshed the mem instructions in AGENTS.md.")
 	}
-	switch changed, err := agentsmd.WriteGuide(p.Root); {
-	case err != nil:
-		return nil, err
-	case changed:
-		lines = append(lines, "Updated "+agentsmd.GuidePath+", the install guide AGENTS.md points to when mem is missing.")
+	for _, g := range agentsmd.Guides {
+		switch changed, err := g.Write(p.Root); {
+		case err != nil:
+			return nil, err
+		case changed:
+			lines = append(lines, "Updated "+g.Path+", "+g.About+".")
+		}
 	}
 	claudeWant := agenthooks.ClaudeHooks{Compact: p.Config.Claude.CompactHookEnabled(), Prompt: p.Config.Claude.PromptHookEnabled()}
 	cursorStop := p.Config.Cursor.StopHookEnabled()

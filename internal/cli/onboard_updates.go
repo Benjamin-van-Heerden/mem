@@ -51,15 +51,17 @@ func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
 			publishPaths = append(publishPaths, "AGENTS.md")
 		}
 	}
-	guideStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", agentsmd.GuidePath)
-	switch changed, err := agentsmd.WriteGuide(p.Root); {
-	case err != nil:
-		return nil, err
-	case changed && guideStatus != "":
-		lines = append(lines, "Updated "+agentsmd.GuidePath+". It already had uncommitted edits, so commit it together with them.")
-	case changed:
-		lines = append(lines, "Updated "+agentsmd.GuidePath+", the install guide AGENTS.md points to when mem is missing.")
-		publishPaths = append(publishPaths, agentsmd.GuidePath)
+	for _, g := range agentsmd.Guides {
+		status, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", g.Path)
+		switch changed, err := g.Write(p.Root); {
+		case err != nil:
+			return nil, err
+		case changed && status != "":
+			lines = append(lines, "Updated "+g.Path+". It already had uncommitted edits, so commit it together with them.")
+		case changed:
+			lines = append(lines, "Updated "+g.Path+", "+g.About+".")
+			publishPaths = append(publishPaths, g.Path)
+		}
 	}
 	ignoreStatus, _ := git.Run(ctx, p.Root, "status", "--porcelain", "--", ".gitignore")
 	added, err := ensureIgnored(p.Root, localIgnore)

@@ -110,6 +110,7 @@ AGENTS.md                  mem block, your content, project memories
 .mem/
   config.toml
   install.md               how to install mem; AGENTS.md points here when mem is missing
+  README.md                how mem works in the project: its files, configuration, runnables, records and hooks
   structure.md             codebase and structure map
   docs/*.md                documents included in onboard
   runnables/*              executables whose output is included in onboard

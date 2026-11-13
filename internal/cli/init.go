@@ -92,7 +92,7 @@ func (a *app) initCommand() *cobra.Command {
 			if err := os.WriteFile(agentsPath, []byte(agents), 0o644); err != nil {
 				return err
 			}
-			if _, err := agentsmd.WriteGuide(root); err != nil {
+			if err := agentsmd.WriteGuides(root); err != nil {
 				return err
 			}
 			if _, err := ensureIgnored(root, localIgnore); err != nil {
@@ -143,7 +143,8 @@ func (a *app) initCommand() *cobra.Command {
 			}
 			output.Section(out, "📄 FILES")
 			fmt.Fprintln(out, ".mem/config.toml   project configuration")
-			fmt.Fprintln(out, agentsmd.GuidePath+"    how to install mem, for teammates and agents without it")
+			fmt.Fprintln(out, agentsmd.InstallGuide.Path+"    how to install mem, for teammates and agents without it")
+			fmt.Fprintln(out, agentsmd.Readme.Path+"     how mem works: its files, configuration, runnables, records and hooks")
 			fmt.Fprintln(out, "AGENTS.md           mem instructions and project memories added; existing content kept")
 			fmt.Fprintln(out, ".gitignore          ignores .mem/local/")
 			fmt.Fprintln(out, agenthooks.ClaudeSettingsPath+"  Claude Code hook that runs `mem hook compact` after compaction")

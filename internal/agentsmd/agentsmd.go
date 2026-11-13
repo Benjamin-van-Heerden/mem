@@ -37,21 +37,47 @@ var instructionsTemplate = template.Must(template.New("instructions.md").Funcs(t
 //go:embed install.md
 var installGuide string
 
-// GuidePath is the install guide the managed block points agents to when mem is not installed. It lives in the
-// project, not AGENTS.md, so a teammate without mem has it as soon as they pull.
-const GuidePath = ".mem/install.md"
+//go:embed readme.md
+var readmeGuide string
 
-// WriteGuide writes the install guide shipped in this executable into the project at root, reporting whether the
-// file changed.
-func WriteGuide(root string) (bool, error) {
-	path := filepath.Join(root, filepath.FromSlash(GuidePath))
-	if current, err := os.ReadFile(path); err == nil && string(current) == installGuide {
+// Guide is a file mem ships in this executable and rewrites in every project at onboard. Guides live in the project,
+// not AGENTS.md, so a teammate without mem has them as soon as they pull, and they cost no context until an agent
+// needs them.
+type Guide struct {
+	Path string
+	// About says what the guide is, for mem's output.
+	About   string
+	content string
+}
+
+var (
+	// InstallGuide is where the managed block points agents when mem is not installed.
+	InstallGuide = Guide{".mem/install.md", "the install guide AGENTS.md points to when mem is missing", installGuide}
+	// Readme explains how mem works in a project: its files, configuration, runnables, records and hooks.
+	Readme = Guide{".mem/README.md", "the guide to how mem works in this project", readmeGuide}
+	Guides = []Guide{InstallGuide, Readme}
+)
+
+// Write writes the guide into the project at root, reporting whether the file changed.
+func (g Guide) Write(root string) (bool, error) {
+	path := filepath.Join(root, filepath.FromSlash(g.Path))
+	if current, err := os.ReadFile(path); err == nil && string(current) == g.content {
 		return false, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
 	}
-	return true, os.WriteFile(path, []byte(installGuide), 0o644)
+	return true, os.WriteFile(path, []byte(g.content), 0o644)
+}
+
+// WriteGuides writes every guide into the project at root.
+func WriteGuides(root string) error {
+	for _, g := range Guides {
+		if _, err := g.Write(root); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 const (

@@ -61,17 +61,19 @@ func TestOnboardRestoresTheLocalIgnoreAndPublishesIt(t *testing.T) {
 	}
 }
 
-func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
+func TestOnboardGivesTeammatesTheGuides(t *testing.T) {
 	t.Parallel()
 	mine, teammate := sharedProject(t)
-	if _, err := os.Stat(filepath.Join(mine, ".mem", "install.md")); err != nil {
-		t.Fatalf("init did not write the install guide: %v", err)
+	for _, guide := range []string{"install.md", "README.md"} {
+		if _, err := os.Stat(filepath.Join(mine, ".mem", guide)); err != nil {
+			t.Fatalf("init did not write .mem/%s: %v", guide, err)
+		}
+		run(t, mine, "rm", "--quiet", ".mem/"+guide)
 	}
-	run(t, mine, "rm", "--quiet", ".mem/install.md")
-	run(t, mine, "commit", "--quiet", "-m", "A project from before the install guide")
+	run(t, mine, "commit", "--quiet", "-m", "A project from before the guides")
 	run(t, mine, "push", "--quiet")
 
-	if out := mem(t, mine, "onboard"); !strings.Contains(out, "Updated .mem/install.md") {
+	if out := mem(t, mine, "onboard"); !strings.Contains(out, "Updated .mem/install.md") || !strings.Contains(out, "Updated .mem/README.md") {
 		t.Fatalf("onboard output:\n%s", out)
 	}
 	run(t, teammate, "pull", "--quiet")
@@ -79,9 +81,12 @@ func TestOnboardGivesTeammatesTheInstallGuide(t *testing.T) {
 	if err != nil || !strings.Contains(string(guide), "releases/download/$tag") {
 		t.Fatalf("teammate's install guide = %q, %v", guide, err)
 	}
+	if readme, err := os.ReadFile(filepath.Join(teammate, ".mem", "README.md")); err != nil || !strings.Contains(string(readme), "## Runnables") {
+		t.Fatalf("teammate's mem guide = %q, %v", readme, err)
+	}
 	agents, _ := os.ReadFile(filepath.Join(teammate, "AGENTS.md"))
-	if !strings.Contains(string(agents), "read `.mem/install.md`") {
-		t.Fatal("AGENTS.md does not point to the install guide")
+	if !strings.Contains(string(agents), "read `.mem/install.md`") || !strings.Contains(string(agents), "`.mem/README.md` explains how mem works") {
+		t.Fatal("AGENTS.md does not point to the guides")
 	}
 }
 

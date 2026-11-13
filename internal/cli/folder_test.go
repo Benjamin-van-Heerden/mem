@@ -185,7 +185,7 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 	if !strings.Contains(out, "folder, no Git") {
 		t.Fatalf("init:\n%s", out)
 	}
-	for _, file := range []string{".mem/config.toml", ".mem/install.md", "AGENTS.md", ".claude/settings.json", ".cursor/hooks.json", ".codex/hooks.json"} {
+	for _, file := range []string{".mem/config.toml", ".mem/install.md", ".mem/README.md", "AGENTS.md", ".claude/settings.json", ".cursor/hooks.json", ".codex/hooks.json"} {
 		if _, err := os.Stat(filepath.Join(root, file)); err != nil {
 			t.Errorf("init did not write %s", file)
 		}
