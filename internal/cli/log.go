@@ -85,7 +85,7 @@ func (a *app) logNew() *cobra.Command {
 				fmt.Fprintln(out, "No open todos.")
 			}
 			for _, t := range todos {
-				fmt.Fprintf(out, "- %s (%s)\n", t.Meta.Title, t.Slug)
+				fmt.Fprintf(out, "- %s (%s, %s)\n", t.Meta.Title, t.Slug, t.Priority())
 			}
 			var lines []string
 			step := func(text string) { lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, text)) }
@@ -94,7 +94,7 @@ func (a *app) logNew() *cobra.Command {
 				listed = "the files changed since your last log, from their timestamps"
 			}
 			step(fmt.Sprintf("Read %s and replace every {placeholder} with facts from the work since your last log: what was done, decided and tried, as things stand. Leave out the sections marked as optional when they have nothing to say. Key Files Affected already lists %s. The log is not updated later, so do not list future work in it.", p.Rel(l.Path), listed))
-			step("If this work completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\"`).")
+			step("If this work completed any of the open todos above, delete them now (`mem todo delete <todo>`). Record anything still to be done, including blockers and decisions waiting on the user, as todos (`mem todo new \"<title>\" \"<description>\" --priority <critical|high|medium|low>`).")
 			switch {
 			case drift.Stale():
 				step(fmt.Sprintf("The codebase structure doc is out of date (%d code files, %d lines changed since it was last updated). Update it now: run `mem structure` and follow its instructions.", len(drift.Changes), drift.Lines))

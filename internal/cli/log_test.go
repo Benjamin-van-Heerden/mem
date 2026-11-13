@@ -185,13 +185,13 @@ func TestOnboardRemovesTodoClaimsFromOlderProjects(t *testing.T) {
 	mine, teammate := sharedProject(t)
 	config := filepath.Join(mine, ".mem", "config.toml")
 	data, _ := os.ReadFile(config)
-	os.WriteFile(config, []byte(strings.Replace(string(data), "schema = 3", "schema = 1", 1)), 0o644)
+	os.WriteFile(config, []byte(strings.Replace(string(data), "schema = 4", "schema = 1", 1)), 0o644)
 	writeFile(t, mine, ".mem/todos/benchmark.md", "---\ntitle: Benchmark the parser\nstatus: claimed\ncreated_at: \"2026-09-01T10:00:00+02:00\"\nclaimed_by: ana\nclaimed_at: \"2026-09-02T10:00:00+02:00\"\n---\n\nCompare.\n")
 	run(t, mine, "add", "--all")
 	run(t, mine, "commit", "--quiet", "-m", "A project from before schema 2")
 	run(t, mine, "push", "--quiet")
 
-	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Upgraded the project format to schema 3.") {
+	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Upgraded the project format to schema 4.") {
 		t.Fatalf("onboard did not upgrade:\n%s", out)
 	}
 	todo, _ := os.ReadFile(filepath.Join(mine, ".mem", "todos", "benchmark.md"))

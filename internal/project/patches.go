@@ -15,6 +15,7 @@ import (
 var patches = map[int]func(p *Project) ([]string, error){
 	1: dropTodoClaims,
 	2: moveRunnablesToConfig,
+	3: prioritiseRunnablesReview,
 }
 
 // Upgrade applies pending patches and records the new schema, updating p's config to match. It returns the schemas
@@ -79,7 +80,7 @@ func moveRunnablesToConfig(p *Project) ([]string, error) {
 	if len(listed) == 0 && len(skipped) == 0 {
 		return nil, nil
 	}
-	todo := p.Path("todos", "review_runnables_config.md")
+	todo := p.Path("todos", runnablesTodoFile)
 	if _, err := os.Stat(todo); err == nil {
 		return nil, nil
 	}
@@ -94,7 +95,7 @@ func moveRunnablesToConfig(p *Project) ([]string, error) {
 
 func runnablesTodo(listed, skipped []string, now time.Time) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "---\ntitle: Review the runnables moved into the config\ncreated_at: %q\n---\n\n", now.Format(time.RFC3339))
+	fmt.Fprintf(&b, "---\ntitle: Review the runnables moved into the config\npriority: critical\ncreated_at: %q\n---\n\n", now.Format(time.RFC3339))
 	b.WriteString("mem now runs only the commands listed under `[runnables]` in `.mem/config.toml`: each entry is a name and a command, run through the shell from the repository root at onboard. A runnable can name its interpreter or reuse a project script, such as `python3 .mem/runnables/models.py` or `bun run db:summary`, and then needs no executable bit or shebang. Files in `.mem/runnables/` no longer run on their own. `.mem/README.md` describes runnables in full.\n\n")
 	if len(listed) > 0 {
 		fmt.Fprintf(&b, "The upgrade listed each executable file in `.mem/runnables/` as an entry that runs it as before: %s.\n\n", codeList(listed))
@@ -104,6 +105,35 @@ func runnablesTodo(listed, skipped []string, now time.Time) string {
 	}
 	b.WriteString("Go through the entries with the user: name the interpreter in the command where that is clearer than a shebang, point an entry at the project's own script where one does the same job, and remove entries (and their files) that are no longer needed. Delete this todo when done.\n")
 	return b.String()
+}
+
+const runnablesTodoFile = "review_runnables_config.md"
+
+// prioritiseRunnablesReview upgrades to schema 4, where todos have priorities: the runnables review that schema 3's
+// upgrade recorded is critical, since onboard's context depends on it.
+func prioritiseRunnablesReview(p *Project) ([]string, error) {
+	path := p.Path("todos", runnablesTodoFile)
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	text := strings.ReplaceAll(string(data), "\r\n", "\n")
+	if !strings.HasPrefix(text, "---\n") || strings.Contains(text, "\npriority:") {
+		return nil, nil
+	}
+	title := strings.Index(text, "\ntitle:")
+	if title < 0 {
+		return nil, nil
+	}
+	end := title + 1 + strings.Index(text[title+1:], "\n")
+	updated := text[:end] + "\npriority: critical" + text[end:]
+	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
+		return nil, err
+	}
+	return []string{p.Rel(path)}, nil
 }
 
 func codeList(names []string) string {

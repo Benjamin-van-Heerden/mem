@@ -141,7 +141,7 @@ grep -rhoE '(get|post|put|delete)\("[^"]+"' src/api | sort -u
 
 Keep the output short: it is read at the start of every session. The interpreter a command names must be installed on every machine that runs onboard, including Windows ones if the team has them.
 
-Runnables were files that ran by themselves until schema 3. The upgrade to schema 3 lists each executable file in `.mem/runnables/` as an entry that runs it as before, and records a todo to review the entries with the user.
+Runnables were files that ran by themselves until schema 3. The upgrade to schema 3 lists each executable file in `.mem/runnables/` as an entry that runs it as before, and records a critical todo to review the entries with the user.
 
 ## Work records
 
@@ -162,7 +162,16 @@ Onboard shows the active spec in full, with its pending tasks.
 
 ### Todos
 
-A todo is a standalone matter that needs attention, including a blocker or a decision waiting on someone: `.mem/todos/<slug>.md`, with a title, a creation time and a description. It has no states: it is open until it is done or no longer relevant, and then it is deleted with `mem todo delete <todo>`, a removal you commit with the work. Onboard lists open todos with their age.
+A todo is a standalone matter that needs attention, including a blocker or a decision waiting on someone: `.mem/todos/<slug>.md`, with a title, a priority, a creation time and a description. It has no states: it is open until it is done or no longer relevant, and then it is deleted with `mem todo delete <todo>`, a removal you commit with the work.
+
+Each todo has a priority, which the agent chooses unless the user names one:
+
+- **critical**: blocks work or leaves something broken. While a critical todo is open, onboard's instruction asks the agent to raise it first and take it up before anything else, even when the user has already named other work, unless the user decides otherwise.
+- **high**: should come next.
+- **medium**: ordinary work, and the priority of a todo that records none.
+- **low**: can wait.
+
+`mem todo new "<title>" "<description>" --priority <priority>` sets it, and `mem todo priority <todo> <priority>` changes it. Onboard, `mem todo list` and `mem log new` list todos most urgent first, oldest first within a priority, with their age.
 
 ### Work logs
 

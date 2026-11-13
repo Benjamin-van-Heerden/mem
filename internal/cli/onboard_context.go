@@ -51,9 +51,12 @@ func writeContext(ctx context.Context, out io.Writer, p project.Project, user st
 	if len(todos) == 0 {
 		fmt.Fprintln(out, "No open todos.")
 	} else {
-		rows := [][]string{{"SLUG", "TITLE", "AGE"}}
+		rows := [][]string{{"SLUG", "PRIORITY", "TITLE", "AGE"}}
 		for _, t := range todos {
-			rows = append(rows, []string{t.Slug, t.Meta.Title, age(t.Meta.Created)})
+			rows = append(rows, []string{t.Slug, t.Priority(), t.Meta.Title, age(t.Meta.Created)})
+			if t.Priority() == "critical" {
+				state.critical = append(state.critical, fmt.Sprintf("%s (%s)", t.Meta.Title, t.Slug))
+			}
 		}
 		table(out, rows)
 	}

@@ -48,7 +48,7 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 **Todos** are standalone matters that need attention:
 
-- `mem todo new "<title>" "<description>"`: record one.
+- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken, and onboard then asks for it to be taken up first; high for what should come next; medium (the default) for ordinary work; low for what can wait. `mem todo priority <todo> <priority>` changes it.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo delete <todo>`: once it is done or no longer relevant; commit the removal with the work.
 

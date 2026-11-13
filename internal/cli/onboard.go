@@ -212,6 +212,8 @@ type contextState struct {
 	updateWarnings   bool
 	templateWarnings bool
 	templateTodos    bool
+	// critical names the open critical todos, which the agent takes up right after onboard.
+	critical         []string
 	knowledgeChanged bool
 	stale            bool
 	setup            setupState
@@ -268,6 +270,9 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	if state.templateTodos {
 		step(templateTodoInstruction(state.setup.present))
 	}
+	if len(state.critical) > 0 {
+		step(criticalTodoInstruction(state.critical))
+	}
 	if state.setup.present {
 		step(setupInstruction(state.setup))
 		if !state.setup.finished() {
@@ -295,6 +300,11 @@ func renderOnboardInstruction(out io.Writer, r converge.Report, state contextSta
 	step("Ask the user how they would like to proceed.")
 	lines = append(lines, "", "If the user has already said what to work on, confirm it briefly and continue with that instead of asking.", nameSession())
 	output.Instruction(out, lines...)
+}
+
+// criticalTodoInstruction puts the critical todos ahead of other work, also when the user has already named some.
+func criticalTodoInstruction(critical []string) string {
+	return fmt.Sprintf("Critical todos are open: %s. Raise them with the user first, even when they have already named other work, and take them up before anything else unless the user decides otherwise.", strings.Join(critical, "; "))
 }
 
 func driftNudges(ctx context.Context, out io.Writer, p project.Project) {

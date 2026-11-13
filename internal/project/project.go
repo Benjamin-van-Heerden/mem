@@ -13,7 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const Schema = 3
+const Schema = 4
 
 // ModeFolder marks a project that is a plain folder, synced by cloud storage if at all, with no Git.
 const ModeFolder = "folder"

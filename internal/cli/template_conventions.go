@@ -101,7 +101,7 @@ func upsertTodo(p project.Project, title, body string) (work.Todo, error) {
 			return t, work.WriteMarkdown(t.Path, t.Meta, t.Body)
 		}
 	}
-	return work.NewTodo(p, title, body)
+	return work.NewTodo(p, title, body, "")
 }
 
 func quote(text string) string {

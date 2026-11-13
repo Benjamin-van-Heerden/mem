@@ -204,6 +204,9 @@ func renderFolderInstruction(out io.Writer, state contextState) {
 	if state.updateWarnings {
 		step("Tell the user about each ⚠️ item under 🔄 UPDATES and settle it with them.")
 	}
+	if len(state.critical) > 0 {
+		step(criticalTodoInstruction(state.critical))
+	}
 	if state.drift.Missing {
 		step("Mention that there is no structure doc yet, and offer to create one with `mem structure`.")
 	}

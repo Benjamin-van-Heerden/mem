@@ -37,7 +37,7 @@ Finished documents stand on their own. Take what a skill provides into the docum
 
 Todos are matters that need attention, including anything waiting on someone else.
 
-- `mem todo new "<title>" "<description>"`: record one.
+- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken, and onboard then asks for it to be taken up first; high for what should come next; medium (the default) for ordinary work; low for what can wait. `mem todo priority <todo> <priority>` changes it.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo delete <todo>`: once it is done or no longer relevant.
 

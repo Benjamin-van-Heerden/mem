@@ -12,12 +12,15 @@ import (
 
 func (a *app) todoCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "todo", Short: "Track standalone matters that need attention"}
-	cmd.AddCommand(a.todoNew(), a.todoList(), a.todoShow(), a.todoDelete())
+	cmd.AddCommand(a.todoNew(), a.todoList(), a.todoShow(), a.todoPriority(), a.todoDelete())
 	return cmd
 }
 
+var priorityHelp = "Priority: critical (taken up right after onboard), high, medium (the default) or low"
+
 func (a *app) todoNew() *cobra.Command {
-	return &cobra.Command{
+	var priority string
+	cmd := &cobra.Command{
 		Use:   "new <title> [description]",
 		Short: "Record a todo",
 		Args:  cobra.RangeArgs(1, 2),
@@ -30,13 +33,45 @@ func (a *app) todoNew() *cobra.Command {
 			if len(args) == 2 {
 				description = args[1]
 			}
-			t, err := work.NewTodo(p, args[0], description)
+			t, err := work.NewTodo(p, args[0], description, priority)
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📌 TODO CREATED")
-			fmt.Fprintf(out, "Todo: %s (%s)\nFile: %s\n", t.Meta.Title, t.Slug, p.Rel(t.Path))
+			fmt.Fprintf(out, "Todo: %s (%s)\nPriority: %s\nFile: %s\n", t.Meta.Title, t.Slug, t.Priority(), p.Rel(t.Path))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&priority, "priority", "", priorityHelp)
+	return cmd
+}
+
+func (a *app) todoPriority() *cobra.Command {
+	return &cobra.Command{
+		Use:   "priority <todo> <critical|high|medium|low>",
+		Short: "Change a todo's priority",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p, err := a.project(cmd)
+			if err != nil {
+				return err
+			}
+			t, err := work.FindTodo(p, args[0])
+			if err != nil {
+				return err
+			}
+			previous := t.Priority()
+			if t, err = work.SetTodoPriority(t, args[1]); err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			output.Section(out, "📌 TODO PRIORITY")
+			fmt.Fprintf(out, "%s (%s): %s → %s.", t.Meta.Title, t.Slug, previous, t.Priority())
+			if !p.Folder() {
+				fmt.Fprint(out, " Commit the change with your next commit.")
+			}
+			fmt.Fprintln(out)
 			return nil
 		},
 	}
@@ -62,9 +97,9 @@ func (a *app) todoList() *cobra.Command {
 				fmt.Fprintln(out, "No open todos.")
 				return nil
 			}
-			rows := [][]string{{"SLUG", "AGE", "TITLE"}}
+			rows := [][]string{{"SLUG", "PRIORITY", "AGE", "TITLE"}}
 			for _, t := range todos {
-				rows = append(rows, []string{t.Slug, age(t.Meta.Created), t.Meta.Title})
+				rows = append(rows, []string{t.Slug, t.Priority(), age(t.Meta.Created), t.Meta.Title})
 			}
 			table(out, rows)
 			return nil
@@ -88,7 +123,7 @@ func (a *app) todoShow() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			output.Section(out, "📌 TODO: "+t.Meta.Title)
-			fmt.Fprintf(out, "Slug: %s\nOpened: %s ago\n", t.Slug, age(t.Meta.Created))
+			fmt.Fprintf(out, "Slug: %s\nPriority: %s\nOpened: %s ago\n", t.Slug, t.Priority(), age(t.Meta.Created))
 			if body := strings.TrimSpace(t.Body); body != "" {
 				fmt.Fprintf(out, "\n%s\n", body)
 			}

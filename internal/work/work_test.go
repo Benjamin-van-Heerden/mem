@@ -11,7 +11,7 @@ import (
 func TestResolveBySlugTitleAndPrefix(t *testing.T) {
 	p := project.Project{Root: t.TempDir()}
 	for _, title := range []string{"Add login", "Add login page", "Fix footer"} {
-		if _, err := NewTodo(p, title, ""); err != nil {
+		if _, err := NewTodo(p, title, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -87,7 +87,7 @@ func TestLongTitlesGetShortUniqueSlugs(t *testing.T) {
 		{"Update docs and structure for the sync catch-up", "update_docs_structure_sync_catch_up"},
 	}
 	for _, c := range cases {
-		todo, err := NewTodo(p, c.title, "")
+		todo, err := NewTodo(p, c.title, "", "")
 		if err != nil || todo.Slug != c.want {
 			t.Errorf("NewTodo(%q) slug = %q, %v; want %q", c.title, todo.Slug, err, c.want)
 		}
