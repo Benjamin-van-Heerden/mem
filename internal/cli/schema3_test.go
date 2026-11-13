@@ -36,13 +36,18 @@ func TestOnboardUpgradesASchema2ProjectsChecksAndRunnables(t *testing.T) {
 	if runtime.GOOS != "windows" && !strings.Contains(out, "GET /orders") {
 		t.Fatalf("the migrated runnable did not run:\n%s", out)
 	}
+	// Windows keeps no executable bit, so there the upgrade lists every file, including the one that never ran.
+	listed, skipped := "routes = '.mem/runnables/routes'", "not listed: `notes.txt`."
+	if runtime.GOOS == "windows" {
+		listed, skipped = "'notes.txt' = '.mem/runnables/notes.txt'\nroutes = '.mem/runnables/routes'", "as before: `notes.txt`, `routes`."
+	}
 	upgraded, _ := os.ReadFile(config)
-	for _, want := range []string{"[checks]", "git rev-parse HEAD", "[runnables]\nroutes = '.mem/runnables/routes'"} {
+	for _, want := range []string{"[checks]", "git rev-parse HEAD", "[runnables]\n" + listed} {
 		if !strings.Contains(string(upgraded), want) {
 			t.Fatalf("config after the upgrade lacks %q:\n%s", want, upgraded)
 		}
 	}
-	if strings.Contains(string(upgraded), "[precommit]") || strings.Contains(string(upgraded), "notes.txt") {
+	if strings.Contains(string(upgraded), "[precommit]") || runtime.GOOS != "windows" && strings.Contains(string(upgraded), "notes.txt") {
 		t.Fatalf("config after the upgrade:\n%s", upgraded)
 	}
 	if !strings.Contains(out, "Review the runnables moved into the config") {
@@ -55,7 +60,7 @@ func TestOnboardUpgradesASchema2ProjectsChecksAndRunnables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the review todo was not committed and shared: %v", err)
 	}
-	if !strings.Contains(string(todo), "as before: `routes`.") || !strings.Contains(string(todo), "not listed: `notes.txt`.") {
+	if !strings.Contains(string(todo), "`routes`") || !strings.Contains(string(todo), skipped) {
 		t.Fatalf("review todo:\n%s", todo)
 	}
 	if out := mem(t, teammate, "todo", "show", "review_runnables_config"); !strings.Contains(out, "Review the runnables moved into the config") {
