@@ -264,6 +264,9 @@ Lessons for mod UI on the desktop surface: Text has no font size, so Markdown he
 
 ## keep-upstream-general
 mem's managed instructions and the template library stay general: they hold conventions that fit any project of their kind. A gotcha from one project's integrations, services or setup goes in that project's own memories or docs, not upstream.
+
+## mem-guide
+The guide every mem project gets as .mem/README.md is authored in internal/agentsmd/readme.md, and keeping it up to date is imperative: it is where agents and users learn how mem works in their project. Any change to what it describes (a command's behaviour, a config key, a file under .mem/, runnables, records, checks, releases, hooks, folder projects) updates readme.md in the same commit. It describes only implemented behaviour, never planned work, and stays a guide rather than a CLI manual.
 </memories>
 
 # Developing mem
