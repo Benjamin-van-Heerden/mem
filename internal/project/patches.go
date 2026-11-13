@@ -95,7 +95,7 @@ func moveRunnablesToConfig(p *Project) ([]string, error) {
 func runnablesTodo(listed, skipped []string, now time.Time) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "---\ntitle: Review the runnables moved into the config\ncreated_at: %q\n---\n\n", now.Format(time.RFC3339))
-	b.WriteString("mem now runs only the commands listed under `[runnables]` in `.mem/config.toml`: each entry is a name and a command, run through the shell from the repository root at onboard. A runnable can name its interpreter or reuse a project script, such as `python3 .mem/runnables/models.py` or `bun run db:summary`, and needs no executable bit or shebang. Files in `.mem/runnables/` no longer run on their own. `.mem/README.md` describes runnables in full.\n\n")
+	b.WriteString("mem now runs only the commands listed under `[runnables]` in `.mem/config.toml`: each entry is a name and a command, run through the shell from the repository root at onboard. A runnable can name its interpreter or reuse a project script, such as `python3 .mem/runnables/models.py` or `bun run db:summary`, and then needs no executable bit or shebang. Files in `.mem/runnables/` no longer run on their own. `.mem/README.md` describes runnables in full.\n\n")
 	if len(listed) > 0 {
 		fmt.Fprintf(&b, "The upgrade listed each executable file in `.mem/runnables/` as an entry that runs it as before: %s.\n\n", codeList(listed))
 	}

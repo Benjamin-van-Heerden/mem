@@ -31,7 +31,7 @@ Finished documents stand on their own. Take what a skill provides into the docum
 
 - `.mem/structure.md` is a living map of this folder, and onboard includes it. When your work changes how the folder is organised, update the affected sections. `mem structure` creates it when it is missing.
 - `.mem/docs/` holds Markdown reference documents, and onboard includes them in full. Keep them to what every session needs; anything needed only sometimes belongs in a skill or in the folder itself.
-- `.mem/runnables/` holds small executable scripts whose output joins the onboard context. Use them for state worth seeing at the start of every session.
+- Runnables are commands listed under `[runnables]` in `.mem/config.toml`, such as `python3 .mem/runnables/unbilled.py`, whose output joins the onboard context. Their scripts live in `.mem/runnables/`, where a file runs only when an entry names it. Use them for state worth seeing at the start of every session.
 
 ## Todos
 

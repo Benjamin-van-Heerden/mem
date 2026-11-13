@@ -18,7 +18,7 @@ func (a *app) templateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "template",
 		Short: "Draw memories, skills, docs and runnables from a template library, and promote them back",
-		Long:  "A template library is a Git repository with one directory per template (for example nextjs-web/), each holding template.toml, memories/<name>.md, skills/<name>/, docs/<name>.md and runnables/<name> (scripts installed in .mem/runnables/, which onboard runs). Projects list the templates they use in .mem/config.toml; onboard keeps them in sync.",
+		Long:  "A template library is a Git repository with one directory per template (for example nextjs-web/), each holding template.toml, memories/<name>.md, skills/<name>/, docs/<name>.md and runnables/<name> (scripts installed in .mem/runnables/ and listed under [runnables] in .mem/config.toml, so onboard runs them). Projects list the templates they use in .mem/config.toml; onboard keeps them in sync.",
 	}
 	cmd.AddCommand(a.templateUse(), a.templateList(), a.templatePromote(), a.templateReset())
 	return cmd
