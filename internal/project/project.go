@@ -35,6 +35,8 @@ type Config struct {
 	Codex     CodexConfig     `toml:"codex,omitempty"`
 	Release   ReleaseConfig   `toml:"release,omitempty"`
 	Checks    ChecksConfig    `toml:"checks,omitempty"`
+	// Runnables name the commands whose output onboard includes, run from the repository root in name order.
+	Runnables map[string]string `toml:"runnables,omitempty"`
 	// Precommit is schema 2's name for Checks. ParseConfig moves it there, so a project that has not been upgraded yet
 	// still runs its checks, and the schema 3 patch writes the config without it.
 	Precommit *ChecksConfig `toml:"precommit,omitempty"`

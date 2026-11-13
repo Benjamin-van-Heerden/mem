@@ -13,7 +13,7 @@ What is implemented, what is planned, and known limits. [design.md](design.md) d
 - Session titles: agents are asked to give sessions a short title for the work where they can rename them (the Claude desktop app): by the onboard instruction once the user has said what to work on, repeated at the end of a context written to `.mem/local/onboard.md`; the compaction digest and `log new` have the agent look up the current title and rename the session when the work has moved on.
 - Specs, tasks, todos, work logs (facts only, closed with `log commit`; `log new` records the commits covered and lists the files affected from Git) and memories.
 - `structure` with drift detection against the last commit that touched `.mem/structure.md`.
-- Runnables in `.mem/runnables/`.
+- Runnables as `[runnables]` commands in `.mem/config.toml`; the schema 3 patch lists existing executables in `.mem/runnables/` and records a review todo; template runnables and imports add entries.
 - Checkpoint nudges: mem measures the user's work since their last log or completed task (work commits, and changed files and lines that count as work, uncommitted ones included, with `[structure] include`/`ignore` patterns) and suggests a log at the next natural stopping point, then says one is due. A `post-commit` hook in every project reports it with unpushed commits and a stale structure doc; a Claude Code `UserPromptSubmit` hook reports it with each user message once a log is called for; the compaction digest reports it too, and the compaction catch-up pushes committed work when safe. Work logs are checkpoints, not session ends.
 - Todos have no claims: open until done, then deleted (schema 2; onboard's patch removes old claim fields).
 - Onboard lists what has probably stopped being true (⏳ CHECK THESE: active specs unchanged for 14 days, unmerged remote branches idle for 14 days) and the age of unreleased work.
@@ -38,7 +38,7 @@ Tested with disposable repositories and bare remotes; CI runs on Linux, macOS an
 
 ## Known limits
 
-- Hooks and runnables rely on `sh` and executable bits, the compaction hook's command assumes bash (Claude Code falls back to PowerShell on Windows without Git Bash), and template skills are linked into `.claude/skills` with symlinks, and the PowerShell steps in `.mem/install.md` (also the route from Git Bash) have not been run; Windows is supported tentatively and its behavior is untested.
+- Hooks rely on `sh` and executable bits, runnables on the interpreters their commands name, the compaction hook's command assumes bash (Claude Code falls back to PowerShell on Windows without Git Bash), and template skills are linked into `.claude/skills` with symlinks, and the PowerShell steps in `.mem/install.md` (also the route from Git Bash) have not been run; Windows is supported tentatively and its behavior is untested.
 - Not verified: whether Cursor launched from the Dock finds `mem` on PATH for its hooks; how Cursor treats the Claude `SessionStart` `compact` matcher.
 - `git push --no-verify` and merges made in a Git host's web UI bypass the hooks. Promotion detects the resulting divergence and prints the recovery steps.
 - Work logs imported from the Python harness are interpreted in the importing machine's local time zone.

@@ -26,7 +26,7 @@ AGENTS.md                           managed <mem> block, <memories> block, user 
   README.md                         guide to how mem works in a project, written by mem; AGENTS.md points here
   structure.md                      living codebase and structure map
   docs/*.md                         project documents, included in onboard
-  runnables/*                       executables whose stdout is included in onboard
+  runnables/*                       scripts for the commands under [runnables]
   specs/<slug>/spec.md
   specs/<slug>/tasks/NN_<slug>.md
   specs/archive/<slug>/...          completed and abandoned specs
@@ -65,6 +65,9 @@ stop_hook = false       # optional: leave out the Cursor work-log follow-up at t
 [codex]
 compact_hook = false    # optional: leave out the Codex post-compaction hook
 prompt_hook = false     # optional: leave out the Codex work-log nudge with each user message
+
+[runnables]
+routes = "bun scripts/routes.ts"   # optional: commands whose output onboard includes, run in name order
 
 [structure]
 ignore = ["migrations/**"]   # optional: files that do not count as work (drift detection, work-log nudges)
@@ -167,7 +170,9 @@ Drift is measured from the baseline to the working tree, excluding Markdown, `.m
 
 ## Runnables
 
-Each executable in `.mem/runnables/` runs at onboard from the repository root with a time limit. Its stdout appears under a heading named after the file. Failures print a short note and never stop onboard. Use them to extract focused context such as design tokens, UI components or database models, instead of including whole files.
+`[runnables]` in `.mem/config.toml` maps names to commands. Each runs at onboard through the shell (`sh -c`, `cmd /C` on Windows), from the repository root, in name order, with a 15-second limit; its stdout appears under a heading with its name, cut at 20,000 characters. Failures print a short note and never stop onboard. A command can name its interpreter (`python3 .mem/runnables/models.py`, `bun scripts/routes.ts`) or reuse a project script, so nothing depends on executable bits or shebangs. `.mem/runnables/` holds scripts written for onboard, but a file there runs only when an entry names it. Use runnables to extract focused context such as design tokens, UI components or database models, instead of including whole files.
+
+Until schema 3 every executable in `.mem/runnables/` ran by itself. The schema 3 patch adds an entry running each executable file directly (`name = ".mem/runnables/<name>"`), so nothing stops running, and records the todo "Review the runnables moved into the config" listing them, and any non-executable files, which never ran, so the agent reviews the entries with the user. `mem import agent-core` writes entries too: the old runnables keep their commands, and the old files and directory trees become scripts run with `sh`.
 
 ## Branches and promotion
 
@@ -209,7 +214,7 @@ exclude = ["skill:old-guide"]     # opt-outs, written by mem
 ```
 
 - `mem init` asks for templates first: without `--template` or `--no-template` it changes nothing, lists the library's templates and tells the agent to ask the user which fit before running it again.
-- `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`, runnables into `.mem/runnables/` with LF line endings and the executable bit, so onboard runs a template's checks in every project that uses it. Without `--template-source`, the library is github.com/Benjamin-van-Heerden/mem-templates; the project's `[templates] source` records whichever library it uses.
+- `mem init --template <name>` (repeatable) and `mem template use <name>` draw a template's items into the project: memories into `AGENTS.md`, skills into `.agents/skills/<name>/` with a `.claude/skills/<name>` link, docs into `.mem/docs/`, runnables into `.mem/runnables/` with LF line endings and the executable bit, plus a `[runnables]` entry running the file directly unless the project has an entry by that name, so onboard runs a template's checks in every project that uses it. Without `--template-source`, the library is github.com/Benjamin-van-Heerden/mem-templates; the project's `[templates] source` records whichever library it uses.
 - mem keeps one clone of each library in the user cache and pulls it at onboard (not with `--offline`).
 - `.mem/templates.lock` records, per item, the content it last shared with its template. Onboard compares project copy, template copy and that record: it adds missing items, updates items the project has not edited, reports local-only edits as promotion candidates, flags items edited on both sides, keeps items a template no longer provides, and turns a deleted item into an `exclude` entry. It never deletes project files, and it publishes its changes unless those paths already had uncommitted edits.
 - A memory only guides new work, so when a sync adds a template memory to a project or replaces one with the template's new version, it also records a todo ("Apply the template convention <name>", with the memory's text and, for a change, its previous text) asking for the existing code to be checked against it. The todo is committed with the sync, so it is recorded once for everyone; a later change to a memory with an open todo rewrites that todo. Onboard, `mem sync` and the compaction digest mark it with 📌 and tell the agent to raise it with the user. The todo also covers a convention that relies on tooling or setup the project has not adopted (portless in a project whose `dev` script is plain `next dev`): the agent says so and asks the user whether to adopt it, as its own todo or spec, or drop it with `mem memory remove <name>`, and updates or removes a project memory it contradicts rather than leaving both. mem does not detect adoption; the todo's wording carries this. A project still in its template setup gets these todos too: `init` copies the template's setup once and never updates it, so a convention that arrives while the setup is pending may describe something its steps never build. Such a todo says so, and the agent is told to follow the convention in the remaining setup steps and check the code once the setup is done. The memories `init` installs with the setup come from the same template revision, so they record none. `mem template use` records one todo for all the memories the template brings.

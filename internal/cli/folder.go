@@ -95,7 +95,7 @@ func (a *app) initFolder(cmd *cobra.Command, name, description string) error {
 // has already brought the files here.
 func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, updateLine string) error {
 	before := readKnowledge(p)
-	updates, err := applyFolderUpdates(p)
+	updates, err := applyFolderUpdates(&p)
 	if err != nil {
 		return err
 	}
@@ -138,12 +138,14 @@ func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, updateLine st
 }
 
 // applyFolderUpdates brings a folder project's managed files up to date with this executable.
-func applyFolderUpdates(p project.Project) ([]string, error) {
+// The schema upgrade can change the config, so it updates the caller's project.
+func applyFolderUpdates(upgrading *project.Project) ([]string, error) {
 	var lines []string
-	applied, _, err := project.Upgrade(p)
+	applied, _, err := project.Upgrade(upgrading)
 	if err != nil {
 		return nil, err
 	}
+	p := *upgrading
 	if len(applied) > 0 {
 		lines = append(lines, fmt.Sprintf("Upgraded the project format to schema %d.", project.Schema))
 	}

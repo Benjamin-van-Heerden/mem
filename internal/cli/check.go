@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
-	"runtime"
 	"time"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/output"
 	"github.com/Benjamin-van-Heerden/mem/internal/project"
+	"github.com/Benjamin-van-Heerden/mem/internal/shell"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +50,7 @@ func runChecks(ctx context.Context, out io.Writer, p project.Project, retry stri
 	output.Section(out, "✅ CHECKS")
 	for _, command := range commands {
 		start := time.Now()
-		cmd := shell(ctx, command)
+		cmd := shell.Command(ctx, command)
 		cmd.Dir = p.Root
 		result, err := cmd.CombinedOutput()
 		elapsed := time.Since(start).Round(100 * time.Millisecond)
@@ -63,11 +62,4 @@ func runChecks(ctx context.Context, out io.Writer, p project.Project, retry stri
 		fmt.Fprintf(out, "✔ %s (%s)\n", command, elapsed)
 	}
 	return nil
-}
-
-func shell(ctx context.Context, command string) *exec.Cmd {
-	if runtime.GOOS == "windows" {
-		return exec.CommandContext(ctx, "cmd", "/C", command)
-	}
-	return exec.CommandContext(ctx, "sh", "-c", command)
 }

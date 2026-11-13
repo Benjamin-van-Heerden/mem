@@ -66,7 +66,7 @@ func (a *app) importCommand() *cobra.Command {
 			fmt.Fprintln(out, "Install guide: "+agentsmd.InstallGuide.Path+", for teammates and agents without mem")
 			fmt.Fprintln(out, "mem guide: "+agentsmd.Readme.Path+", how mem works in this project")
 			if len(sum.Runnables) > 0 {
-				fmt.Fprintf(out, "Runnables: %s in .mem/runnables/, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
+				fmt.Fprintf(out, "Runnables: %s in [runnables] of .mem/config.toml, from the old files, tree_dirs and runnables settings\n", strings.Join(sum.Runnables, ", "))
 			}
 			if line, _, err := settleClaudeFile(cmd.Context(), root); err != nil {
 				return err

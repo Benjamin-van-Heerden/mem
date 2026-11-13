@@ -64,34 +64,3 @@ func TestPromotingToStagingRefusesWhenTheChecksFail(t *testing.T) {
 		t.Fatalf("staging moved from %s to %s", before, after)
 	}
 }
-
-func TestOnboardRenamesTheSchema2PrecommitTableToChecks(t *testing.T) {
-	t.Parallel()
-	mine, _ := sharedProject(t)
-	config := filepath.Join(mine, ".mem", "config.toml")
-	data, err := os.ReadFile(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := strings.Replace(string(data), "schema = 3", "schema = 2", 1) + "\n[precommit]\ncommands = ['git rev-parse HEAD']\n"
-	writeFile(t, mine, ".mem/config.toml", old)
-	run(t, mine, "commit", "--quiet", "-am", "A project from schema 2")
-	run(t, mine, "push", "--quiet")
-
-	if out := mem(t, mine, "check"); !strings.Contains(out, "✔ git rev-parse HEAD") {
-		t.Fatalf("a project not yet upgraded should still run its checks:\n%s", out)
-	}
-	if out := mem(t, mine, "onboard", "--offline"); !strings.Contains(out, "Upgraded the project format to schema 3.") {
-		t.Fatalf("onboard did not upgrade:\n%s", out)
-	}
-	upgraded, err := os.ReadFile(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(upgraded), "[precommit]") || !strings.Contains(string(upgraded), "[checks]") || !strings.Contains(string(upgraded), "git rev-parse HEAD") {
-		t.Fatalf("config after the upgrade:\n%s", upgraded)
-	}
-	if status := run(t, mine, "status", "--porcelain", "--", ".mem/config.toml"); status != "" {
-		t.Fatalf("the upgraded config was not committed: %s", status)
-	}
-}

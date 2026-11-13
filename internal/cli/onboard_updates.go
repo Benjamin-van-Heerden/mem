@@ -17,12 +17,14 @@ import (
 )
 
 // applyUpdates brings the project and its managed instructions up to date with this executable.
-func applyUpdates(ctx context.Context, p project.Project) ([]string, error) {
+// The schema upgrade can change the config, so it updates the caller's project.
+func applyUpdates(ctx context.Context, upgrading *project.Project) ([]string, error) {
 	var lines, publishPaths []string
-	applied, changed, err := project.Upgrade(p)
+	applied, changed, err := project.Upgrade(upgrading)
 	if err != nil {
 		return nil, err
 	}
+	p := *upgrading
 	if len(applied) > 0 {
 		lines = append(lines, fmt.Sprintf("Upgraded the project format to schema %d.", project.Schema))
 		publishPaths = append(append(publishPaths, p.Rel(project.ConfigPath(p.Root))), changed...)

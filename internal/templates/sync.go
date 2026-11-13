@@ -266,10 +266,20 @@ func (s *state) install(item Item) error {
 		}
 		return nil
 	case Runnable:
-		if err := installRunnable(item.Path, filepath.Join(s.p.Root, RunnablePath(item.Name))); err != nil {
+		path := filepath.ToSlash(RunnablePath(item.Name))
+		if err := installRunnable(item.Path, filepath.Join(s.p.Root, path)); err != nil {
 			return err
 		}
-		s.res.changed(filepath.ToSlash(RunnablePath(item.Name)))
+		s.res.changed(path)
+		// Only the config makes a runnable run. An entry the project already has, perhaps with its own interpreter,
+		// stays as it is.
+		if _, ok := s.p.Config.Runnables[item.Name]; !ok {
+			if s.p.Config.Runnables == nil {
+				s.p.Config.Runnables = map[string]string{}
+			}
+			s.p.Config.Runnables[item.Name] = path
+			s.configChanged = true
+		}
 		return nil
 	default:
 		dest := filepath.Join(s.p.Root, DocPath(item.Name))

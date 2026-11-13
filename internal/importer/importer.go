@@ -119,7 +119,7 @@ func Import(root, version string) (Summary, error) {
 	if err := convertLogs(p, filepath.Join(old, "logs"), users, &sum); err != nil {
 		return sum, err
 	}
-	if err := convertOnboardConfig(p, legacy, &sum); err != nil {
+	if config.Runnables, err = convertOnboardConfig(p, legacy, &sum); err != nil {
 		return sum, err
 	}
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
@@ -347,8 +347,10 @@ func titledLog(body, created string) string {
 	return "# Work Log - Session of " + date + "\n\n" + strings.Join(lines, "\n")
 }
 
-// convertOnboardConfig turns the old [[files]], [[tree_dirs]] and [[runnables]] into runnables.
-func convertOnboardConfig(p project.Project, legacy legacyConfig, sum *Summary) error {
+// convertOnboardConfig turns the old [[files]], [[tree_dirs]] and [[runnables]] into [runnables] entries: the old
+// runnables keep their commands, and the files and directory trees become scripts in .mem/runnables/. The numbered
+// names keep the old order.
+func convertOnboardConfig(p project.Project, legacy legacyConfig, sum *Summary) (map[string]string, error) {
 	var files, trees []string
 	for _, f := range legacy.Files {
 		if strings.HasPrefix(f.Path, Source+"/docs/") {
@@ -359,26 +361,29 @@ func convertOnboardConfig(p project.Project, legacy legacyConfig, sum *Summary) 
 	for _, d := range legacy.TreeDirs {
 		trees = append(trees, fmt.Sprintf("echo %s\ngit ls-files --cached --others --exclude-standard -- %s | sed 's|/[^/]*$||' | sort | uniq -c | awk '{print $2 \" (\" $1 \" files)\"}'\necho", quote("## "+d.Path+": "+d.Description), quote(d.Path)))
 	}
-	scripts := map[string][]string{"10_important_files": files, "20_directory_trees": trees}
+	entries := map[string]string{}
 	for i, r := range legacy.Runnables {
-		scripts[fmt.Sprintf("%d_%s", 30+i, project.Slugify(r.Name))] = []string{fmt.Sprintf("# %s\n%s", r.Description, r.Command)}
+		entries[fmt.Sprintf("%d_%s", 30+i, project.Slugify(r.Name))] = r.Command
 	}
-	for name, parts := range scripts {
+	for name, parts := range map[string][]string{"10_important_files": files, "20_directory_trees": trees} {
 		if len(parts) == 0 {
 			continue
 		}
 		script := "#!/bin/sh\n# Imported from .agent_core/config.toml.\n" + strings.Join(parts, "\n") + "\n"
 		path := p.Path("runnables", name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return err
+			return nil, err
 		}
 		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-			return err
+			return nil, err
 		}
+		entries[name] = "sh " + p.Rel(path)
+	}
+	for name := range entries {
 		sum.Runnables = append(sum.Runnables, name)
 	}
 	sort.Strings(sum.Runnables)
-	return nil
+	return entries, nil
 }
 
 func specStatus(old, assigned string) string {

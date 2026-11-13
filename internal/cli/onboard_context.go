@@ -161,9 +161,9 @@ func writeStructure(ctx context.Context, out io.Writer, p project.Project) (stru
 }
 
 func writeRunnables(ctx context.Context, out io.Writer, p project.Project) error {
-	results, err := runnables.Run(ctx, p)
-	if err != nil || len(results) == 0 {
-		return err
+	results := runnables.Run(ctx, p)
+	if len(results) == 0 {
+		return nil
 	}
 	output.Heading(out, "🏃 RUNNABLES")
 	for _, r := range results {

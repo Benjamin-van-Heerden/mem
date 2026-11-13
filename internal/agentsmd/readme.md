@@ -16,7 +16,7 @@ AGENTS.md                  agent instructions: mem's managed block, the project 
   config.toml              project configuration (see below)
   structure.md             living map of the codebase, included in onboard
   docs/<name>.md           project documents, printed in full at every onboard
-  runnables/<name>         executables whose output is included in onboard
+  runnables/<name>         scripts for the commands under [runnables]
   specs/<slug>/spec.md     planned work; its tasks are in specs/<slug>/tasks/NN_<slug>.md
   specs/archive/<slug>/    completed and abandoned specs
   todos/<slug>.md          open matters, one per file
@@ -58,6 +58,9 @@ protect = true              # Git hooks keep staging and production promotion-on
 
 [checks]
 commands = ["npm run lint", "npm test"]   # see Checks
+
+[runnables]
+routes = "bun scripts/print-routes.ts"    # see Runnables
 
 [structure]
 ignore = ["migrations/**"]  # files that do not count as work
@@ -115,23 +118,30 @@ Every `.mem/docs/<name>.md` is printed in full at every onboard, in name order, 
 
 ## Runnables
 
-A runnable is an executable file in `.mem/runnables/` whose output joins the onboard context under a heading with its name. Use runnables for focused context that changes with the code, such as the database models, the design tokens or the routes, instead of pasting whole files into a doc.
+A runnable is a command whose output joins the onboard context under a heading with its name. Use runnables for focused context that changes with the code, such as the database models, the design tokens or the routes, instead of pasting whole files into a doc. They are listed under `[runnables]` in `.mem/config.toml`, one `name = "command"` each:
 
-- Every file runs at each onboard, in name order. Directories and names starting with `.` are skipped.
-- A runnable must be executable (`chmod +x`) and start with a shebang line. It may use any language that is installed on every machine that runs onboard.
-- It runs from the repository root, with a 15-second limit.
-- Its stdout is included, cut off after 20,000 characters. Stderr is not shown, apart from the first line when it fails.
-- A failure, timeout or missing executable bit prints a ⚠️ line, and onboard carries on.
+```toml
+[runnables]
+routes = "bun scripts/print-routes.ts"
+models = "python3 .mem/runnables/models.py"
+schema = "npm run --silent db:summary"
+```
 
-For example, `.mem/runnables/routes`:
+- At each onboard, every entry runs through the shell (`sh`, or `cmd` on Windows) from the repository root, in name order.
+- The command can name any interpreter, call a script in `.mem/runnables/` or elsewhere, or reuse one of the project's own scripts. When the command names the interpreter, the script needs no executable bit or shebang.
+- Each runs with a 15-second limit. Its stdout is included, cut off after 20,000 characters. Stderr is not shown, apart from the first line when it fails.
+- A failure or timeout prints a ⚠️ line, and onboard carries on.
+
+`.mem/runnables/` is the place for scripts written only for onboard. A file there does not run unless an entry names it. For example, `.mem/runnables/routes.sh`, listed as `routes = "sh .mem/runnables/routes.sh"`:
 
 ```sh
-#!/bin/sh
 # The API routes, so agents know what exists without reading every handler.
 grep -rhoE '(get|post|put|delete)\("[^"]+"' src/api | sort -u
 ```
 
-Keep the output short: it is read at the start of every session. Runnables also run on Windows, where they need an environment that understands their shebang, such as Git Bash.
+Keep the output short: it is read at the start of every session. The interpreter a command names must be installed on every machine that runs onboard, including Windows ones if the team has them.
+
+Runnables were files that ran by themselves until schema 3. The upgrade to schema 3 lists each executable file in `.mem/runnables/` as an entry that runs it as before, and records a todo to review the entries with the user.
 
 ## Work records
 
@@ -175,7 +185,7 @@ A skill is a folder in `.agents/skills/<name>/` with a `SKILL.md` and anything i
 
 A template library is a Git repository with a folder per template, holding memories, skills, docs, runnables and change notes, and optionally a one-time setup. `[templates]` in the config names the library and the templates this project uses.
 
-- `mem init --template <name>` and `mem template use <name>` draw a template's items into the project.
+- `mem init --template <name>` and `mem template use <name>` draw a template's items into the project. A template runnable is a script installed in `.mem/runnables/` with the executable bit, and installing it adds an entry that runs it directly (`name = ".mem/runnables/<name>"`), unless the project already has an entry by that name. A template runnable therefore needs a shebang.
 - Each onboard and `mem sync` compares every item with its template. `.mem/templates.lock` records the content each item last shared with its template. mem adds missing items and updates the ones the project has not edited. It reports items edited locally or on both sides, and turns an item you delete into an `exclude` entry.
 - A new or changed template memory becomes a todo to check the existing code against it, since a memory only guides new work. A template's change note that the project has not seen also becomes a todo.
 - `mem template promote <memory|skill|doc|runnable> <name>` sends a project's item to its template, so other projects receive it at their next onboard. `mem template reset` takes the template's copy back, and `mem template list` shows where each item stands.

@@ -83,7 +83,7 @@ func (a *app) onboardCommand() *cobra.Command {
 					return err
 				}
 			} else {
-				if updates, err = applyUpdates(ctx, p); err != nil {
+				if updates, err = applyUpdates(ctx, &p); err != nil {
 					return err
 				}
 				if templateLines, err = syncTemplates(ctx, &p, !offline); err != nil {

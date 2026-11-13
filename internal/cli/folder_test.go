@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -201,18 +200,15 @@ func TestInitFolderSetsUpAPlainFolderAndOnboardBuildsItsContext(t *testing.T) {
 	}
 
 	writeFile(t, root, ".mem/docs/clients.md", "# Clients\n\nAcme pays late.\n")
-	writeFile(t, root, ".mem/runnables/unbilled", "#!/bin/sh\necho 'Acme: 12 hours unbilled'\n")
-	if err := os.Chmod(filepath.Join(root, ".mem/runnables/unbilled"), 0o755); err != nil {
+	config, err := os.ReadFile(filepath.Join(root, ".mem", "config.toml"))
+	if err != nil {
 		t.Fatal(err)
 	}
+	writeFile(t, root, ".mem/config.toml", string(config)+"\n[runnables]\nunbilled = 'echo Acme: 12 hours unbilled'\n")
 	mem(t, root, "todo", "new", "Chase Acme", "Invoice 12 is overdue")
 	mem(t, root, "memory", "set", "invoices", "Number invoices in one sequence.")
 	out = mem(t, root, "onboard", "--offline")
-	wanted := []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Chase Acme", "no structure doc yet"}
-	// Windows cannot execute shell scripts directly.
-	if runtime.GOOS != "windows" {
-		wanted = append(wanted, "Acme: 12 hours unbilled")
-	}
+	wanted := []string{"MEM ONBOARD: work", "Our documents", "Acme pays late.", "Chase Acme", "no structure doc yet", "Acme: 12 hours unbilled"}
 	for _, want := range wanted {
 		if !strings.Contains(out, want) {
 			t.Errorf("onboard is missing %q:\n%s", want, out)

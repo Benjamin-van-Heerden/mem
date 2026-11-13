@@ -306,6 +306,9 @@ func TestOnboardRunsTemplateRunnablesAndPromoteSendsThemBack(t *testing.T) {
 	if status := run(t, root, "status", "--porcelain"); status != "" {
 		t.Fatalf("onboard left the runnable uncommitted:\n%s", status)
 	}
+	if config, _ := os.ReadFile(filepath.Join(root, ".mem", "config.toml")); !strings.Contains(string(config), "[runnables]\nchecks = '.mem/runnables/checks'") {
+		t.Fatalf("the template runnable has no [runnables] entry:\n%s", config)
+	}
 	if mode := run(t, root, "ls-files", "--stage", ".mem/runnables/checks"); runtime.GOOS != "windows" && !strings.HasPrefix(mode, "100755") {
 		t.Fatalf("runnable committed without the executable bit: %s", mode)
 	}

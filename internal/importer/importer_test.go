@@ -111,6 +111,9 @@ func TestImportConvertsHarnessStateAndKeepsUserContent(t *testing.T) {
 	if len(sum.Runnables) != 1 {
 		t.Fatalf("runnables = %v", sum.Runnables)
 	}
+	if config, _ := os.ReadFile(filepath.Join(root, ".mem", "config.toml")); !strings.Contains(string(config), "[runnables]\n"+sum.Runnables[0]+" = ") {
+		t.Fatalf("the imported runnable has no [runnables] entry:\n%s", config)
+	}
 	if _, err := Import(root, "1.0.0"); err == nil {
 		t.Fatal("second import was allowed")
 	}

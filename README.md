@@ -113,7 +113,7 @@ AGENTS.md                  mem block, your content, project memories
   README.md                how mem works in the project: its files, configuration, runnables, records and hooks
   structure.md             codebase and structure map
   docs/*.md                documents included in onboard
-  runnables/*              executables whose output is included in onboard
+  runnables/*              scripts for the commands under [runnables]
   specs/<slug>/            spec.md and tasks/; completed specs move to specs/archive/
   todos/<slug>.md
   logs/<user>_<date>_<time>.md
@@ -141,7 +141,13 @@ ignore = ["migrations/**"]   # optional: paths that do not count as work
 include = ["*.md"]           # optional: paths that count although the built-in rules leave them out, such as Markdown
 ```
 
-Runnables are for context that is better extracted than pasted whole, such as design tokens, UI components or database models. Each executable in `.mem/runnables/` runs at onboard from the repository root, in name order, with a 15 second limit.
+Runnables are for context that is better extracted than pasted whole, such as design tokens, UI components or database models. Each entry under `[runnables]` is a name and a command, run through the shell at onboard from the repository root, in name order, with a 15 second limit, so it can name any interpreter or reuse a project script:
+
+```toml
+[runnables]
+routes = "bun scripts/print-routes.ts"
+models = "python3 .mem/runnables/models.py"
+```
 
 ## Developing mem
 
