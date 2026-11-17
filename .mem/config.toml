@@ -1,4 +1,4 @@
-schema = 2
+schema = 4
 name = 'mem'
 description = 'Context building and work records for coding agents'
 
@@ -13,5 +13,5 @@ protect = true
 notes = true
 version_tags = true
 
-[precommit]
+[checks]
 commands = ['go vet ./...', 'go test ./...']
