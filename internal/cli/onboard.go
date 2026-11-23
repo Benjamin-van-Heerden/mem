@@ -98,7 +98,7 @@ func (a *app) onboardCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if warning := agentsSizeWarning(agents); warning != "" {
+			if warning := agentsSizeWarning(agents, p.Folder()); warning != "" {
 				updates = append(updates, warning)
 			}
 			report = afterUpdates(ctx, p, report)

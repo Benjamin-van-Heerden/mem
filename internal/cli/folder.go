@@ -106,7 +106,7 @@ func (a *app) onboardFolder(cmd *cobra.Command, p project.Project, updateLine st
 	if err != nil {
 		return err
 	}
-	if warning := agentsSizeWarning(agents); warning != "" {
+	if warning := agentsSizeWarning(agents, p.Folder()); warning != "" {
 		updates = append(updates, warning)
 	}
 

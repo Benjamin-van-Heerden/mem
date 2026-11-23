@@ -266,3 +266,13 @@ func TestFolderCommandsNeverTalkAboutGit(t *testing.T) {
 		t.Fatalf("structure doc: %v\n%s", err, doc)
 	}
 }
+
+func TestFolderSizeWarningPointsSkillsAtClaudeSkills(t *testing.T) {
+	blockGit(t)
+	root := t.TempDir()
+	mem(t, root, "init", "--folder")
+	out := mem(t, root, "memory", "set", "letters", strings.Repeat("Open every client letter with the reference line and the date. ", 600))
+	if !strings.Contains(out, "⚠️ AGENTS.md is") || !strings.Contains(out, "a folder `.claude/skills/<name>/` holding a `SKILL.md`") || strings.Contains(out, ".agents/skills") {
+		t.Fatalf("the folder size warning should point skills at .claude/skills:\n%s", out)
+	}
+}

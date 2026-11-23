@@ -65,7 +65,7 @@ func (a *app) memoryCommand() *cobra.Command {
 			if p.Folder() {
 				lines = []string{"Apply this convention for the rest of this session. AGENTS.md is updated for future sessions."}
 			}
-			if warning := agentsSizeWarning(updated); warning != "" {
+			if warning := agentsSizeWarning(updated, p.Folder()); warning != "" {
 				fmt.Fprintf(out, "\n%s\n", warning)
 				lines = append(lines, "Stop here: tell the user about the ⚠️ above and settle it with them before you continue with other work.")
 			}
@@ -107,9 +107,14 @@ const agentsSizeLimit = 32 << 10
 
 // agentsSizeWarning flags an AGENTS.md that agents may read only in part.
 // Memories and the project's own instructions follow mem's block, so a cut drops them first.
-func agentsSizeWarning(text string) string {
+// A memory needed only for some tasks can move to a skill, which agents load only when it fits.
+func agentsSizeWarning(text string, folder bool) string {
 	if len(text) <= agentsSizeLimit {
 		return ""
 	}
-	return fmt.Sprintf("⚠️ AGENTS.md is %.1f KiB, over 32 KiB. Some agent runtimes, such as Codex, read only the first 32 KiB of it and silently drop the rest: the project memories and instructions at the end of the file. Propose to the user which memories to merge, shorten or retire (`mem memory list` shows them all), and change them only as the user decides. For Codex alone, the project can instead raise `project_doc_max_bytes` in `.codex/config.toml`.", float64(len(text))/1024)
+	skill := "a folder `.agents/skills/<name>/` linked from `.claude/skills/<name>`"
+	if folder {
+		skill = "a folder `.claude/skills/<name>/`"
+	}
+	return fmt.Sprintf("⚠️ AGENTS.md is %.1f KiB, over 32 KiB. Some agent runtimes, such as Codex, read only the first 32 KiB of it and silently drop the rest: the project memories and instructions at the end of the file. Propose to the user which memories to merge, shorten, retire or turn into skills (`mem memory list` shows them all), and change them only as the user decides. A memory that matters only for some tasks, such as a guide to one area of the work, fits a skill: %s holding a `SKILL.md` whose `name` and `description` frontmatter says when to use it. Agents load a skill only when its description fits the task, so it costs no context otherwise; move the text there, then `mem memory remove <name>`. Conventions that must hold in every session stay memories. For Codex alone, the project can instead raise `project_doc_max_bytes` in `.codex/config.toml`.", float64(len(text))/1024, skill)
 }

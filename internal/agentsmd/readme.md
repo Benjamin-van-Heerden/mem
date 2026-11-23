@@ -37,7 +37,7 @@ Everything here except `.mem/local/` is committed and shared. Most of these appe
 `AGENTS.md` holds three parts, in order:
 
 - **The managed block** between `<mem>` and `</mem>`. Onboard rewrites it from the installed mem, so edits to it are lost. Change mem itself to change it.
-- **The memories block** between `<memories>` and `</memories>`. These are lasting project conventions, one `## <name>` section each. Change them with `mem memory set <name> "<text>"` and `mem memory remove <name>`; `mem memory list` shows them. Some agents read only the first 32 KiB of `AGENTS.md` (Codex by default), so mem warns when the file is larger.
+- **The memories block** between `<memories>` and `</memories>`. These are lasting project conventions, one `## <name>` section each. Change them with `mem memory set <name> "<text>"` and `mem memory remove <name>`; `mem memory list` shows them. Some agents read only the first 32 KiB of `AGENTS.md` (Codex by default), so mem warns when the file is larger and asks the agent to agree with you which memories to merge, shorten, retire or turn into skills. A memory that matters only for some tasks fits a skill (below), which costs no context until it is needed.
 - **Your own content** after both blocks, which mem never touches.
 
 ## config.toml
