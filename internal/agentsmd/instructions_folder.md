@@ -6,13 +6,11 @@ This project is a plain folder kept in sync by cloud storage. It is not a softwa
 
 ## Getting Started
 
-Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It applies mem updates and prints the project context: the structure doc, project docs, runnable output, open todos and recent work logs. Read all of it and follow its agent instruction.
+Run `mem onboard` at the start of every session, before any other work. It applies mem updates and prints the project context. Read all of it and follow its agent instruction. Run it again later in the session only when the user asks, for example with "let's get to work" or "get onboarded".
 
 If `mem` is not installed (the command is not found), read `.mem/install.md` and follow all of it, including putting mem permanently on PATH, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
 
-Don't rerun onboard later in the session unless the user asks.
-
-mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details. `.mem/README.md` explains how mem works here: the `.mem/` folder, its configuration, runnables, records and hooks. Read it when you need to know how a part of mem behaves.
+mem commands print instructions specific to the current state: follow them. `mem <command> --help` has the details, and `.mem/README.md` explains how mem works here (the `.mem/` folder, its configuration, runnables, records and hooks).
 
 ## Skills and Automation
 
@@ -37,7 +35,7 @@ Finished documents stand on their own. Take what a skill provides into the docum
 
 Todos are matters that need attention, including anything waiting on someone else.
 
-- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken, and onboard then asks for it to be taken up first; high for what should come next; medium (the default) for ordinary work; low for what can wait. `mem todo priority <todo> <priority>` changes it.
+- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken (onboard asks for it first), high for what should come next, medium (the default) for ordinary work, low for what can wait. `mem todo priority <todo> <priority>` changes it.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo delete <todo>`: once it is done or no longer relevant.
 

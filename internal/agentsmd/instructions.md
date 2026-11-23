@@ -19,17 +19,17 @@ These hold in every session, whatever a task description or your tool's defaults
 
 ## Getting Started
 
-Run `mem onboard` at the start of every session, and whenever the user says something like "let's get to work" or "get onboarded". It syncs this checkout with the shared codebase, applies mem updates and prints the project context: the codebase structure doc, project docs, runnable output, active specs, open todos, recent work logs and {{if .Single}}how the development branch stands against its base{{else}}release status{{end}}. Read all of it and follow its agent instruction. Use `mem onboard --offline` when there is no network access.
+`mem onboard` syncs this checkout with the shared codebase, applies mem updates and prints the project context. Read all of it and follow its agent instruction. Run it again later in the session only when the user asks, for example with "let's get to work" or "get onboarded". Use `mem onboard --offline` when there is no network access.
 
 If `mem` is not installed (the command is not found), read `.mem/install.md` and follow all of it, including putting mem permanently on PATH, then run `mem onboard`. If it cannot be installed, tell the user before doing any other work.
 
-Don't rerun onboard later in the session unless the user asks.
-
-mem commands print instructions specific to the current state. Follow them. Use `mem <command> --help` for details. `.mem/README.md` explains how mem works here: the `.mem/` folder, its configuration, runnables, records and hooks. Read it when you need to know how a part of mem behaves.
+mem commands print instructions specific to the current state: follow them. `mem <command> --help` has the details, and `.mem/README.md` explains how mem works here (the `.mem/` folder, its configuration, runnables, records and hooks).
 
 ## Staying in Sync
 
-Everyone works on the same codebase. Work on the development branch. Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. The project's checks, such as its linter and tests, are set under `[checks]` in `.mem/config.toml`. {{if .Single}}`mem task complete` and `mem spec complete`{{else}}`mem promote staging` and `mem deploy`{{end}} run them and refuse when they fail, so do not run them before each commit; `mem check` runs them on request. If none are set, add the project's linter and tests there. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it, so your commits reach everyone at each of these points. mem applies safe Git updates itself and flags drift with ⚠️. Tell the user about each flag and help resolve it promptly. Run `mem sync` mid-session, for example before starting new work{{if not .Single}} or a promotion{{end}}. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
+Commit each coherent, working change, typically one commit per task or fix, rather than every edit or a whole day's work. `mem sync`, `mem task complete`, `mem spec complete` and `mem log commit` bring the branch up to date and push it. Run `mem sync` mid-session too, for example before starting new work{{if not .Single}} or a promotion{{end}}. mem flags drift with ⚠️: tell the user about each flag and help resolve it promptly. Work on another branch is based on the development branch: mem keeps such a branch on top of it, and the work reaches everyone once it is merged in.
+
+The project's checks, such as its linter and tests, are set under `[checks]` in `.mem/config.toml`; if none are set, add them there. {{if .Single}}`mem task complete` and `mem spec complete`{{else}}`mem promote staging` and `mem deploy`{{end}} run them and refuse when they fail, and `mem check` runs them on request, so do not run them before each commit.
 
 ## Specs, Tasks and Todos
 
@@ -39,16 +39,16 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 - `mem spec new "<title>"`: create a draft spec, then follow its instructions to write it up with the user.
 - `mem task new "<title>" "<detailed description>" --spec <spec>`: add a task.
-- `mem spec start <spec>`: begin implementation. This assigns the spec to you and publishes that. A started spec is worked through to the end: do not stop for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
-- `mem task complete <task> "<what was done and how it was verified>" <path>...`: record a finished task. It commits the paths you name, relative to the repository root, together with the task record, using the task title and your note as the commit message, then syncs and pushes. Name the files and directories you changed for the task: another session may be working in the same checkout, and its changes must stay out of your commit. mem lists what it left uncommitted; commit anything of yours among it as a follow-up. Without paths it commits every change in the working tree. Then continue with the next task without waiting for approval.
-- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code. It archives the spec, commits that, syncs and pushes. It refuses until the branch is in step with the shared codebase: resolve any conflicts it names, with the user, first.
+- `mem spec start <spec>`: begin implementation, and work the spec through to the end without stopping for approval between tasks. Stop only for a decision only the user can make; ask it, and meanwhile continue with the tasks that do not depend on it.
+- `mem task complete <task> "<what was done and how it was verified>" <path>...`: record a finished task and commit it with the files and directories you changed for it, relative to the repository root. Always name them: another session may be working in the same checkout, and its changes must stay out of your commit.
+- `mem spec complete <spec>`: once every task is done and the Success Criteria hold in the code.
 - `mem spec list`, `mem spec show <spec>`: see what exists and where it stands.
 
 `--spec` can be omitted when exactly one active spec is assigned to you. Refer to specs, tasks and todos by slug or by title.
 
 **Todos** are standalone matters that need attention:
 
-- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken, and onboard then asks for it to be taken up first; high for what should come next; medium (the default) for ordinary work; low for what can wait. `mem todo priority <todo> <priority>` changes it.
+- `mem todo new "<title>" "<description>" --priority <critical|high|medium|low>`: record one. Choose the priority yourself unless the user names one: critical for what blocks work or leaves something broken (onboard asks for it first), high for what should come next, medium (the default) for ordinary work, low for what can wait. `mem todo priority <todo> <priority>` changes it.
 - `mem todo list`, `mem todo show <todo>`: see open todos.
 - `mem todo delete <todo>`: once it is done or no longer relevant; commit the removal with the work.
 
@@ -56,12 +56,12 @@ Ordinary coding needs none of these. Use them when the user asks for planned wor
 
 A work log records a stretch of work: what was done, decided and tried, as fact. It is not updated later, so it never holds open work: anything still to be done, including blockers and decisions waiting on the user, is a todo.
 
-- Write one at each checkpoint: when a spec completes,{{if not .Single}} before a release,{{end}} when mem's work-log nudge says so (after a commit or with the user's message), and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted: it commits them with the log, syncs with the shared codebase and pushes.
+- Write one at each checkpoint: when a spec completes,{{if not .Single}} before a release,{{end}} when mem's work-log nudge says so, and when the user wraps up. A log is a checkpoint, never a stop: write it at a natural stopping point, then carry on with the work. Run `mem log new`, fill the log in as instructed, then `mem log commit <path>...`, naming the .mem/ records you changed for it, such as todos you added or deleted.
 - `mem log list`, `mem log show <log>`: read earlier logs.
 
 ## Codebase Structure
 
-`.mem/structure.md` is a living map of the codebase, and onboard includes it. Keep it current rather than regenerating it. When your changes alter what it describes, such as modules, entry points, data flow or commands, update the affected sections and commit them with the work. `mem structure` creates the doc or lists what changed since it was last updated.
+`.mem/structure.md` is a living map of the codebase, and onboard includes it. Keep it current rather than regenerating it: when your changes alter what it describes, such as modules, entry points, data flow or commands, update the affected sections and commit them with the work. `mem structure` creates the doc or lists what changed since it was last updated.
 
 ## Memories
 
@@ -84,8 +84,6 @@ Nothing deploys from the development branch. Releases move the staging and produ
 - When the user asks for a release: `mem promote production`, then follow its instructions.
 - A full deployment means both, in that order.
 - `mem deploy` releases everything at once without notes or review. It is the user's command: never run it unless the user explicitly asks you to run `mem deploy`.
-
-Staging and production only move through `mem promote` and `mem deploy`. Never commit on them or push to them directly.
 {{- end}}
 
 ## Working Guidelines
@@ -105,10 +103,8 @@ Staging and production only move through `mem promote` and `mem deploy`. Never c
 Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?' And if they would, I do not do that thing." - Dwight Schrute
 
 ## Communication Style
-- Be conversational but professional
-- Think through considerations and requirements before writing code
-- Planning first, then execution - we discuss the problem before implementing
-- Surface uncertainty and tradeoffs clearly, following the Think Before Coding guidelines below.
+- Be conversational but professional.
+- Plan first, then execute: discuss the problem before implementing, following Think Before Coding below.
 
 ## Documents, Reports and Visualizations
 - Do not create hosted artifacts, canvases or similar pages outside the repository (such as Claude Artifacts), even when a tool or skill suggests publishing one. They are hard to edit, hard to fill with real data and live outside the codebase.
@@ -118,19 +114,14 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 
 ## Agent Tool Configuration
 - Do not create or change your coding tool's own configuration, such as `.claude/launch.json`, `.claude/settings.json`, `.mcp.json`, or `.cursor/` and `.vscode/` launch and task files, even when a tool or skill tells you to. Change one only when the user asks for that change. Leave existing ones as they are: do not delete or tidy them unless asked. Skills, mem's own entries and permissions the user approves in the app are not covered.
-- Run the project through its own scripts, such as `npm run dev` in the background, and open it at its documented URL (in the Claude desktop app's browser pane, `preview_start` with `url`).
+- Run the project through its own scripts, such as `npm run dev` in the background, and open it at its documented URL.
 
 ## Code Quality Standards
 - Prefer self-explanatory code. Use comments to explain non-obvious reasoning, constraints, or tradeoffs; avoid comments that merely narrate what the code does.
-- Avoid print statements apart from ad-hoc testing, when necessary defer to formal logging
-- Follow established patterns and conventions in the codebase
-- Prioritize clarity and maintainability over cleverness
+- Avoid print statements apart from ad-hoc testing; otherwise use formal logging.
+- Prioritize clarity and maintainability over cleverness.
 - Use robust error handling wherever applicable.
-
-## Performance Considerations
-- Chunked processing for batch operations when applicable
-- Database query optimization with proper indexing
-- Memory management for large batch processing
+- Prefer functional and procedural patterns over heavy OOP, which is only used when it provides clear benefits. Prefer explicit over implicit, declarative over imperative.
 
 ## File and Folder Structure
 
@@ -143,18 +134,9 @@ Remember: "Whenever I'm about to do something, I think, 'Would an idiot do that?
 
 ### File Size and Refactoring
 
-If a source file grows past 500 lines, treat that as a strong signal to split or refactor. Large files often accumulate mixed concerns, duplicated helpers, and hard-to-reason-about state. When your changes push a file past this threshold, or substantially extend an already oversized file, identify a cohesive part to extract before adding more.
-
-Prefer extracting by domain or responsibility: domain-specific types, cohesive helpers, or a focused submodule. Do not split files mechanically to meet the line count, compress code to hide its size, or introduce unnecessary indirection. A useful split should make each module easier to understand and change independently.
-
-Exceptions should be exceedingly rare, such as generated code or externally maintained vendored components. Explain why an exception is justified; compilation and passing tests alone do not justify keeping a file whole.
+A source file past 500 lines is a strong signal to split or refactor. When your changes push a file past it, or substantially extend one already past it, first extract a cohesive part by domain or responsibility, such as domain-specific types, cohesive helpers or a focused submodule, so that each module is easier to understand and change on its own. Do not split mechanically to meet the line count, compress code to hide its size, or add unnecessary indirection. Exceptions, such as generated code or vendored components, should be exceedingly rare and explained; compiling and passing tests do not justify keeping a file whole.
 
 Keep refactoring within the requested scope. If an existing oversized file needs a broader restructuring than the task warrants, flag it and propose a follow-up rather than silently expanding the task.
-
-## Functional Approach
-- Prefer functional and procedural programming patterns over heavy OOP
-- OOP is only used when it provides clear benefits
-- Minimal abstractions - prefer explicit over implicit, declarative over imperative
 
 ## Source Formatting
 
@@ -185,7 +167,6 @@ Before implementing:
 - Introduce abstractions only when they clarify responsibilities or remove meaningful duplication. A focused function or module can be worthwhile with one caller; do not add layers solely for hypothetical reuse.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
@@ -209,56 +190,20 @@ The test: Every changed line should trace directly to the user's request.
 
 **Define success criteria. Loop until verified.**
 
-Transform tasks into verifiable goals:
-- "Add validation" -> "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" -> "Write a test that reproduces it, then make it pass"
-- "Refactor X" -> "Ensure tests pass before and after"
+Turn tasks into verifiable goals: "fix the bug" becomes "write a test that reproduces it, then make it pass", and "refactor X" becomes "tests pass before and after". For multi-step tasks, state a brief plan with a check for each step. Strong success criteria let you loop independently; weak ones like "make it work" require constant clarification.
 
-For multi-step tasks, state a brief plan:
-
-```text
-1. [Step] -> verify: [check]
-2. [Step] -> verify: [check]
-3. [Step] -> verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria like "make it work" require constant clarification.
-
----------------------------------------------------------------
+---
 
 # Testing Philosophy
 
-Testing is critical to maintaining software quality, but not all tests are created equal. Focus on testing meaningful functionality that could actually break and impact the application.
+Not all tests are created equal. Test meaningful functionality that could realistically break and affect the application.
 
-### Test Structure
 - Follow the project's established test layout and framework conventions. When establishing a new layout, default to a `tests/` directory that mirrors the source structure.
-- Focus on meaningful functionality that could realistically break
-- Avoid "idiot tests" that test framework behavior or trivial logic
-
-### What to Test
-- **Business logic**: Complex algorithms, validation rules, data transformations
-- **API endpoints**: Request/response handling, authentication, error cases
-- **Database operations**: Query correctness, constraint validation, data integrity
-- **Integration points**: External API calls, file processing, inter-service communication
-
-### What NOT to Test
-- Framework internals 
-- Third-party library behavior 
-- Trivial getters/setters or simple data transformations
-- Implementation details that don't affect public behavior
-
-**Test Quality Principles:**
-1. **Clarity Over Quantity** - Fewer, well-focused tests are better than many redundant ones
-2. **Test Behavior, Not Implementation** - Focus on what the code does, not how it does it
-3. **Meaningful Assertions** - Each test should verify something that could realistically fail
-4. **Isolated Tests** - Tests should not depend on each other or external state
-5. **Descriptive Names** - Test names should clearly describe what they're validating
-
-**When in Doubt, Ask:**
-- "Does this test validate critical business logic or user-facing behavior?"
-- "Could this functionality realistically break in the way it is being tested?"
+- Test business logic, API endpoints (requests, authentication, error cases), database operations (query correctness, constraints, data integrity) and integration points (external APIs, file processing, inter-service communication).
+- Do not test framework internals, third-party library behavior, trivial getters, setters or transformations, or implementation details that don't affect public behavior.
+- Prefer fewer, well-focused tests over many redundant ones. Test behavior, not implementation. Keep tests isolated from each other and from external state, and give them names that say what they validate.
 
 Apply this review to tests introduced or changed in the current task. Revise or remove those tests when they do not verify meaningful behavior, while preserving coverage required by the task. If an unrelated existing test appears unhelpful, flag it rather than deleting it without an explicit request.
 
-NEVER run a full test suite unless specifically asked to or as part of the project's checks (`mem check`). focus on specific tests related to the feature/functionality you are working on.
+NEVER run a full test suite unless specifically asked to or as part of the project's checks (`mem check`). Focus on the tests for the functionality you are working on.
 </mem>
