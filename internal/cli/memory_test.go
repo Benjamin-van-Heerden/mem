@@ -14,7 +14,7 @@ func TestAnAgentsMdOverCodexsLimitIsFlaggedAtMemorySetAndOnboard(t *testing.T) {
 	}
 
 	out = mem(t, teammate, "memory", "set", "architecture", strings.Repeat("Keep handlers thin and put domain rules in the service layer. ", 600))
-	if !strings.Contains(out, "⚠️ AGENTS.md is") || !strings.Contains(out, "turn into skills") || !strings.Contains(out, "`.agents/skills/<name>/` linked from `.claude/skills/<name>`") || !strings.Contains(out, "Stop here: tell the user about the ⚠️ above") {
+	if !strings.Contains(out, "⚠️ AGENTS.md is") || !strings.Contains(out, "turn into skills") || !strings.Contains(out, "`.agents/skills/<name>/`, which onboard links from `.claude/skills/<name>`") || !strings.Contains(out, "Stop here: tell the user about the ⚠️ above") {
 		t.Fatalf("memory set did not flag AGENTS.md over 32 KiB:\n%s", out)
 	}
 	out = mem(t, teammate, "memory", "set", "logging", "Use the structured logger everywhere.")

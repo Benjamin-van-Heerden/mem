@@ -34,7 +34,7 @@ AGENTS.md                           managed <mem> block, <memories> block, user 
   logs/<user>_<YYYYMMDD>_<HHMMSS>.md
   templates.lock                    template items and the content they last shared with their template
   setup.md                          one-time template setup, present until it is finished
-.agents/skills/<name>/              skills, from templates or the project; linked from .claude/skills/<name>
+.agents/skills/<name>/              skills, from templates or the project; onboard links each from .claude/skills/<name>
   local/                            ignored; generated onboard output
 ```
 

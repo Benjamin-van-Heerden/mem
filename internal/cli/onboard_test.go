@@ -267,3 +267,29 @@ func TestOnboardWarnsWhenTheCheckoutIsALinkedWorktree(t *testing.T) {
 		}
 	}
 }
+
+func TestOnboardLinksSkillsAnAgentWroteSoClaudeCodeFindsThem(t *testing.T) {
+	t.Parallel()
+	mine, teammate := sharedProject(t)
+	writeFile(t, teammate, ".agents/skills/deploy/SKILL.md", "---\nname: deploy\ndescription: Deploy the app to staging.\n---\n\nRun the deploy script.\n")
+	run(t, teammate, "add", ".agents")
+	run(t, teammate, "commit", "--quiet", "-m", "Add the deploy skill")
+	run(t, teammate, "push", "--quiet")
+	writeFile(t, mine, ".agents/skills/notes/SKILL.md", "---\nname: notes\ndescription: Write meeting notes.\n---\n\nUse the notes layout.\n")
+
+	out := mem(t, mine, "onboard")
+	for _, name := range []string{"deploy", "notes"} {
+		if target, err := os.Readlink(filepath.Join(mine, ".claude", "skills", name)); err != nil || target != filepath.Join("..", "..", ".agents", "skills", name) {
+			t.Fatalf("onboard did not link the %s skill (%q, %v):\n%s", name, target, err, out)
+		}
+	}
+	if tracked := run(t, mine, "ls-files", "--", ".claude/skills"); !strings.Contains(tracked, ".claude/skills/deploy") || strings.Contains(tracked, "notes") {
+		t.Fatalf("onboard should publish the committed skill's link and leave the uncommitted one's to the agent:\n%s", tracked)
+	}
+	if !strings.Contains(out, "Linked .claude/skills/notes to .agents/skills/notes so Claude Code finds the skill. The skill is not committed yet: commit the link together with it.") {
+		t.Fatalf("onboard did not ask for the uncommitted skill's link to be committed with it:\n%s", out)
+	}
+	if again := mem(t, mine, "onboard"); strings.Contains(again, "Linked .claude/skills") {
+		t.Fatalf("onboard linked the skills again:\n%s", again)
+	}
+}

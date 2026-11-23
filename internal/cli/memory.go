@@ -112,7 +112,7 @@ func agentsSizeWarning(text string, folder bool) string {
 	if len(text) <= agentsSizeLimit {
 		return ""
 	}
-	skill := "a folder `.agents/skills/<name>/` linked from `.claude/skills/<name>`"
+	skill := "a folder `.agents/skills/<name>/`, which onboard links from `.claude/skills/<name>` for Claude Code,"
 	if folder {
 		skill = "a folder `.claude/skills/<name>/`"
 	}

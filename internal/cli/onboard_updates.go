@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/Benjamin-van-Heerden/mem/internal/agenthooks"
@@ -116,6 +117,21 @@ func applyUpdates(ctx context.Context, upgrading *project.Project) ([]string, er
 				lines = append(lines, h.line)
 				publishPaths = append(publishPaths, h.path)
 			}
+		}
+	}
+	links, linkWarnings := templates.LinkSkills(p.Root)
+	lines = append(lines, linkWarnings...)
+	for _, link := range links {
+		skill := filepath.ToSlash(templates.SkillPath(filepath.Base(link)))
+		tracked, _ := git.Run(ctx, p.Root, "ls-files", "--", skill)
+		switch {
+		case settingsIgnored(ctx, p.Root, link):
+			lines = append(lines, fmt.Sprintf("Linked %s to %s so Claude Code finds the skill. .gitignore keeps the link on this machine; onboard makes it in every checkout.", link, skill))
+		case tracked == "":
+			lines = append(lines, fmt.Sprintf("Linked %s to %s so Claude Code finds the skill. The skill is not committed yet: commit the link together with it.", link, skill))
+		default:
+			lines = append(lines, fmt.Sprintf("Linked %s to %s so Claude Code finds the skill.", link, skill))
+			publishPaths = append(publishPaths, link)
 		}
 	}
 	// The protection hooks go in before onboard's first commit, so a fresh clone is guarded from the start.

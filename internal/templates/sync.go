@@ -370,6 +370,21 @@ func installRunnable(from, to string) error {
 	return os.Chmod(to, 0o755)
 }
 
+// LinkSkills links every skill in .agents/skills that .claude/skills lacks, such as one an agent
+// wrote by hand rather than a template installing it, so Claude Code finds it too. It returns the
+// links it made and a warning for each link it could not make.
+func LinkSkills(root string) (created, warnings []string) {
+	paths, _ := filepath.Glob(filepath.Join(root, SkillPath("*"), "SKILL.md"))
+	for _, path := range paths {
+		if warning, link := linkSkill(root, filepath.Base(filepath.Dir(path))); warning != "" {
+			warnings = append(warnings, warning)
+		} else if link != "" {
+			created = append(created, link)
+		}
+	}
+	return created, warnings
+}
+
 // linkSkill makes .claude/skills/<name> point at .agents/skills/<name> so Claude
 // Code finds the skill. It returns a warning line when the link cannot be made,
 // or the link's path when it was created.

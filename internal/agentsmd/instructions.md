@@ -70,6 +70,7 @@ Memories are lasting project conventions, kept in the memories section of this f
 - When the user asks you to remember something, run `mem memory set <name> "<convention>"`. Use a short lowercase name, and reuse it to update that convention.
 - When you notice a useful convention, suggest it, and record it if the user agrees.
 - `mem memory remove <name>`: retire a convention.
+- A convention needed only for some tasks, such as a guide to one area of the work, fits a skill instead: `.agents/skills/<name>/SKILL.md`, whose `name` and `description` frontmatter says when to use it. Agents load a skill only when it fits the task, and onboard links it from `.claude/skills/<name>` for Claude Code.
 - When the user wants a memory, skill or doc available in similar projects: `mem template promote <memory|skill|doc> <name>`. Projects using that template receive it at their next onboard.
 
 Use project memories rather than external memory tools.

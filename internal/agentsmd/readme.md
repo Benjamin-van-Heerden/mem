@@ -188,7 +188,7 @@ Onboard shows your latest logs in full and lists other recent ones by title.
 
 A memory is a lasting convention, kept in the memories block of `AGENTS.md`, so every agent reads it at the start of every session. It is not for progress on the current work.
 
-A skill is a folder in `.agents/skills/<name>/` with a `SKILL.md` and anything it needs. It is linked from `.claude/skills/<name>`. Agents load a skill when its description fits the task, so a skill can hold a long guide without costing context in every session.
+A skill is a folder in `.agents/skills/<name>/` with a `SKILL.md` and anything it needs; the `SKILL.md` frontmatter gives its `name` and a `description` of when to use it. Claude Code reads skills only from `.claude/skills/`, so onboard links `.claude/skills/<name>` to every skill that lacks that link, including skills an agent writes by hand, and publishes the link once the skill is committed. A memory that matters only for some tasks fits a skill better. Agents load a skill when its description fits the task, so a skill can hold a long guide without costing context in every session.
 
 ## Templates
 
